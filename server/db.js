@@ -2,7 +2,8 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
 
-const dbPath = process.env.DATABASE_PATH || './data/marketing-os.db';
+const isVercel = Boolean(process.env.VERCEL);
+const dbPath = process.env.DATABASE_PATH || (isVercel ? '/tmp/marketing-os.db' : path.join(__dirname, '..', 'data', 'marketing-os.db'));
 
 try {
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
@@ -13,7 +14,11 @@ try {
 let db;
 try {
   db = new Database(dbPath);
-  db.pragma('journal_mode = WAL');
+  try {
+    db.pragma('journal_mode = WAL');
+  } catch (_) {
+    try { db.pragma('journal_mode = DELETE'); } catch (_) {}
+  }
   db.pragma('foreign_keys = ON');
   db.pragma('synchronous = NORMAL');
 } catch (err) {
@@ -549,6 +554,10 @@ try {
     // Initialize Admin LLM configurations and routing rules
     const { initLLMDatabase } = require('./llmConfig');
     initLLMDatabase(db);
+
+    // Auto-seed initial users and sample project if database is freshly created
+    const { autoSeedIfEmpty } = require('./autoSeed');
+    autoSeedIfEmpty(db);
   } catch (migErr) {
     console.warn(`[WARN] Migration check note: ${migErr.message}`);
   }

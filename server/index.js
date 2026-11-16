@@ -64,7 +64,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(correlationMiddleware);
 
 // Uploads configuration
-const uploadDir = process.env.UPLOAD_DIR || './uploads';
+const uploadDir = process.env.UPLOAD_DIR || (process.env.VERCEL ? '/tmp/uploads' : path.join(__dirname, '..', 'uploads'));
 try {
   fs.mkdirSync(uploadDir, { recursive: true });
 } catch (e) {
@@ -1654,8 +1654,8 @@ app.get('*', (req, res) => res.sendFile(path.join(__dirname, '../public/index.ht
 // Global Centralized Error Handling Middleware
 app.use(errorHandler);
 
-// Start Server
-if (process.env.NODE_ENV !== 'test') {
+// Start Server (standalone mode)
+if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
   app.listen(PORT, () => {
     console.log(`\n✅ Marketing OS running at http://localhost:${PORT}\n   Seed: npm run seed\n   n8n webhook: ${process.env.N8N_WEBHOOK_TASK}\n`);
     startWatchdog();
