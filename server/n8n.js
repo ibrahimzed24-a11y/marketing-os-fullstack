@@ -22,13 +22,26 @@ async function triggerN8n(task, project, harness) {
   const primaryUrl = process.env.N8N_WEBHOOK_TASK || 'http://127.0.0.1:5678/webhook/marketing-os-task';
   const callbackUrl = `http://127.0.0.1:${process.env.PORT || 3000}/api/webhooks/n8n`;
 
+  let parsedInput = {};
+  if (task.input_json) {
+    if (typeof task.input_json === 'object') {
+      parsedInput = task.input_json;
+    } else {
+      try {
+        parsedInput = JSON.parse(task.input_json);
+      } catch (_) {
+        parsedInput = {};
+      }
+    }
+  }
+
   const payload = {
     task_id: task.id,
     project_id: task.project_id,
     pipeline: task.pipeline,
     title: task.title,
     description: task.description,
-    input: JSON.parse(task.input_json || '{}'),
+    input: parsedInput,
     harness: harness || [],
     project: {
       name: project?.name || '',

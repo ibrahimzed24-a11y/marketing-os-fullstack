@@ -78,6 +78,12 @@ fi
 
 echo ""
 echo "=== 5. GET /api/admin/llm-config/active ==="
+# Ensure starting state is default ollama
+curl -s -X POST "$BASE_URL/api/admin/llm-config" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"default_provider": "ollama"}' > /dev/null
+
 ACTIVE_RES=$(curl -s -H "Authorization: Bearer $ADMIN_TOKEN" "$BASE_URL/api/admin/llm-config/active")
 ACTIVE_PROV=$(echo "$ACTIVE_RES" | node -e "let d=JSON.parse(require('fs').readFileSync(0)); console.log(d.active_config.provider);")
 echo "Active primary provider: $ACTIVE_PROV (Expected: ollama)"
@@ -183,6 +189,12 @@ TEST_PING_ALIAS=$(curl -s -X POST "$BASE_URL/api/admin/llm-config/ping" \
   -d '{"provider": "vllm"}')
 VLLM_STATUS=$(echo "$TEST_PING_ALIAS" | node -e "let d=JSON.parse(require('fs').readFileSync(0)); console.log(d.status);")
 echo "vLLM /ping alias result: status=$VLLM_STATUS"
+
+# Reset default provider back to ollama for idempotent repeatable test runs
+curl -s -X POST "$BASE_URL/api/admin/llm-config" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"default_provider": "ollama"}' > /dev/null
 
 echo ""
 echo "=== ALL ADMIN LLM CONFIG & ROUTING TESTS PASSED (100% OK) ==="

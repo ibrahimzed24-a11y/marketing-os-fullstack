@@ -591,7 +591,7 @@ app.post('/api/agents/dispatch', authMiddleware, requireRole('super_admin', 'adm
   );
 
   const harness = db.prepare('SELECT * FROM harness_files WHERE project_id=?').all(project_id);
-  const taskObj = { id: taskId, title: taskTitle, description: taskBrief, input_json: inputData };
+  const taskObj = { id: taskId, project_id, pipeline: primaryPipeline, title: taskTitle, description: taskBrief, input_json: inputData };
 
   // Run through dual-engine with local fallback
   let finalOutput = {};

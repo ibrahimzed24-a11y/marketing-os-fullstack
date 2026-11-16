@@ -3,6 +3,7 @@ node_modules
 *.log
 __pycache__/
 .DS_Store
+.env
 uploads/*
 !uploads/.gitkeep
 data/*.db

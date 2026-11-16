@@ -37,14 +37,16 @@ function authMiddleware(req, res, next) {
     } catch (dbErr) {}
   }
 
-  // Dev mode local fallback
-  try {
-    const defaultUser = db.prepare('SELECT id, name, email, role, department FROM users WHERE role = ? LIMIT 1').get('super_admin');
-    if (defaultUser) {
-      req.user = defaultUser;
-      return next();
-    }
-  } catch (err) {}
+  // Dev mode local fallback (only enabled if explicitly opted-in via environment variable)
+  if (process.env.ALLOW_ANONYMOUS_DEV_ADMIN === 'true') {
+    try {
+      const defaultUser = db.prepare('SELECT id, name, email, role, department FROM users WHERE role = ? LIMIT 1').get('super_admin');
+      if (defaultUser) {
+        req.user = defaultUser;
+        return next();
+      }
+    } catch (err) {}
+  }
 
   return res.status(401).json({ error: 'No token or authorized session found' });
 }
