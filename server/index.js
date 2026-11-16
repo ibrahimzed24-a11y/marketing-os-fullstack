@@ -593,7 +593,7 @@ app.post('/api/email-sequences/:id/dispatch-test', authMiddleware, requireRole('
   db.prepare(`
     INSERT INTO email_logs (id, lead_id, recipient_email, subject, status, provider_id, dispatched_at)
     VALUES (?, ?, ?, ?, 'sent', ?, CURRENT_TIMESTAMP)
-  `).run(logId, 'lead-test-01', recipient, `[LIVE] ${seq.name}`, providerReceipt);
+  `).run(logId, req.body.lead_id || null, recipient, `[LIVE] ${seq.name}`, providerReceipt);
 
   res.json({
     ok: true,

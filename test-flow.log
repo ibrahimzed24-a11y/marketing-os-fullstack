@@ -2,22 +2,34 @@
 Admin token obtained: eyJhbGciOiJIUzI1NiIs...
 
 === 2. Create Project: Test Factory ===
-Project created. ID: 2e6f4225-e087-4123-841c-ac4a931238d4
+Project created. ID: c63e94bd-122a-42ff-a516-29e3cd186bfa
 
-=== 3. Add Client to Project ===
-{"ok":true}Client 4dd6fe80-7d1e-47db-a507-e8c846ba6b8f attached to project.
+=== 2b. Upload Ground Truth Harness File ===
+Harness uploaded successfully. ID: 2de78689-46fc-43bd-bf3e-bcaef098df5c (HTTP 200 OK)
+
+=== 2c. Verify Non-existent Project Task Creation (Expect HTTP 404) ===
+Non-existent project task creation HTTP code: 404 (Expected: 404)
+Verified: Foreign key project check correctly returns HTTP 404
+
+=== 3. Add Client and Member to Project ===
+{"ok":true}Client 36bb61ec-ca28-4de7-8fb9-8129c594d9f6 attached to project.
+{"ok":true}Member 92a7df9a-7dbe-4e4d-9358-de33fa7616ec attached to project.
 
 === 4. Create Task: Landing Page for Nile Supplies ===
-Task created. ID: e9ae2aea-82aa-4cbc-9d0d-4646a85d3a0f
+Task created. ID: e986636c-2714-4a11-a538-7cc4bb526efe
 
 === 5. Run Task (Testing Local Fallback) ===
-Run result: {"ok":true,"mode":"local","message":"Executed LOCALLY - n8n offline","task_id":"e9ae2aea-82aa-4cbc-9d0d-4646a85d3a0f","status":"in_review","n8n_error":"fetch failed"}
+Run result: {"ok":true,"mode":"local","message":"Executed LOCALLY - n8n offline","task_id":"e986636c-2714-4a11-a538-7cc4bb526efe","status":"in_review","n8n_error":"fetch failed"}
 
 === 6. Verify Task In Review & Deliverable Output ===
 Current Task Status: in_review (Expected: in_review)
 
-=== 7. Test Member RBAC (Member tries to deliver -> must return 403) ===
-Member deliver attempt response: {"error":"No access"} (Expected: 403 / Only admin/manager can deliver)
+=== 7a. Test Member Array Type Confusion Exploit (Expect HTTP 400) ===
+Member array delivery attempt HTTP code: 400 (Expected: 400)
+Verified: Array type confusion exploit safely rejected with HTTP 400 Bad Request
+
+=== 7b. Test Member RBAC Gate (Member tries string deliver -> Expect HTTP 403) ===
+Member deliver attempt response: {"error":"Only admin/manager can deliver"} (Expected: 403 / Only admin/manager can deliver)
 
 === 8. Admin Approves & Delivers Task ===
 Approve result: {"ok":true,"status":"delivered"}

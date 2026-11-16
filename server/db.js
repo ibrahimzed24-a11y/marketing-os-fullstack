@@ -209,7 +209,7 @@ try {
   CREATE TABLE IF NOT EXISTS email_logs (
     id TEXT PRIMARY KEY,
     step_id TEXT,
-    lead_id TEXT NOT NULL,
+    lead_id TEXT,
     recipient_email TEXT NOT NULL,
     subject TEXT NOT NULL,
     status TEXT DEFAULT 'staging' CHECK(status IN ('staging','approved','sent','delivered','failed','bounced')),
