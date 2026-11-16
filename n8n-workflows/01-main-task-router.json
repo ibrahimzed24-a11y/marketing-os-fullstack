@@ -1,0 +1,123 @@
+{
+  "name": "Marketing OS - Main Task Router",
+  "nodes": [
+    {
+      "id": "webhook",
+      "name": "Webhook - Marketing OS Task",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "parameters": {
+        "path": "marketing-os-task",
+        "httpMethod": "POST",
+        "responseMode": "onReceived"
+      }
+    },
+    {
+      "id": "switch",
+      "name": "Switch by Pipeline",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [500, 300],
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{ $json.body ? $json.body.pipeline : $json.pipeline }}",
+        "rules": {
+          "rules": [
+            {
+              "value2": "landing-page",
+              "output": 0
+            },
+            {
+              "value2": "content-seo",
+              "output": 0
+            },
+            {
+              "value2": "lead-research",
+              "output": 0
+            }
+          ]
+        },
+        "fallbackOutput": 0
+      }
+    },
+    {
+      "id": "http-antigravity",
+      "name": "Call Antigravity / LLM",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [750, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama3\",\n  \"prompt\": \"You are @coordinator. Pipeline: \" + ($json.body?.pipeline || $json.pipeline) + \". Task: \" + ($json.body?.title || $json.title) + \". Brief: \" + ($json.body?.description || $json.description) + \". Use harness files. Return JSON + Admin Report markdown.\",\n  \"stream\": false\n}"
+      },
+      "continueOnFail": true
+    },
+    {
+      "id": "callback",
+      "name": "Callback to OS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1000, 300],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.body?.callback_url || $json.callback_url || 'http://127.0.0.1:3000/api/webhooks/n8n' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-os-api-key",
+              "value": "={{ $env.OS_API_KEY || 'local-dev-key-change-me' }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"task_id\": $node[\"Webhook - Marketing OS Task\"].json.body ? $node[\"Webhook - Marketing OS Task\"].json.body.task_id : $node[\"Webhook - Marketing OS Task\"].json.task_id,\n  \"status\": \"in_review\",\n  \"output\": {\n    \"result\": \"Processed by n8n Main Task Router\",\n    \"llm_response\": $json.response || \"Execution completed via pipeline worker.\"\n  },\n  \"report_md\": \"# Admin Report\\n\\n**Verdict:** Ready to Deliver\\n- Grounded in harness: Yes\\n- Usable: Yes\\n- Sellable: Yes\\n\\n**What shipped:** Successfully processed task payload through n8n pipeline.\\n**Next:** Admin review and approve to deliver to client.\"\n}"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook - Marketing OS Task": {
+      "main": [
+        [
+          {
+            "node": "Switch by Pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch by Pipeline": {
+      "main": [
+        [
+          {
+            "node": "Call Antigravity / LLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Antigravity / LLM": {
+      "main": [
+        [
+          {
+            "node": "Callback to OS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true
+}

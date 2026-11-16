@@ -1,0 +1,15 @@
+{
+  "name": "Marketing OS - Lead Research",
+  "nodes": [
+    {
+      "id": "w",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "path": "marketing-os-leads",
+        "httpMethod": "POST"
+      }
+    }
+  ],
+  "description": "Pipeline lead-research: research leads, enrich CSV, callback with Admin Report."
+}

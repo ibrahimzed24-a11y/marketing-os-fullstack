@@ -1,0 +1,349 @@
+# Database Schema & Entity Relationship Specification
+
+**Document Version:** 2.0.0  
+**Target Engine:** SQLite 3 (WAL Mode, `PRAGMA foreign_keys = ON;`) / Supabase PostgreSQL  
+**Author:** Principal Software Architect & Database Engineer  
+**Date:** 2026-11-16  
+
+---
+
+## 1. Relational Foundation & Integrity Policies
+
+Marketing OS enforces strict relational integrity rules:
+1. **Foreign Key Enforcement:** `PRAGMA foreign_keys = ON;` is executed on every database connection.
+2. **Write-Ahead Logging:** `PRAGMA journal_mode = WAL;` and `PRAGMA synchronous = NORMAL;` to allow non-blocking concurrent reads during task writes.
+3. **Audit Trails:** All modifications to projects, tasks, deals, and campaigns write to the `activity` table.
+4. **Error Logs:** All unhandled or operational exceptions log structured error records to `error_log`.
+
+---
+
+## 2. Table Definitions by Functional Domain
+
+### 2.1 Core Identity & Multi-Tenancy
+
+```sql
+-- 1. Users & RBAC Identity
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  email TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  role TEXT NOT NULL CHECK(role IN ('super_admin','admin','manager','member','client')),
+  avatar TEXT,
+  department TEXT,
+  status TEXT DEFAULT 'active' CHECK(status IN ('active','suspended','pending')),
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 2. Projects (Isolated Workspace Boundaries)
+CREATE TABLE IF NOT EXISTS projects (
+  id TEXT PRIMARY KEY,
+  name TEXT NOT NULL,
+  client_name TEXT,
+  goal TEXT,
+  type TEXT DEFAULT 'full_lifecycle',
+  status TEXT DEFAULT 'draft' CHECK(status IN ('draft','in_progress','in_review','delivered','archived')),
+  owner_id TEXT,
+  progress INTEGER DEFAULT 0 CHECK(progress BETWEEN 0 AND 100),
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(owner_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
+-- 3. Project Membership & Access
+CREATE TABLE IF NOT EXISTS project_members (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  role_in_project TEXT DEFAULT 'member' CHECK(role_in_project IN ('owner','lead','specialist','client')),
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(project_id, user_id),
+  FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+```
+
+### 2.2 Tasks, Grounding Harness & Reports
+
+```sql
+-- 4. Tasks & Pipeline Workflows
+CREATE TABLE IF NOT EXISTS tasks (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  pipeline TEXT NOT NULL CHECK(pipeline IN (
+    'landing-page','content-seo','social-content','ads-creative',
+    'email-campaign','lead-research','market-intel','brand-kit',
+    'cro-audit','seo-audit'
+  )),
+  description TEXT,
+  status TEXT DEFAULT 'draft' CHECK(status IN ('draft','queued','running','in_review','needs_fix','delivered')),
+  assignee_id TEXT,
+  created_by TEXT,
+  priority TEXT DEFAULT 'medium' CHECK(priority IN ('low','medium','high','urgent')),
+  harness_files TEXT DEFAULT '[]', -- JSON array of file IDs
+  input_json TEXT DEFAULT '{}',    -- Input parameters / merge fields
+  output_json TEXT DEFAULT '{}',   -- Generated structured output
+  report_md TEXT DEFAULT '',       -- Standardized Admin Report
+  n8n_execution_id TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  FOREIGN KEY(assignee_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
+-- 5. Core Data Harness Files
+CREATE TABLE IF NOT EXISTS harness_files (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  filename TEXT NOT NULL,
+  original_name TEXT NOT NULL,
+  mime TEXT NOT NULL,
+  size INTEGER NOT NULL,
+  uploaded_by TEXT,
+  parsed_summary TEXT DEFAULT '',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+
+-- 6. Executive Reports & Verification Verdicts
+CREATE TABLE IF NOT EXISTS reports (
+  id TEXT PRIMARY KEY,
+  task_id TEXT NOT NULL,
+  project_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  content_md TEXT NOT NULL,
+  verdict TEXT DEFAULT 'pending' CHECK(verdict IN ('pending','approved','needs_fix')),
+  created_by TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+  FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+```
+
+### 2.3 Campaigns & Multi-Channel Marketing
+
+```sql
+-- 7. Marketing Campaigns
+CREATE TABLE IF NOT EXISTS campaigns (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  objective TEXT NOT NULL,
+  channels TEXT NOT NULL DEFAULT '["email"]', -- JSON array e.g. ["email","social","search"]
+  status TEXT DEFAULT 'planning' CHECK(status IN ('planning','active','paused','completed')),
+  budget REAL DEFAULT 0.0,
+  spend REAL DEFAULT 0.0,
+  start_date DATE,
+  end_date DATE,
+  target_metrics TEXT DEFAULT '{}', -- JSON e.g. {"leads": 50, "cpl": 40}
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+```
+
+### 2.4 CRM: Companies, Leads, Contacts & Deals
+
+```sql
+-- 8. Target Accounts / Companies
+CREATE TABLE IF NOT EXISTS companies (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  domain TEXT,
+  industry TEXT,
+  headcount_range TEXT,
+  location TEXT,
+  verified_facts TEXT DEFAULT '{}', -- Grounded data points
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+
+-- 9. Leads & Prospect Intelligence
+CREATE TABLE IF NOT EXISTS leads (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  company_id TEXT,
+  full_name TEXT NOT NULL,
+  email TEXT,
+  phone TEXT,
+  job_title TEXT,
+  linkedin_url TEXT,
+  icp_score INTEGER DEFAULT 0 CHECK(icp_score BETWEEN 0 AND 100),
+  status TEXT DEFAULT 'new' CHECK(status IN ('new','enriched','contacted','qualified','unqualified')),
+  source_evidence TEXT DEFAULT '{}', -- Verification URL/timestamp
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  FOREIGN KEY(company_id) REFERENCES companies(id) ON DELETE SET NULL
+);
+
+-- 10. Deals & Revenue Pipeline
+CREATE TABLE IF NOT EXISTS deals (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  company_id TEXT,
+  lead_id TEXT,
+  title TEXT NOT NULL,
+  stage TEXT DEFAULT 'lead' CHECK(stage IN ('lead','discovery','demo','proposal','negotiation','closed_won','closed_lost')),
+  value REAL DEFAULT 0.0,
+  probability INTEGER DEFAULT 20 CHECK(probability BETWEEN 0 AND 100),
+  expected_close DATE,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  FOREIGN KEY(company_id) REFERENCES companies(id) ON DELETE SET NULL,
+  FOREIGN KEY(lead_id) REFERENCES leads(id) ON DELETE SET NULL
+);
+```
+
+### 2.5 Email Marketing, Sequences & Audit Logs
+
+```sql
+-- 11. Email Sequences
+CREATE TABLE IF NOT EXISTS email_sequences (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  campaign_id TEXT,
+  name TEXT NOT NULL,
+  trigger_event TEXT DEFAULT 'manual' CHECK(trigger_event IN ('manual','lead_created','form_submit','tag_added')),
+  status TEXT DEFAULT 'draft' CHECK(status IN ('draft','active','paused')),
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  FOREIGN KEY(campaign_id) REFERENCES campaigns(id) ON DELETE SET NULL
+);
+
+-- 12. Email Steps within Sequences
+CREATE TABLE IF NOT EXISTS email_steps (
+  id TEXT PRIMARY KEY,
+  sequence_id TEXT NOT NULL,
+  step_number INTEGER NOT NULL,
+  delay_hours INTEGER DEFAULT 24,
+  subject_template TEXT NOT NULL,
+  body_template TEXT NOT NULL,
+  requires_approval BOOLEAN DEFAULT TRUE, -- Gate G2 flag
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(sequence_id) REFERENCES email_sequences(id) ON DELETE CASCADE
+);
+
+-- 13. Email Dispatch & Delivery Logs
+CREATE TABLE IF NOT EXISTS email_logs (
+  id TEXT PRIMARY KEY,
+  step_id TEXT,
+  lead_id TEXT NOT NULL,
+  recipient_email TEXT NOT NULL,
+  subject TEXT NOT NULL,
+  status TEXT DEFAULT 'staging' CHECK(status IN ('staging','approved','sent','delivered','failed','bounced')),
+  provider_id TEXT, -- SMTP Message-ID or provider receipt
+  dispatched_at DATETIME,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(step_id) REFERENCES email_steps(id) ON DELETE SET NULL,
+  FOREIGN KEY(lead_id) REFERENCES leads(id) ON DELETE CASCADE
+);
+```
+
+### 2.6 Content Operations & SEO/GEO Tracking
+
+```sql
+-- 14. Content Editorial Calendar
+CREATE TABLE IF NOT EXISTS content_items (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  campaign_id TEXT,
+  title TEXT NOT NULL,
+  format TEXT NOT NULL CHECK(format IN ('blog_post','social_post','landing_page','video_script','ad_copy')),
+  channel TEXT NOT NULL,
+  status TEXT DEFAULT 'draft' CHECK(status IN ('brief','draft','review','scheduled','published')),
+  publish_date DATETIME,
+  content_body TEXT DEFAULT '',
+  meta_json TEXT DEFAULT '{}',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  FOREIGN KEY(campaign_id) REFERENCES campaigns(id) ON DELETE SET NULL
+);
+
+-- 15. SEO Keywords & Search Visibility
+CREATE TABLE IF NOT EXISTS seo_keywords (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  keyword TEXT NOT NULL,
+  search_intent TEXT CHECK(search_intent IN ('informational','navigational','commercial','transactional')),
+  monthly_volume INTEGER DEFAULT 0,
+  difficulty INTEGER DEFAULT 0 CHECK(difficulty BETWEEN 0 AND 100),
+  current_rank INTEGER,
+  target_url TEXT,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+
+-- 16. Generative Engine Optimization (GEO) Queries
+CREATE TABLE IF NOT EXISTS geo_queries (
+  id TEXT PRIMARY KEY,
+  project_id TEXT NOT NULL,
+  prompt_query TEXT NOT NULL,
+  engine TEXT NOT NULL CHECK(engine IN ('chatgpt','gemini','perplexity','claude','copilot')),
+  brand_mentioned BOOLEAN DEFAULT FALSE,
+  citation_url TEXT,
+  sentiment TEXT CHECK(sentiment IN ('positive','neutral','negative','absent')),
+  last_checked DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+```
+
+### 2.7 Observability, Auditing & Vault Security
+
+```sql
+-- 17. Centralized Operational Audit Activity
+CREATE TABLE IF NOT EXISTS activity (
+  id TEXT PRIMARY KEY,
+  project_id TEXT,
+  task_id TEXT,
+  user_id TEXT,
+  action TEXT NOT NULL,
+  meta TEXT DEFAULT '{}',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+
+-- 18. Structured Error & Incident Ledger
+CREATE TABLE IF NOT EXISTS error_log (
+  id TEXT PRIMARY KEY,
+  correlation_id TEXT NOT NULL,
+  category TEXT NOT NULL,
+  code TEXT NOT NULL,
+  message TEXT NOT NULL,
+  stack_trace TEXT,
+  context_json TEXT DEFAULT '{}',
+  severity TEXT DEFAULT 'ERROR' CHECK(severity IN ('WARN','ERROR','FATAL')),
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 19. Encrypted Secrets Vault
+CREATE TABLE IF NOT EXISTS vault_items (
+  id TEXT PRIMARY KEY,
+  project_id TEXT,
+  label TEXT NOT NULL,
+  type TEXT NOT NULL,
+  value_enc TEXT NOT NULL, -- AES-256 Fernet ciphertext
+  created_by TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+);
+```
+
+---
+
+## 3. Database Indexes for Query Performance
+
+```sql
+CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
+CREATE INDEX IF NOT EXISTS idx_tasks_pipeline ON tasks(pipeline);
+CREATE INDEX IF NOT EXISTS idx_leads_project ON leads(project_id);
+CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status);
+CREATE INDEX IF NOT EXISTS idx_deals_project ON deals(project_id);
+CREATE INDEX IF NOT EXISTS idx_deals_stage ON deals(stage);
+CREATE INDEX IF NOT EXISTS idx_campaigns_project ON campaigns(project_id);
+CREATE INDEX IF NOT EXISTS idx_content_project ON content_items(project_id);
+CREATE INDEX IF NOT EXISTS idx_content_date ON content_items(publish_date);
+CREATE INDEX IF NOT EXISTS idx_email_logs_lead ON email_logs(lead_id);
+CREATE INDEX IF NOT EXISTS idx_error_correlation ON error_log(correlation_id);
+CREATE INDEX IF NOT EXISTS idx_activity_project ON activity(project_id);
+```

@@ -1,0 +1,23 @@
+{
+  "name": "marketing-os-fullstack",
+  "version": "1.0.0",
+  "description": "Marketing OS - Admin Factory with n8n + Antigravity",
+  "type": "commonjs",
+  "main": "server/index.js",
+  "scripts": {
+    "dev": "node server/index.js",
+    "start": "node server/index.js",
+    "seed": "node server/seed.js",
+    "reset": "rm -rf data/marketing-os.db && node server/seed.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "jsonwebtoken": "^8.5.1",
+    "bcryptjs": "^2.4.3",
+    "multer": "^1.4.5-lts.1",
+    "better-sqlite3": "^11.8.1",
+    "dotenv": "^16.4.5",
+    "uuid": "^9.0.1"
+  }
+}

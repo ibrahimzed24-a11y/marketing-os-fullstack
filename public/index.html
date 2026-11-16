@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Marketing OS - Admin Factory</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>body{font-family:Inter,sans-serif} .glass{background:rgba(255,255,255,.9);backdrop-filter:blur(12px)} .grad{background:linear-gradient(135deg,#6366F1,#8B5CF6,#EC4899)} .card{border:1px solid #E5E7EB;border-radius:20px;background:#fff} .chip{font-size:11px;padding:4px 8px;border-radius:999px;font-weight:600} .btn{padding:10px 16px;border-radius:12px;font-weight:600;font-size:14px;cursor:pointer} .btn-p{background:#4F46E5;color:#fff} .btn-p:hover{background:#4338CA} .input{width:100%;padding:10px 12px;border:1px solid #E5E7EB;border-radius:12px;font-size:14px} .hidden{display:none}</style>
+</head><body class="bg-[#F8F7FF] text-slate-900">
+<!-- LOGIN -->
+<div id="loginView" class="min-h-screen flex items-center justify-center p-4">
+  <div class="w-full max-w-md card p-8 shadow-xl">
+    <div class="w-12 h-12 grad rounded-2xl flex items-center justify-center text-white text-xl font-black">M</div>
+    <h1 class="text-2xl font-extrabold mt-4">Marketing OS</h1><p class="text-slate-500 text-sm mt-1">Admin Factory • n8n + Antigravity • Local</p>
+    <div class="mt-6 space-y-3">
+      <input id="email" class="input" placeholder="Email" value="admin@marketingos.local">
+      <input id="password" type="password" class="input" placeholder="Password" value="Admin123!">
+      <button onclick="login()" class="btn btn-p w-full">Sign In →</button>
+      <p id="loginErr" class="text-red-500 text-sm hidden"></p>
+    </div>
+    <div class="mt-5 bg-slate-50 rounded-xl p-3 text-xs text-slate-600 leading-relaxed">
+      <b>Seed logins:</b><br>
+      Admin: <code class="cursor-pointer font-bold text-indigo-600" onclick="setLogin('admin@marketingos.local','Admin123!')">admin@marketingos.local</code> / Admin123!<br>
+      Manager: <code class="cursor-pointer font-bold text-indigo-600" onclick="setLogin('manager@marketingos.local','Manager123!')">manager@marketingos.local</code> / Manager123!<br>
+      Member: <code class="cursor-pointer font-bold text-indigo-600" onclick="setLogin('member@marketingos.local','Member123!')">member@marketingos.local</code> / Member123!<br>
+      Client: <code class="cursor-pointer font-bold text-indigo-600" onclick="setLogin('client@marketingos.local','Client123!')">client@marketingos.local</code> / Client123!
+    </div>
+    <p class="text-[11px] text-slate-400 mt-3">Full-stack local build. JWT + RBAC. All tasks trigger real n8n or local agent fallback.</p>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="appView" class="hidden">
+  <header class="sticky top-0 z-20 glass border-b">
+    <div class="max-w-[1400px] mx-auto px-4 py-3 flex items-center gap-3 flex-wrap">
+      <div class="w-9 h-9 grad rounded-xl flex items-center justify-center text-white font-black">M</div>
+      <div><div class="font-extrabold leading-none">Marketing OS <span class="text-indigo-600">Factory</span></div><div class="text-[11px] text-slate-500">Admin • n8n + Antigravity • Local</div></div>
+      <div class="ml-auto flex items-center gap-2 flex-wrap">
+        <span id="roleBadge" class="chip bg-indigo-100 text-indigo-700"></span>
+        <span id="n8nBadge" class="chip bg-emerald-100 text-emerald-700">● Engine Ready</span>
+        <button onclick="logout()" class="btn bg-slate-100">Logout</button>
+      </div>
+    </div>
+    <nav class="max-w-[1400px] mx-auto px-4 pb-3 flex gap-2 overflow-x-auto">
+      <button onclick="showTab('dashboard')" class="tabBtn btn bg-slate-900 text-white" data-tab="dashboard">📊 Dashboard</button>
+      <button onclick="showTab('pipeline')" class="tabBtn btn bg-white border" data-tab="pipeline">🚀 Pipeline</button>
+      <button onclick="showTab('projects')" class="tabBtn btn bg-white border" data-tab="projects">📁 Projects</button>
+      <button onclick="showTab('team')" class="tabBtn btn bg-white border" data-tab="team">👥 Team & Roles</button>
+      <button onclick="showTab('agents')" class="tabBtn btn bg-white border" data-tab="agents">🤖 Agents</button>
+    </nav>
+  </header>
+
+  <main class="max-w-[1400px] mx-auto px-4 py-6 space-y-6">
+    <!-- DASHBOARD -->
+    <section id="tab-dashboard">
+      <h2 class="text-2xl font-extrabold">Good morning, <span id="userName"></span> 👋</h2>
+      <p class="text-slate-500 text-sm">Your factory today — <span id="roleDesc"></span></p>
+      <div class="grid grid-cols-2 lg:grid-cols-5 gap-4 mt-5">
+        <div class="card p-4"><div class="text-2xl font-extrabold" id="statProjects">-</div><div class="text-xs text-slate-500">Projects</div></div>
+        <div class="card p-4"><div class="text-2xl font-extrabold" id="statTotal">-</div><div class="text-xs text-slate-500">Total Tasks</div></div>
+        <div class="card p-4"><div class="text-2xl font-extrabold text-amber-600" id="statReview">-</div><div class="text-xs text-slate-500">In Review — needs you</div></div>
+        <div class="card p-4"><div class="text-2xl font-extrabold text-indigo-600" id="statRunning">-</div><div class="text-xs text-slate-500">Running</div></div>
+        <div class="card p-4 bg-emerald-50 border-emerald-200"><div class="text-2xl font-extrabold text-emerald-700" id="statDelivered">-</div><div class="text-xs text-emerald-700">Delivered ✅</div></div>
+      </div>
+      <div class="grid lg:grid-cols-3 gap-4 mt-4">
+        <div class="card p-5 lg:col-span-2"><h3 class="font-bold">Recent Tasks — Live Pipeline</h3><div id="recentTasks" class="mt-3 space-y-2 text-sm"></div></div>
+        <div class="card p-5"><h3 class="font-bold">Admin Daily Rhythm</h3><div class="mt-3 space-y-2 text-sm">
+          <div class="bg-amber-50 p-3 rounded-xl">☀️ Morning: Review <b id="rhythmReview">-</b> reports in Review</div>
+          <div class="bg-indigo-50 p-3 rounded-xl">⚡ Midday: Run 1-2 /assign jobs in Pipeline</div>
+          <div class="bg-emerald-50 p-3 rounded-xl">🌙 Evening: Coordinator summarizes what shipped</div>
+        </div><button onclick="showTab('pipeline')" class="btn btn-p w-full mt-4">Open Pipeline →</button></div>
+      </div>
+    </section>
+
+    <!-- PIPELINE -->
+    <section id="tab-pipeline" class="hidden">
+      <div class="flex flex-wrap gap-3 items-end justify-between"><div><h2 class="text-2xl font-extrabold">Marketing Pipelines 🚀</h2><p class="text-slate-500 text-sm">Create a task → It runs in n8n (or local agent fallback) → Report comes back for approval.</p></div>
+      <select id="pipelineProject" onchange="loadMyTasks()" class="input !w-auto"></select></div>
+      <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mt-5" id="pipelineGrid"></div>
+      <div id="createTaskBox" class="card p-5 mt-4"><h3 class="font-bold">Create Task — Real execution</h3>
+        <div class="grid md:grid-cols-2 gap-3 mt-3">
+          <input id="taskTitle" class="input" placeholder="Task title — e.g. Landing Page for Nile Supplies">
+          <select id="taskPipeline" class="input">
+            <option value="landing-page">Landing Page Factory</option>
+            <option value="content-seo">Content + SEO</option>
+            <option value="social-content">Social Content</option>
+            <option value="ads-creative">Ads Creative</option>
+            <option value="email-campaign">Email Campaign</option>
+            <option value="lead-research">Lead Research</option>
+            <option value="market-intel">Market Intelligence</option>
+            <option value="brand-kit">Brand Kit</option>
+          </select>
+          <textarea id="taskDesc" class="input md:col-span-2" rows="2" placeholder="Brief for agents — be specific: audience, offer, harness files to use, output format"></textarea>
+          <select id="taskPriority" class="input"><option>high</option><option selected>medium</option><option>low</option></select>
+          <button onclick="createTask()" class="btn btn-p">Create Task</button>
+        </div>
+        <p id="taskMsg" class="text-sm mt-2 text-slate-600"></p>
+        <div id="myTasks" class="mt-4 space-y-2"></div>
+      </div>
+    </section>
+
+    <!-- PROJECTS -->
+    <section id="tab-projects" class="hidden">
+      <div class="flex justify-between flex-wrap gap-3"><h2 class="text-2xl font-extrabold">Projects 📁</h2><button id="btnNewProject" onclick="createProjectPrompt()" class="btn btn-p">+ New Project</button></div>
+      <div id="projectList" class="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4"></div>
+      <div id="projectDetail" class="card p-5 mt-4 hidden"></div>
+    </section>
+
+    <!-- TEAM -->
+    <section id="tab-team" class="hidden">
+      <h2 class="text-2xl font-extrabold">Team & Roles 👥</h2><p class="text-slate-500 text-sm">Admins manage users. Each role sees a different dashboard. RBAC enforced on every API route.</p>
+      <div id="addUserBox" class="card p-5 mt-4"><h3 class="font-bold">Invite / Add User</h3><div class="grid md:grid-cols-5 gap-2 mt-3">
+        <input id="newName" class="input" placeholder="Name"><input id="newEmail" class="input" placeholder="Email"><input id="newPass" class="input" placeholder="Temp Password"><select id="newRole" class="input"><option value="member">Member</option><option value="manager">Manager</option><option value="admin">Admin</option><option value="client">Client</option></select><button onclick="addUser()" class="btn btn-p">Add User</button>
+      </div></div>
+      <div id="userList" class="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4"></div>
+      <div class="card p-5 mt-4 text-sm"><h3 class="font-bold">Role Permissions</h3><ul class="mt-2 space-y-1 text-slate-600"><li><b>Super Admin:</b> Everything</li><li><b>Admin:</b> Manage team, approve & deliver, all projects</li><li><b>Manager:</b> Create projects, assign tasks, review reports</li><li><b>Member:</b> Execute assigned tasks, upload harness, submit work</li><li><b>Client:</b> View-only own projects + delivered reports</li></ul></div>
+    </section>
+
+    <!-- AGENTS -->
+    <section id="tab-agents" class="hidden">
+      <h2 class="text-2xl font-extrabold">Agents 🤖 — Antigravity Squads</h2><p class="text-slate-500 text-sm">Each pipeline uses a squad. Agents live in /antigravity/agents/ with AGENT.md + SKILL.md + MEMORY.md.</p>
+      <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4" id="agentGrid"></div>
+      <div class="card p-5 mt-4"><h3 class="font-bold">How a real task runs</h3><ol class="list-decimal ml-5 mt-2 text-sm space-y-1 text-slate-600"><li>OS → POST n8n webhook /webhook/marketing-os-task</li><li>n8n → routes by pipeline → calls Antigravity / LLM / tools</li><li>Agent reads harness files in /uploads</li><li>Agent returns JSON + Admin Report markdown</li><li>n8n → POST OS /api/webhooks/n8n → Task → In Review</li><li>Admin approves → Delivered → Client sees it</li></ol></div>
+    </section>
+  </main>
+</div>
+
+<!-- Modal for HTML Preview -->
+<div id="previewModal" class="hidden fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl w-full max-w-4xl h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+    <div class="p-4 border-b flex justify-between items-center bg-slate-50">
+      <h3 class="font-bold text-slate-800">HTML Deliverable Live Preview</h3>
+      <button onclick="closePreview()" class="text-slate-500 hover:text-slate-900 font-bold px-3 py-1 bg-slate-200 rounded-lg">✕ Close</button>
+    </div>
+    <iframe id="previewFrame" class="w-full flex-1 border-0"></iframe>
+  </div>
+</div>
+
+<script>
+let token=localStorage.getItem('mos_token'), me=null;
+
+function setLogin(e, p){
+  document.getElementById('email').value = e;
+  document.getElementById('password').value = p;
+}
+
+async function api(path, opts={}){
+  const r = await fetch(path, {
+    ...opts,
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: token ? `Bearer ${token}` : '',
+      ...(opts.headers || {})
+    }
+  });
+  const j = await r.json().catch(() => ({}));
+  if(!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+  return j;
+}
+
+async function login(){
+  try{
+    const email = (document.getElementById('email').value || '').trim().toLowerCase();
+    const password = (document.getElementById('password').value || '').trim();
+    if(!email || !password) throw new Error('Please enter both email and password');
+    const j = await api('/api/auth/login', {method:'POST', body:JSON.stringify({email, password})});
+    token = j.token;
+    localStorage.setItem('mos_token', token);
+    me = j.user;
+    document.getElementById('loginErr').classList.add('hidden');
+    startApp();
+  }catch(e){
+    localStorage.removeItem('mos_token');
+    token = null;
+    me = null;
+    const errEl = document.getElementById('loginErr');
+    errEl.textContent = '❌ ' + (e.message || 'Login failed');
+    errEl.classList.remove('hidden');
+  }
+}
+
+function logout(){
+  localStorage.removeItem('mos_token');
+  location.reload();
+}
+
+function showTab(t){
+  document.querySelectorAll('[id^="tab-"]').forEach(s=>s.classList.add('hidden'));
+  const target = document.getElementById('tab-'+t);
+  if(target) target.classList.remove('hidden');
+  document.querySelectorAll('.tabBtn').forEach(b=>{
+    b.className = 'tabBtn btn bg-white border';
+    if(b.dataset.tab === t) b.className = 'tabBtn btn bg-slate-900 text-white';
+  });
+  if(t==='pipeline') loadPipeline();
+  if(t==='projects') loadProjects();
+  if(t==='team') loadUsers();
+  if(t==='agents') loadAgents();
+}
+
+async function startApp(){
+  try{
+    const j = await api('/api/auth/me');
+    me = j.user;
+  }catch(e){
+    logout();
+    return;
+  }
+  document.getElementById('loginView').classList.add('hidden');
+  document.getElementById('appView').classList.remove('hidden');
+  document.getElementById('userName').textContent = me.name;
+  document.getElementById('roleBadge').textContent = me.role.toUpperCase();
+  document.getElementById('roleDesc').textContent = 
+    me.role === 'client' ? 'You see only your projects & delivered reports.' :
+    me.role === 'member' ? 'You execute assigned tasks.' :
+    me.role === 'manager' ? 'You create projects & assign tasks.' :
+    'You control everything — team, approvals, delivery.';
+
+  // Role-specific UI visibility
+  if (me.role === 'client') {
+    const teamBtn = document.querySelector('[data-tab="team"]');
+    if(teamBtn) teamBtn.classList.add('hidden');
+    const agentsBtn = document.querySelector('[data-tab="agents"]');
+    if(agentsBtn) agentsBtn.classList.add('hidden');
+    const pipeBtn = document.querySelector('[data-tab="pipeline"]');
+    if(pipeBtn) pipeBtn.classList.add('hidden');
+    const newProjBtn = document.getElementById('btnNewProject');
+    if(newProjBtn) newProjBtn.classList.add('hidden');
+  }
+
+  loadDashboard();
+}
+
+async function loadDashboard(){
+  const d = await api('/api/dashboard');
+  document.getElementById('statProjects').textContent = d.stats.projects;
+  document.getElementById('statTotal').textContent = d.stats.totalTasks;
+  document.getElementById('statReview').textContent = d.stats.inReview;
+  document.getElementById('statRunning').textContent = d.stats.running;
+  document.getElementById('statDelivered').textContent = d.stats.delivered;
+  document.getElementById('rhythmReview').textContent = d.stats.inReview;
+  document.getElementById('recentTasks').innerHTML = d.recent.map(t=>`
+    <div class="flex justify-between gap-2 bg-slate-50 p-3 rounded-xl items-center">
+      <div>
+        <b>${t.title}</b>
+        <div class="text-xs text-slate-500">${t.project_name} • ${t.pipeline} • <span class="font-semibold text-indigo-600">${t.status}</span></div>
+      </div>
+      <button onclick="openTask('${t.id}')" class="btn bg-white border !py-1 !px-2 text-xs">Open</button>
+    </div>
+  `).join('') || 'No tasks yet.';
+}
+
+async function loadPipeline(){
+  const p = await api('/api/projects');
+  const sel = document.getElementById('pipelineProject');
+  sel.innerHTML = p.projects.map(x=>`<option value="${x.id}">${x.name}</option>`).join('');
+  
+  const defs=[
+    ['landing-page','🏗️ Landing Page Factory','Live page + Report','Build a landing page from harness'],
+    ['content-seo','✍️ Content + SEO','Blog + SEO Article','SEO article grounded in harness'],
+    ['social-content','📱 Social Content','7-day Calendar','Social calendar + captions'],
+    ['ads-creative','🎯 Ads Creative','Ads + Copy','Ad creatives + copy variants'],
+    ['email-campaign','📧 Email Campaign','Email Sequence','Email sequence + subject lines'],
+    ['lead-research','🔍 Lead Research','Researched Leads','Research leads + outreach'],
+    ['market-intel','🧠 Market Intelligence','Teardown Report','/grillme + competitor teardown'],
+    ['brand-kit','🎨 Brand Kit','Brand Assets','Logo, colors, voice, templates']
+  ];
+  document.getElementById('pipelineGrid').innerHTML = defs.map(d=>`
+    <div class="card p-4">
+      <div class="text-xl font-bold">${d[1]}</div>
+      <div class="text-xs text-slate-500 mt-1">${d[2]}</div>
+      <p class="text-sm mt-2 text-slate-600">${d[3]}</p>
+      <button onclick="setPipeline('${d[0]}')" class="btn bg-slate-100 hover:bg-slate-200 mt-3 w-full text-xs">Use This Pipeline →</button>
+    </div>
+  `).join('');
+  
+  loadMyTasks();
+}
+
+function setPipeline(v){
+  document.getElementById('taskPipeline').value = v;
+  document.getElementById('taskTitle').focus();
+}
+
+async function createTask(){
+  const pid = document.getElementById('pipelineProject').value;
+  if(!pid) return alert('Create or select a project first');
+  const title = document.getElementById('taskTitle').value;
+  if(!title) return alert('Please enter a task title');
+  const j = await api(`/api/projects/${pid}/tasks`, {
+    method:'POST',
+    body: JSON.stringify({
+      title,
+      pipeline: document.getElementById('taskPipeline').value,
+      description: document.getElementById('taskDesc').value,
+      priority: document.getElementById('taskPriority').value
+    })
+  });
+  document.getElementById('taskMsg').textContent = '✅ Task created: ' + j.title + ' — click "Run" to execute.';
+  document.getElementById('taskTitle').value = '';
+  document.getElementById('taskDesc').value = '';
+  loadMyTasks();
+}
+
+async function loadMyTasks(){
+  const pid = document.getElementById('pipelineProject').value;
+  if(!pid) return;
+  const p = await api(`/api/projects/${pid}`);
+  const canDeliver = ['super_admin','admin','manager'].includes(me.role);
+  
+  document.getElementById('myTasks').innerHTML = p.tasks.map(t=>{
+    const hasHtml = t.output_json && t.output_json.includes('"type":"html"');
+    return `
+      <div class="bg-white border border-slate-200 p-4 rounded-xl text-sm shadow-sm">
+        <div class="flex flex-wrap gap-2 justify-between items-start">
+          <div>
+            <b class="text-base">${t.title}</b> 
+            <span class="chip bg-slate-100 border ml-1">${t.pipeline}</span> 
+            <span class="chip ${t.status==='delivered'?'bg-emerald-100 text-emerald-700':t.status==='in_review'?'bg-amber-100 text-amber-700':'bg-indigo-100 text-indigo-700'}">${t.status.toUpperCase()}</span>
+            <div class="text-xs text-slate-500 mt-1">${t.description || 'No brief provided'}</div>
+          </div>
+          <div class="flex gap-2">
+            ${me.role !== 'client' ? `<button onclick="runTask('${t.id}')" class="btn btn-p !py-1 !px-3 text-xs">▶ Run Task</button>` : ''}
+            ${canDeliver && t.status !== 'delivered' ? `<button onclick="approveTask('${t.id}')" class="btn bg-emerald-600 hover:bg-emerald-700 text-white !py-1 !px-3 text-xs">✓ Approve & Deliver</button>` : ''}
+            ${hasHtml ? `<button onclick="previewTaskHtml('${t.id}')" class="btn bg-indigo-50 text-indigo-700 border border-indigo-200 !py-1 !px-3 text-xs">🌐 Preview Page</button>` : ''}
+          </div>
+        </div>
+        ${t.report_md ? `
+          <div class="mt-3 bg-slate-50 border p-3 rounded-xl text-xs whitespace-pre-wrap max-h-48 overflow-y-auto leading-relaxed text-slate-700 font-mono">
+            ${t.report_md}
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }).join('') || '<div class="text-sm text-slate-400 p-4 text-center">No tasks in this project yet.</div>';
+}
+
+async function runTask(id){
+  try {
+    const j = await api(`/api/tasks/${id}/run`, {method:'POST'});
+    // Clean toast notification without scary alerts
+    alert(j.message || 'Task executed successfully');
+    loadMyTasks();
+    loadDashboard();
+  } catch(e) {
+    alert('Execution notice: ' + e.message);
+  }
+}
+
+async function approveTask(id){
+  try {
+    await api(`/api/tasks/${id}`, {method:'PATCH', body:JSON.stringify({status:'delivered'})});
+    alert('✅ Delivered! Client can now see it on their portal.');
+    loadMyTasks();
+    loadDashboard();
+  } catch(e) {
+    alert('Approval error: ' + e.message);
+  }
+}
+
+async function previewTaskHtml(id){
+  const t = await api(`/api/tasks/${id}`);
+  try {
+    const output = JSON.parse(t.task.output_json || '{}');
+    if(output.html) {
+      const modal = document.getElementById('previewModal');
+      const frame = document.getElementById('previewFrame');
+      modal.classList.remove('hidden');
+      frame.srcdoc = output.html;
+    }
+  } catch(e){
+    alert('No HTML content available to preview.');
+  }
+}
+
+function closePreview(){
+  document.getElementById('previewModal').classList.add('hidden');
+}
+
+async function openTask(id){
+  showTab('pipeline');
+  setTimeout(()=>loadMyTasks(), 300);
+}
+
+async function loadProjects(){
+  const p = await api('/api/projects');
+  document.getElementById('projectList').innerHTML = p.projects.map(x=>`
+    <div class="card p-4">
+      <div class="flex justify-between items-center">
+        <b>${x.name}</b>
+        <span class="chip bg-indigo-100 text-indigo-700">${x.status}</span>
+      </div>
+      <div class="text-sm text-slate-500 mt-1">${x.goal || ''} • ${x.client_name || ''}</div>
+      <div class="text-xs mt-2">Tasks: ${x.task_count} • Delivered: ${x.delivered} • Progress: ${x.progress || 0}%</div>
+      <button onclick="openProject('${x.id}')" class="btn bg-slate-100 hover:bg-slate-200 mt-3 w-full text-xs">Open Workbench →</button>
+    </div>
+  `).join('') || '<div class="text-sm text-slate-500">No projects accessible.</div>';
+}
+
+async function createProjectPrompt(){
+  const name = prompt('Project name:');
+  if(!name) return;
+  const goal = prompt('Goal (1 sentence):') || '';
+  const client = prompt('Client name:') || '';
+  await api('/api/projects', {method:'POST', body:JSON.stringify({name, goal, client_name:client, type:'landing-page'})});
+  loadProjects();
+}
+
+async function openProject(id){
+  const p = await api(`/api/projects/${id}`);
+  const el = document.getElementById('projectDetail');
+  el.classList.remove('hidden');
+  el.innerHTML = `
+    <h3 class="font-bold text-lg">${p.project.name}</h3>
+    <p class="text-sm text-slate-500">${p.project.goal || ''}</p>
+    <div class="mt-3"><b>Members:</b> ${p.members.map(m=>m.name+' ('+m.role+')').join(', ') || '—'}</div>
+    <div class="mt-2"><b>Tasks:</b> ${p.tasks.map(t=>t.title+' ['+t.status+']').join(' • ') || '—'}</div>
+    <div class="mt-2"><b>Harness Files:</b> ${p.files.map(f=>f.original_name).join(', ') || 'None'}</div>
+    <button onclick="showTab('pipeline')" class="btn btn-p mt-4">Go to Pipeline →</button>
+  `;
+  el.scrollIntoView({behavior:'smooth'});
+}
+
+async function loadUsers(){
+  try{
+    const u = await api('/api/users');
+    document.getElementById('userList').innerHTML = u.users.map(x=>`
+      <div class="card p-4">
+        <b>${x.name}</b>
+        <div class="text-sm text-slate-500">${x.email}</div>
+        <div class="mt-2">
+          <span class="chip bg-indigo-100 text-indigo-700">${x.role}</span>
+          <span class="chip bg-slate-100">${x.department || ''}</span>
+          <span class="chip bg-emerald-100 text-emerald-700">${x.status}</span>
+        </div>
+      </div>
+    `).join('');
+  }catch(e){
+    document.getElementById('userList').innerHTML = '<div class="card p-4 text-sm text-slate-500">Only Admin / Super Admin can view team. Your role: '+me.role+'</div>';
+  }
+}
+
+async function addUser(){
+  try{
+    await api('/api/users', {
+      method:'POST',
+      body: JSON.stringify({
+        name: document.getElementById('newName').value,
+        email: document.getElementById('newEmail').value,
+        password: document.getElementById('newPass').value || 'Temp123!',
+        role: document.getElementById('newRole').value
+      })
+    });
+    alert('User added successfully');
+    loadUsers();
+  }catch(e){
+    alert('Error: ' + e.message);
+  }
+}
+
+function loadAgents(){
+  const a=[
+    ['@coordinator','Boss','Routes, QA, 5-stage loop'],
+    ['@browser-researcher','Research','Real data, competitors, leads'],
+    ['@software-engineer','Builder','Pages, code, automation'],
+    ['@master-reporting-agent','Reporter','Admin Report, client-ready'],
+    ['@content-writer','Writer','SEO, blogs, captions'],
+    ['@ads-specialist','Ads','Creatives, copy, targeting'],
+    ['@email-specialist','Email','Sequences, subject lines'],
+    ['@designer','Designer','Brand, visuals, UI']
+  ];
+  document.getElementById('agentGrid').innerHTML = a.map(x=>`
+    <div class="card p-4">
+      <div class="w-10 h-10 grad rounded-xl flex items-center justify-center text-white font-bold">${x[0][1].toUpperCase()}</div>
+      <div class="font-bold mt-2">${x[0]}</div>
+      <div class="text-xs text-indigo-600 font-semibold">${x[1]}</div>
+      <p class="text-sm text-slate-500 mt-1">${x[2]}</p>
+      <div class="text-[11px] mt-2 text-slate-400">AGENT.md • SKILL.md • MEMORY.md</div>
+    </div>
+  `).join('');
+}
+
+if(token) startApp();
+</script></body></html>

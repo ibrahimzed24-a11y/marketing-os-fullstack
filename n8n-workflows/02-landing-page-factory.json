@@ -1,0 +1,15 @@
+{
+  "name": "Marketing OS - Landing Page Factory",
+  "nodes": [
+    {
+      "id": "w",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "parameters": {
+        "path": "marketing-os-landing",
+        "httpMethod": "POST"
+      }
+    }
+  ],
+  "description": "Clone 01, set pipeline=landing-page, add HTML generation node, then callback."
+}
