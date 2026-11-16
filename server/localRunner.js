@@ -429,6 +429,26 @@ ${guidelinesSection}${customRulesSection}
 2. Click **Approve & Deliver** to make visible on the Client Dashboard.
 `.trim();
 
+  // Attach standardized summary & execution metadata (dynamic LLM provider adherence)
+  let activeLLM = null;
+  try {
+    const { getActiveLLMConfig } = require('./llmConfig');
+    activeLLM = getActiveLLMConfig();
+  } catch (_) {}
+
+  if (!outputJson.summary) {
+    outputJson.summary = `${title} deliverable completed for ${clientName} across pipeline ${pipeline}.`;
+  }
+  if (!outputJson.metadata) {
+    outputJson.metadata = {
+      pipeline,
+      provider: activeLLM?.provider || 'local_agent',
+      model: activeLLM?.default_model || 'llama3.2',
+      grounded_harness_count: harnessCount,
+      generated_at: new Date().toISOString()
+    };
+  }
+
   return { outputJson, reportMd };
 }
 

@@ -400,6 +400,25 @@ function sanitizeConfigRow(row, reveal = false) {
   };
 }
 
+/**
+ * Resolves the currently active primary LLM configuration from SQLite.
+ *
+ * @param {Object} [customDb] Optional custom better-sqlite3 instance
+ * @returns {Object|null} Sanitized configuration row
+ */
+function getActiveLLMConfig(customDb = null) {
+  try {
+    const targetDb = customDb || require('./db');
+    const row = targetDb.prepare('SELECT * FROM admin_llm_configs WHERE is_default = 1 LIMIT 1').get()
+      || targetDb.prepare('SELECT * FROM admin_llm_configs WHERE is_active = 1 LIMIT 1').get()
+      || targetDb.prepare("SELECT * FROM admin_llm_configs WHERE provider = 'ollama' LIMIT 1").get();
+    if (!row) return null;
+    return sanitizeConfigRow(row, false);
+  } catch (_) {
+    return null;
+  }
+}
+
 module.exports = {
   SUPPORTED_PROVIDERS,
   PROVIDER_METADATA,
@@ -407,5 +426,6 @@ module.exports = {
   isMaskedKey,
   pingProvider,
   initLLMDatabase,
-  sanitizeConfigRow
+  sanitizeConfigRow,
+  getActiveLLMConfig
 };

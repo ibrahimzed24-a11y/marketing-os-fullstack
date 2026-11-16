@@ -1,4 +1,5 @@
-# SKILL.md for @coordinator
-- Read harness files first
-- Use tools: web search, file read, code gen
-- Output format: {title, summary, deliverable, report_md}
+# Coordinator Orchestration Skill
+- Ingest task specification, project brief, and ground-truth harness files.
+- Resolve active LLM provider via `GET /api/admin/llm-config/active`.
+- Route subtasks to specialists (@browser-researcher, @software-engineer, @master-reporting-agent).
+- Aggregate outputs into the standardized Marketing OS JSON deliverable + executive Admin Report.

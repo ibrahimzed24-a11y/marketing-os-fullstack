@@ -1,4 +1,4 @@
-# SKILL.md for @master-reporting-agent
-- Read harness files first
-- Use tools: web search, file read, code gen
-- Output format: {title, summary, deliverable, report_md}
+# Master Reporting & QA Audit Skill
+- Evaluate generated deliverables against project harness requirements.
+- Produce structured `# Admin Report` markdown with standardized verdict headers and bulleted asset lists.
+- Avoid raw log dumps or verbose evaluation chains.
