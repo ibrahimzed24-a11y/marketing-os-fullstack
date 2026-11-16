@@ -301,7 +301,28 @@ try {
     FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
   );
 
+  -- 20. Dedicated Saved Logins & Tool Registry (All Workflows)
+  CREATE TABLE IF NOT EXISTS saved_logins (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    slug TEXT UNIQUE NOT NULL,
+    category TEXT NOT NULL,
+    website_url TEXT NOT NULL,
+    username TEXT NOT NULL,
+    password TEXT NOT NULL,
+    api_key TEXT,
+    notes TEXT,
+    status TEXT DEFAULT 'connected' CHECK(status IN ('connected','active','needs_reconnect','pending_setup','testing')),
+    is_active BOOLEAN DEFAULT 1,
+    metadata TEXT DEFAULT '{}',
+    last_tested DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
   -- Performance Indexes
+  CREATE INDEX IF NOT EXISTS idx_saved_logins_category ON saved_logins(category);
+  CREATE INDEX IF NOT EXISTS idx_saved_logins_status ON saved_logins(status);
   CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id);
   CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
   CREATE INDEX IF NOT EXISTS idx_tasks_pipeline ON tasks(pipeline);
@@ -316,6 +337,30 @@ try {
   CREATE INDEX IF NOT EXISTS idx_error_correlation ON error_log(correlation_id);
   CREATE INDEX IF NOT EXISTS idx_activity_project ON activity(project_id);
   `);
+
+  // Safe runtime migrations for customizable guidelines and multi-format files
+  try {
+    const pragmaProjects = db.prepare("PRAGMA table_info(projects)").all();
+    if (!pragmaProjects.some(c => c.name === 'guidelines')) {
+      db.prepare("ALTER TABLE projects ADD COLUMN guidelines TEXT DEFAULT ''").run();
+    }
+    if (!pragmaProjects.some(c => c.name === 'deliverable_specs')) {
+      db.prepare("ALTER TABLE projects ADD COLUMN deliverable_specs TEXT DEFAULT '{}'").run();
+    }
+    if (!pragmaProjects.some(c => c.name === 'custom_rules')) {
+      db.prepare("ALTER TABLE projects ADD COLUMN custom_rules TEXT DEFAULT ''").run();
+    }
+    if (!pragmaProjects.some(c => c.name === 'updated_at')) {
+      db.prepare("ALTER TABLE projects ADD COLUMN updated_at DATETIME DEFAULT NULL").run();
+    }
+
+    const pragmaHarness = db.prepare("PRAGMA table_info(harness_files)").all();
+    if (!pragmaHarness.some(c => c.name === 'file_category')) {
+      db.prepare("ALTER TABLE harness_files ADD COLUMN file_category TEXT DEFAULT 'General Asset'").run();
+    }
+  } catch (migErr) {
+    console.warn(`[WARN] Migration check note: ${migErr.message}`);
+  }
 } catch (schemaErr) {
   console.error(`[CRITICAL] Error applying database schema: ${schemaErr.message}`);
   throw schemaErr;

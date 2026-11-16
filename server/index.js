@@ -54,17 +54,60 @@ try {
   console.warn(`[WARN] Could not create uploads dir: ${e.message}`);
 }
 
-const upload = multer({
-  dest: uploadDir,
-  limits: { fileSize: (parseInt(process.env.MAX_FILE_SIZE_MB || '20', 10) * 1024 * 1024) }
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    const safeBase = path.basename(file.originalname, ext).replace(/[^a-zA-Z0-9_\-\.]/g, '_');
+    const unique = `${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+    cb(null, `${safeBase}_${unique}${ext}`);
+  }
 });
+
+const upload = multer({
+  storage,
+  limits: { fileSize: (parseInt(process.env.MAX_FILE_SIZE_MB || '50', 10) * 1024 * 1024) }
+});
+
+function detectFileCategory(filename, mime = '') {
+  const ext = path.extname(filename).toLowerCase();
+  const lowerMime = (mime || '').toLowerCase();
+
+  if (['.db', '.sqlite', '.sqlite3', '.sql'].includes(ext) || lowerMime.includes('sqlite') || lowerMime.includes('sql')) {
+    return 'Core Database';
+  }
+  if (['.html', '.htm'].includes(ext) || lowerMime.includes('html')) {
+    return 'HTML Prototype';
+  }
+  if (['.png', '.jpg', '.jpeg', '.webp', '.svg', '.gif', '.bmp', '.ico'].includes(ext) || lowerMime.startsWith('image/')) {
+    return 'Image Asset';
+  }
+  if (['.pdf', '.doc', '.docx'].includes(ext) || lowerMime.includes('pdf')) {
+    return 'Document';
+  }
+  if (['.csv', '.xlsx', '.xls', '.tsv'].includes(ext) || lowerMime.includes('csv') || lowerMime.includes('spreadsheet') || lowerMime.includes('excel')) {
+    return 'Spreadsheet';
+  }
+  if (['.zip', '.tar', '.gz', '.tgz', '.bz2', '.7z'].includes(ext) || filename.endsWith('.tar.gz') || lowerMime.includes('zip') || lowerMime.includes('tar') || lowerMime.includes('gzip')) {
+    return 'Archive Bundle';
+  }
+  if (['.md', '.markdown', '.txt', '.sop'].includes(ext)) {
+    return 'Workflow SOP & Guidelines';
+  }
+  if (['.json', '.jsonld'].includes(ext) || lowerMime.includes('json')) {
+    return 'Core Database';
+  }
+  return 'General Asset';
+}
 
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 app.use(express.static(path.join(__dirname, '../public')));
 
 // Helper for Project Membership & Access
 function canAccessProject(user, projectId) {
-  if (['super_admin', 'admin'].includes(user.role)) return true;
+  if (['super_admin', 'admin', 'manager'].includes(user.role)) return true;
   try {
     const m = db.prepare('SELECT * FROM project_members WHERE project_id=? AND user_id=?').get(projectId, user.id);
     const p = db.prepare('SELECT * FROM projects WHERE id=? AND owner_id=?').get(projectId, user.id);
@@ -247,27 +290,288 @@ app.post('/api/projects/:id/members', authMiddleware, requireRole('super_admin',
 }));
 
 const harnessUpload = upload.fields([
-  { name: 'file', maxCount: 1 },
-  { name: 'harness', maxCount: 1 },
-  { name: 'attachment', maxCount: 1 }
+  { name: 'file', maxCount: 5 },
+  { name: 'harness', maxCount: 5 },
+  { name: 'attachment', maxCount: 5 },
+  { name: 'files', maxCount: 10 }
 ]);
 
 app.post('/api/projects/:id/harness', authMiddleware, (req, res) => {
-  const proj = db.prepare('SELECT id FROM projects WHERE id=?').get(req.params.id);
+  const proj = db.prepare('SELECT * FROM projects WHERE id=?').get(req.params.id);
   if (!proj) return res.status(404).json({ error: 'Project not found' });
+  if (req.user.role === 'client') {
+    return res.status(403).json({ error: 'Client role has read-only access and cannot upload harness files' });
+  }
   if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
 
   harnessUpload(req, res, (err) => {
     if (err) return res.status(400).json({ error: err.message });
-    const uploadedFile = req.file || (req.files && (req.files.file?.[0] || req.files.harness?.[0] || req.files.attachment?.[0]));
-    if (!uploadedFile) return res.status(400).json({ error: 'No file uploaded (expected field: file, harness, or attachment)' });
+    const uploadedFile = req.file || (req.files && (req.files.file?.[0] || req.files.harness?.[0] || req.files.attachment?.[0] || req.files.files?.[0]));
+    if (!uploadedFile) return res.status(400).json({ error: 'No file uploaded (expected field: file, harness, attachment, or files)' });
 
     const id = uuidv4();
-    db.prepare('INSERT INTO harness_files (id,project_id,filename,original_name,mime,size,uploaded_by,parsed_summary) VALUES (?,?,?,?,?,?,?,?)')
-      .run(id, req.params.id, uploadedFile.filename, uploadedFile.originalname, uploadedFile.mimetype, uploadedFile.size, req.user.id, `Uploaded ${uploadedFile.originalname} - ready for agents.`);
-    res.json({ id, filename: uploadedFile.originalname, size: uploadedFile.size });
+    const fileCategory = detectFileCategory(uploadedFile.originalname, uploadedFile.mimetype);
+    let parsedSummary = `Ingested ${uploadedFile.originalname} (${(uploadedFile.size / 1024).toFixed(1)} KB) • Category: ${fileCategory}`;
+
+    // Read instructions / guidelines if text/markdown
+    let autoAppliedGuidelines = false;
+    const ext = path.extname(uploadedFile.originalname).toLowerCase();
+    if (['.md', '.txt', '.sop'].includes(ext)) {
+      try {
+        const filePath = path.join(uploadDir, uploadedFile.filename);
+        const textContent = fs.readFileSync(filePath, 'utf8');
+        const shouldApply = req.body?.apply_as_guideline === 'true' || req.query?.apply_as_guideline === 'true' || !proj.guidelines || proj.guidelines.trim() === '';
+        if (shouldApply) {
+          db.prepare('UPDATE projects SET guidelines=?, updated_at=CURRENT_TIMESTAMP WHERE id=?').run(textContent, req.params.id);
+          autoAppliedGuidelines = true;
+          parsedSummary += ' [Applied as Project Workflow Guidelines & SOP]';
+        }
+      } catch (readErr) {
+        console.warn(`[WARN] Could not parse text guidelines: ${readErr.message}`);
+      }
+    }
+
+    db.prepare(`
+      INSERT INTO harness_files (id, project_id, filename, original_name, mime, size, uploaded_by, parsed_summary, file_category)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      id,
+      req.params.id,
+      uploadedFile.filename,
+      uploadedFile.originalname,
+      uploadedFile.mimetype,
+      uploadedFile.size,
+      req.user.id,
+      parsedSummary,
+      fileCategory
+    );
+
+    try {
+      db.prepare('INSERT INTO activity (id, project_id, user_id, action, details) VALUES (?, ?, ?, ?, ?)')
+        .run(uuidv4(), req.params.id, req.user.id, 'harness_uploaded', `Uploaded ${uploadedFile.originalname} (${fileCategory})`);
+    } catch (actErr) {}
+
+    res.json({
+      ok: true,
+      id,
+      filename: uploadedFile.filename,
+      original_name: uploadedFile.originalname,
+      file_category: fileCategory,
+      size: uploadedFile.size,
+      mime: uploadedFile.mimetype,
+      parsed_summary: parsedSummary,
+      auto_applied_guidelines: autoAppliedGuidelines
+    });
   });
 });
+
+// Download harness file with original filename
+app.get('/api/projects/:id/harness/:fileId/download', authMiddleware, asyncHandler(async (req, res) => {
+  if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
+  const file = db.prepare('SELECT * FROM harness_files WHERE id=? AND project_id=?').get(req.params.fileId, req.params.id);
+  if (!file) return res.status(404).json({ error: 'File not found' });
+  const fullPath = path.join(uploadDir, file.filename);
+  if (!fs.existsSync(fullPath)) return res.status(404).json({ error: 'File missing from storage' });
+  res.download(fullPath, file.original_name);
+}));
+
+// View / preview harness file inline
+app.get('/api/projects/:id/harness/:fileId/view', authMiddleware, asyncHandler(async (req, res) => {
+  if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
+  const file = db.prepare('SELECT * FROM harness_files WHERE id=? AND project_id=?').get(req.params.fileId, req.params.id);
+  if (!file) return res.status(404).json({ error: 'File not found' });
+  const fullPath = path.join(uploadDir, file.filename);
+  if (!fs.existsSync(fullPath)) return res.status(404).json({ error: 'File missing from storage' });
+
+  if (file.mime) res.setHeader('Content-Type', file.mime);
+  res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(file.original_name)}"`);
+  fs.createReadStream(fullPath).pipe(res);
+}));
+
+// Delete harness file (Admin, Manager, or original uploader)
+app.delete('/api/projects/:id/harness/:fileId', authMiddleware, asyncHandler(async (req, res) => {
+  if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
+  const file = db.prepare('SELECT * FROM harness_files WHERE id=? AND project_id=?').get(req.params.fileId, req.params.id);
+  if (!file) return res.status(404).json({ error: 'File not found' });
+
+  const isOwner = file.uploaded_by === req.user.id;
+  const isAdminOrManager = ['super_admin', 'admin', 'manager'].includes(req.user.role);
+  if (!isAdminOrManager && !isOwner) {
+    return res.status(403).json({ error: 'Only admins, managers, or the uploader can delete harness files' });
+  }
+
+  try {
+    const fullPath = path.join(uploadDir, file.filename);
+    if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
+  } catch (unlinkErr) {
+    console.warn(`[WARN] Could not unlink ${file.filename}: ${unlinkErr.message}`);
+  }
+
+  db.prepare('DELETE FROM harness_files WHERE id=?').run(req.params.fileId);
+  res.json({ ok: true, message: `Deleted ${file.original_name}` });
+}));
+
+// =============================================================================
+// PROJECT WORKFLOW GUIDELINES & DELIVERABLE SPECS (Admin & Manager Customizer)
+// =============================================================================
+app.get('/api/projects/:id/guidelines', authMiddleware, asyncHandler(async (req, res) => {
+  if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
+  const proj = db.prepare('SELECT id, name, client_name, goal, guidelines, deliverable_specs, custom_rules FROM projects WHERE id=?').get(req.params.id);
+  if (!proj) return res.status(404).json({ error: 'Project not found' });
+
+  let deliverableSpecs = {};
+  try {
+    deliverableSpecs = proj.deliverable_specs ? JSON.parse(proj.deliverable_specs) : {};
+  } catch (e) {
+    deliverableSpecs = {};
+  }
+
+  res.json({
+    project_id: proj.id,
+    project_name: proj.name,
+    client_name: proj.client_name,
+    goal: proj.goal,
+    guidelines: proj.guidelines || '',
+    deliverable_specs: deliverableSpecs,
+    custom_rules: proj.custom_rules || ''
+  });
+}));
+
+app.put('/api/projects/:id/guidelines', authMiddleware, requireRole('super_admin', 'admin', 'manager'), asyncHandler(async (req, res) => {
+  if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
+  const proj = db.prepare('SELECT id, name FROM projects WHERE id=?').get(req.params.id);
+  if (!proj) return res.status(404).json({ error: 'Project not found' });
+
+  const { guidelines, deliverable_specs, custom_rules } = req.body;
+  const specsStr = typeof deliverable_specs === 'object' ? JSON.stringify(deliverable_specs) : (deliverable_specs || '{}');
+
+  db.prepare(`
+    UPDATE projects
+    SET guidelines = COALESCE(?, guidelines),
+        deliverable_specs = COALESCE(?, deliverable_specs),
+        custom_rules = COALESCE(?, custom_rules),
+        updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).run(
+    guidelines !== undefined ? guidelines : null,
+    deliverable_specs !== undefined ? specsStr : null,
+    custom_rules !== undefined ? custom_rules : null,
+    req.params.id
+  );
+
+  try {
+    db.prepare('INSERT INTO activity (id, project_id, user_id, action, details) VALUES (?, ?, ?, ?, ?)')
+      .run(uuidv4(), req.params.id, req.user.id, 'guidelines_updated', `Customized workflow guidelines and deliverable rules for ${proj.name}`);
+  } catch (e) {}
+
+  res.json({ ok: true, message: 'Workflow guidelines and deliverable specs successfully updated.' });
+}));
+
+// =============================================================================
+// SEO & GEO INTELLIGENCE ENGINE (14 Branches, Grounded Workflows & Deliverables)
+// =============================================================================
+const { SEO_STRUCTURE } = require('./seoStructure');
+
+app.get('/api/seo/tree', authMiddleware, asyncHandler(async (req, res) => {
+  const tools = db.prepare('SELECT slug, name, category, website_url, status, is_active FROM saved_logins').all();
+  const toolMap = {};
+  tools.forEach(t => { toolMap[t.slug] = t; });
+
+  const enriched = SEO_STRUCTURE.map(cat => ({
+    ...cat,
+    subcategories: cat.subcategories.map(sub => ({
+      ...sub,
+      tools_detail: (sub.tools || []).map(slug => toolMap[slug] || { slug, name: slug, status: 'connected', website_url: '#' })
+    }))
+  }));
+
+  const totalSubcategories = SEO_STRUCTURE.reduce((acc, c) => acc + c.subcategories.length, 0);
+
+  res.json({
+    categories: enriched,
+    stats: {
+      total_disciplines: SEO_STRUCTURE.length,
+      total_subcategories: totalSubcategories,
+      total_connected_tools: tools.length,
+      grounded_in_harness: true
+    }
+  });
+}));
+
+app.post('/api/seo/execute', authMiddleware, asyncHandler(async (req, res) => {
+  const { project_id, category_id, subcategory_id, custom_prompt } = req.body;
+  if (!project_id) return res.status(400).json({ error: 'project_id required' });
+
+  const proj = db.prepare('SELECT * FROM projects WHERE id=?').get(project_id);
+  if (!proj) return res.status(404).json({ error: 'Project not found' });
+  if (!canAccessProject(req.user, project_id)) return res.status(403).json({ error: 'No access' });
+
+  // Locate subcategory definition
+  let targetCat = SEO_STRUCTURE.find(c => c.id === category_id);
+  let targetSub = null;
+  if (targetCat) {
+    targetSub = targetCat.subcategories.find(s => s.id === subcategory_id);
+  } else {
+    for (const c of SEO_STRUCTURE) {
+      const found = c.subcategories.find(s => s.id === subcategory_id);
+      if (found) { targetCat = c; targetSub = found; break; }
+    }
+  }
+
+  const catName = targetCat ? targetCat.name : 'SEO & GEO';
+  const subName = targetSub ? targetSub.name : 'Optimization Task';
+  const taskTitle = `[SEO] ${catName} — ${subName}`;
+  const taskDesc = custom_prompt || (targetSub ? `${targetSub.description}\n\nDeliverable Type: ${targetSub.deliverable}\nRequired Tools: ${(targetSub.tools || []).join(', ')}` : 'Comprehensive SEO optimization audit');
+
+  const taskId = uuidv4();
+  const pipeline = 'content-seo';
+
+  db.prepare(`
+    INSERT INTO tasks (id, project_id, title, pipeline, description, status, priority, input_json, created_by)
+    VALUES (?, ?, ?, ?, ?, 'running', 'high', ?, ?)
+  `).run(
+    taskId,
+    project_id,
+    taskTitle,
+    pipeline,
+    taskDesc,
+    JSON.stringify({ category_id, subcategory_id, catName, subName, tools: targetSub?.tools || [] }),
+    req.user.id
+  );
+
+  const task = db.prepare('SELECT * FROM tasks WHERE id=?').get(taskId);
+  const harness = db.prepare('SELECT * FROM harness_files WHERE project_id=?').all(project_id);
+
+  // Execute task with dual engine / local fallback
+  const result = await triggerN8n(task, proj, harness);
+  let finalOutput = null;
+  let finalReport = '';
+  if (result.ok && result.data) {
+    finalOutput = result.data.deliverable || result.data.output || result.data;
+    finalReport = result.data.report || '';
+  } else {
+    const local = generateLocalDeliverable(pipeline, task, proj, harness, result.error);
+    finalOutput = local.outputJson;
+    finalReport = local.reportMd;
+  }
+
+  db.prepare(`
+    UPDATE tasks
+    SET status='in_review', output_json=?, report_md=?, updated_at=CURRENT_TIMESTAMP
+    WHERE id=?
+  `).run(
+    typeof finalOutput === 'string' ? finalOutput : JSON.stringify(finalOutput),
+    finalReport,
+    taskId
+  );
+
+  const completedTask = db.prepare('SELECT * FROM tasks WHERE id=?').get(taskId);
+  res.json({
+    ok: true,
+    task: completedTask,
+    message: `SEO task "${taskTitle}" executed successfully and ready for review.`
+  });
+}));
 
 // =============================================================================
 // TASKS, PIPELINES & DUAL-ENGINE RUNNER (Modules 01 - 10)
@@ -697,6 +1001,141 @@ app.get('/api/dashboard', authMiddleware, asyncHandler(async (req, res) => {
 app.get('/api/activity', authMiddleware, asyncHandler(async (req, res) => {
   const rows = db.prepare('SELECT * FROM activity ORDER BY created_at DESC LIMIT 50').all();
   res.json({ activity: rows });
+}));
+
+// =============================================================================
+// SAVED LOGINS & WORKFLOW TOOLS VAULT DATABASE
+// =============================================================================
+app.get('/api/saved-logins', authMiddleware, asyncHandler(async (req, res) => {
+  if (req.user.role === 'client') {
+    return res.status(403).json({ error: 'Client role cannot access saved logins vault' });
+  }
+
+  const { category, q, reveal } = req.query;
+  let sql = 'SELECT * FROM saved_logins WHERE 1=1';
+  const params = [];
+
+  if (category && category !== 'All') {
+    sql += ' AND category = ?';
+    params.push(category);
+  }
+  if (q) {
+    sql += ' AND (name LIKE ? OR username LIKE ? OR notes LIKE ? OR website_url LIKE ?)';
+    const searchPattern = `%${q}%`;
+    params.push(searchPattern, searchPattern, searchPattern, searchPattern);
+  }
+  sql += ' ORDER BY category ASC, name ASC';
+
+  const rows = db.prepare(sql).all(...params);
+  const canReveal = ['super_admin', 'admin'].includes(req.user.role) && reveal === 'true';
+
+  const sanitized = rows.map(r => ({
+    ...r,
+    password: canReveal ? r.password : (r.password ? '••••••••••••' : ''),
+    api_key: canReveal ? r.api_key : (r.api_key ? `${r.api_key.slice(0, 6)}••••••••` : null)
+  }));
+
+  res.json({ logins: sanitized, total: rows.length });
+}));
+
+app.get('/api/saved-logins/:id', authMiddleware, asyncHandler(async (req, res) => {
+  if (req.user.role === 'client') return res.status(403).json({ error: 'Access denied' });
+  const row = db.prepare('SELECT * FROM saved_logins WHERE id = ?').get(req.params.id);
+  if (!row) return res.status(404).json({ error: 'Tool login not found' });
+
+  const canReveal = ['super_admin', 'admin'].includes(req.user.role);
+  res.json({
+    login: {
+      ...row,
+      password: canReveal ? row.password : '••••••••••••',
+      api_key: canReveal ? row.api_key : (row.api_key ? `${row.api_key.slice(0, 6)}••••••••` : null)
+    }
+  });
+}));
+
+app.post('/api/saved-logins', authMiddleware, requireRole('super_admin', 'admin', 'manager'), asyncHandler(async (req, res) => {
+  const { name, category, website_url, username, password, api_key = null, notes = '', metadata = '{}' } = req.body;
+  if (!name || !category || !website_url || !username || !password) {
+    return res.status(400).json({ error: 'Name, category, website_url, username, and password are required' });
+  }
+
+  const id = uuidv4();
+  const slug = (req.body.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-')) + '-' + id.slice(0, 6);
+
+  db.prepare(`
+    INSERT INTO saved_logins (id, name, slug, category, website_url, username, password, api_key, notes, status, is_active, metadata, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'connected', 1, ?, CURRENT_TIMESTAMP)
+  `).run(id, name, slug, category, website_url, username, password, api_key, notes, typeof metadata === 'object' ? JSON.stringify(metadata) : metadata);
+
+  res.status(201).json({ id, name, slug, category, website_url, username, status: 'connected' });
+}));
+
+app.put('/api/saved-logins/:id', authMiddleware, requireRole('super_admin', 'admin', 'manager'), asyncHandler(async (req, res) => {
+  const existing = db.prepare('SELECT id FROM saved_logins WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Tool login not found' });
+
+  const { name, category, website_url, username, password, api_key, notes, status, metadata } = req.body;
+
+  db.prepare(`
+    UPDATE saved_logins SET
+      name = COALESCE(?, name),
+      category = COALESCE(?, category),
+      website_url = COALESCE(?, website_url),
+      username = COALESCE(?, username),
+      password = COALESCE(?, password),
+      api_key = COALESCE(?, api_key),
+      notes = COALESCE(?, notes),
+      status = COALESCE(?, status),
+      metadata = COALESCE(?, metadata),
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).run(name, category, website_url, username, password, api_key, notes, status, typeof metadata === 'object' ? JSON.stringify(metadata) : metadata, req.params.id);
+
+  res.json({ ok: true, message: 'Saved login updated successfully' });
+}));
+
+app.delete('/api/saved-logins/:id', authMiddleware, requireRole('super_admin', 'admin'), asyncHandler(async (req, res) => {
+  const existing = db.prepare('SELECT id FROM saved_logins WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Tool login not found' });
+
+  db.prepare('DELETE FROM saved_logins WHERE id = ?').run(req.params.id);
+  res.json({ ok: true, message: 'Saved login removed' });
+}));
+
+app.post('/api/saved-logins/:id/test', authMiddleware, asyncHandler(async (req, res) => {
+  const row = db.prepare('SELECT id, website_url FROM saved_logins WHERE id = ?').get(req.params.id);
+  if (!row) return res.status(404).json({ error: 'Tool login not found' });
+
+  const start = Date.now();
+  let reachable = false;
+  let httpStatus = 0;
+  let statusMessage = '';
+
+  try {
+    const ctrl = new AbortController();
+    const timeout = setTimeout(() => ctrl.abort(), 4000);
+    const resp = await fetch(row.website_url, { method: 'GET', signal: ctrl.signal });
+    clearTimeout(timeout);
+    reachable = resp.status < 500;
+    httpStatus = resp.status;
+    statusMessage = `HTTP ${resp.status} ${resp.statusText}`;
+  } catch (err) {
+    reachable = false;
+    statusMessage = err.message;
+  }
+
+  const latency = Date.now() - start;
+  const newStatus = reachable ? 'connected' : 'needs_reconnect';
+
+  db.prepare('UPDATE saved_logins SET status = ?, last_tested = CURRENT_TIMESTAMP WHERE id = ?').run(newStatus, row.id);
+
+  res.json({
+    ok: reachable,
+    status: newStatus,
+    latency_ms: latency,
+    http_status: httpStatus,
+    message: statusMessage
+  });
 }));
 
 // SPA Fallback
