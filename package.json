@@ -4,6 +4,9 @@
   "description": "Marketing OS - Admin Factory with n8n + Antigravity",
   "type": "commonjs",
   "main": "server/index.js",
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "dev": "node server/index.js",
     "start": "node server/index.js",
