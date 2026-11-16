@@ -58,6 +58,41 @@ def http_request(url, method="GET", data=None, token=None, timeout=15):
         return 0, {"error": str(e.reason)}
 
 
+def http_upload(url, field_name, filename, file_bytes, content_type="text/plain", token=None, timeout=15):
+    """Executes multipart/form-data upload using only standard library urllib.request."""
+    boundary = "----WebKitFormBoundary" + str(int(time.time() * 1000))
+    lines = [
+        f"--{boundary}".encode("utf-8"),
+        f'Content-Disposition: form-data; name="{field_name}"; filename="{filename}"'.encode("utf-8"),
+        f"Content-Type: {content_type}".encode("utf-8"),
+        b"",
+        file_bytes,
+        f"--{boundary}--".encode("utf-8"),
+        b""
+    ]
+    body_bytes = b"\r\n".join(lines)
+    headers = {
+        "Content-Type": f"multipart/form-data; boundary={boundary}",
+        "Accept": "application/json",
+        "Content-Length": str(len(body_bytes))
+    }
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    req = urllib.request.Request(url, data=body_bytes, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            raw = resp.read().decode("utf-8")
+            return resp.status, json.loads(raw) if raw else {}
+    except urllib.error.HTTPError as e:
+        raw = e.read().decode("utf-8")
+        try:
+            return e.code, json.loads(raw) if raw else {}
+        except Exception:
+            return e.code, {"raw": raw}
+    except urllib.error.URLError as e:
+        return 0, {"error": str(e.reason)}
+
+
 def log_step(title):
     print(f"\n{'='*70}\n[WORKFLOW STEP] {title}\n{'='*70}")
 
@@ -182,6 +217,44 @@ def main():
     assert code == 200 and attach_member.get("ok") is True, f"Attaching member failed: HTTP {code} - {attach_member}"
     print(f"  ✅ Attached Member (ID: {member_id}) with role 'member'")
 
+    # 3b. Test Negative Boundary: Non-existent Project Task Creation -> HTTP 404
+    print("  Testing Negative Boundary: Task creation on non-existent project...")
+    code, ghost_task_resp = http_request(
+        f"{BASE_URL}/api/projects/00000000-0000-0000-0000-000000000000/tasks",
+        method="POST",
+        data={"title": "Ghost Task", "pipeline": "content-seo"},
+        token=admin_token
+    )
+    assert code == 404, f"Expected HTTP 404 for missing project task creation, got {code}: {ghost_task_resp}"
+    assert ghost_task_resp.get("error") == "Project not found", f"Unexpected error message: {ghost_task_resp}"
+    print(f"  🔒 PASSED: Task creation on non-existent project correctly rejected with HTTP 404: {ghost_task_resp}")
+
+    # 3c. Upload Ground Truth Harness File -> HTTP 200
+    print("  Testing Ground Truth Harness Upload (Multipart Form)...")
+    harness_content = b"Brand Positioning & Product Brief: Nile Enterprise Supplies B2B Operations."
+    code, harness_resp = http_upload(
+        f"{BASE_URL}/api/projects/{proj_id}/harness",
+        field_name="file",
+        filename="nile_brand_brief.txt",
+        file_bytes=harness_content,
+        content_type="text/plain",
+        token=admin_token
+    )
+    assert code == 200, f"Harness upload failed: HTTP {code} - {harness_resp}"
+    assert "id" in harness_resp and harness_resp["filename"] == "nile_brand_brief.txt", f"Invalid harness response: {harness_resp}"
+    print(f"  ✅ PASSED: Harness file uploaded successfully (ID: {harness_resp['id']}, size: {harness_resp['size']} bytes)")
+
+    # 3d. Non-existent Project Harness Upload -> HTTP 404
+    code, ghost_harness_resp = http_upload(
+        f"{BASE_URL}/api/projects/00000000-0000-0000-0000-000000000000/harness",
+        field_name="file",
+        filename="ghost_brief.txt",
+        file_bytes=b"Ghost",
+        token=admin_token
+    )
+    assert code == 404, f"Expected HTTP 404 for ghost harness upload, got {code}: {ghost_harness_resp}"
+    print(f"  🔒 PASSED: Harness upload to non-existent project rejected with HTTP 404: {ghost_harness_resp}")
+
     # -------------------------------------------------------------------------
     # STAGE 4: Task Execution Across All 8 Marketing Pipelines
     # -------------------------------------------------------------------------
@@ -292,8 +365,32 @@ def main():
     landing_task_id = executed_tasks["landing-page"]["id"]
     content_task_id = executed_tasks["content-seo"]["id"]
 
+    # 5a0. Member attempts array type confusion exploit -> Expect HTTP 400 Bad Request
+    print(f"5a0. Testing Member Array Type Confusion Exploit on task {landing_task_id[:8]}...")
+    code, array_exploit_resp = http_request(
+        f"{BASE_URL}/api/tasks/{landing_task_id}",
+        method="PATCH",
+        data={"status": ["delivered"]},
+        token=member_token
+    )
+    assert code == 400, f"Array exploit breach! Expected HTTP 400, got {code}: {array_exploit_resp}"
+    assert array_exploit_resp.get("error") == "Invalid status value", f"Unexpected error: {array_exploit_resp}"
+    print(f"  🔒 PASSED: Member array exploit rejected with HTTP 400: '{array_exploit_resp.get('error')}'")
+
+    # 5a0b. Admin attempts array status -> Expect HTTP 400 Bad Request
+    print(f"5a0b. Testing Admin Array Status Validation on task {landing_task_id[:8]}...")
+    code, admin_array_resp = http_request(
+        f"{BASE_URL}/api/tasks/{landing_task_id}",
+        method="PATCH",
+        data={"status": ["delivered"]},
+        token=admin_token
+    )
+    assert code == 400, f"Expected HTTP 400 for admin array status, got {code}: {admin_array_resp}"
+    assert admin_array_resp.get("error") == "Invalid status value", f"Unexpected error: {admin_array_resp}"
+    print(f"  🔒 PASSED: Admin array status rejected with HTTP 400: '{admin_array_resp.get('error')}'")
+
     # 5a. Member attempts unauthorized deliver -> Expect HTTP 403 Forbidden
-    print(f"5a. Testing Member Delivery RBAC Gate on task {landing_task_id[:8]}...")
+    print(f"\n5a. Testing Member Delivery RBAC Gate on task {landing_task_id[:8]}...")
     code, member_patch_resp = http_request(
         f"{BASE_URL}/api/tasks/{landing_task_id}",
         method="PATCH",
@@ -375,11 +472,16 @@ def main():
         print(f"{pl_id:<16} | {info['status']:<10} | {info['mode']:<8} | {str(info['has_deliverable']):<12} | {str(info['has_report']):<8}")
     print("-" * 75)
 
-    print("\nRBAC Security Matrix Verification:")
-    print("  [PASS] Member Unauthorized Deliver PATCH -> HTTP 403 Forbidden ('Only admin/manager can deliver')")
-    print("  [PASS] Admin Authorized Deliver PATCH    -> HTTP 200 OK ('delivered')")
-    print("  [PASS] Client Project Task Filtering    -> 1 Delivered Task visible (7 in-review isolated)")
-    print("  [PASS] Client Direct In-Review Task GET  -> HTTP 403 Forbidden ('Clients can only view delivered deliverables')")
+    print("\nAdversarial Defense & RBAC Security Matrix Verification:")
+    print("  [PASS] Missing Project Task Creation Guard -> HTTP 404 Not Found ('Project not found')")
+    print("  [PASS] Ground Truth Harness Multipart Upload -> HTTP 200 OK")
+    print("  [PASS] Missing Project Harness Upload Guard -> HTTP 404 Not Found ('Project not found')")
+    print("  [PASS] Member Array Type Confusion Exploit   -> HTTP 400 Bad Request ('Invalid status value')")
+    print("  [PASS] Admin Array Type Confusion Attempt    -> HTTP 400 Bad Request ('Invalid status value')")
+    print("  [PASS] Member Unauthorized Deliver PATCH     -> HTTP 403 Forbidden ('Only admin/manager can deliver')")
+    print("  [PASS] Admin Authorized Deliver PATCH        -> HTTP 200 OK ('delivered')")
+    print("  [PASS] Client Project Task Filtering         -> 1 Delivered Task visible (7 in-review isolated)")
+    print("  [PASS] Client Direct In-Review Task GET       -> HTTP 403 Forbidden ('Clients can only view delivered deliverables')")
 
     print("\n" + "=" * 70)
     print("🎉 ALL MARKETING OS ORCHESTRATION CHECKS PASSED WITH ZERO ERRORS.")

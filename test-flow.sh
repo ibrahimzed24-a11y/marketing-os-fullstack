@@ -18,7 +18,35 @@ PROJ_RES=$(curl -s -X POST "$BASE_URL/api/projects" \
 PROJ_ID=$(echo "$PROJ_RES" | node -e "let d=JSON.parse(require('fs').readFileSync(0)); console.log(d.id);")
 echo "Project created. ID: $PROJ_ID"
 
-echo -e "\n=== 3. Add Client to Project ==="
+echo -e "\n=== 2b. Upload Ground Truth Harness File ==="
+echo "Brand Spec Brief: Nile Enterprise Supplies verified grounded assets" > /tmp/harness_brief.txt
+HARNESS_HTTP_CODE=$(curl -s -o /tmp/harness_resp.json -w "%{http_code}" -X POST "$BASE_URL/api/projects/$PROJ_ID/harness" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -F "file=@/tmp/harness_brief.txt")
+rm -f /tmp/harness_brief.txt
+if [ "$HARNESS_HTTP_CODE" -ne 200 ]; then
+  echo "❌ Error: Expected HTTP 200 for harness upload, got $HARNESS_HTTP_CODE"
+  cat /tmp/harness_resp.json
+  rm -f /tmp/harness_resp.json
+  exit 1
+fi
+HARNESS_ID=$(node -e "let d=JSON.parse(require('fs').readFileSync('/tmp/harness_resp.json')); console.log(d.id);")
+rm -f /tmp/harness_resp.json
+echo "Harness uploaded successfully. ID: $HARNESS_ID (HTTP 200 OK)"
+
+echo -e "\n=== 2c. Verify Non-existent Project Task Creation (Expect HTTP 404) ==="
+GHOST_TASK_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$BASE_URL/api/projects/00000000-0000-0000-0000-000000000000/tasks" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"title":"Ghost Task","pipeline":"content-seo"}')
+echo "Non-existent project task creation HTTP code: $GHOST_TASK_STATUS (Expected: 404)"
+if [ "$GHOST_TASK_STATUS" -ne 404 ]; then
+  echo "❌ Error: Expected HTTP 404, got $GHOST_TASK_STATUS"
+  exit 1
+fi
+echo "Verified: Foreign key project check correctly returns HTTP 404"
+
+echo -e "\n=== 3. Add Client and Member to Project ==="
 CLIENT_USER=$(curl -s -X POST "$BASE_URL/api/auth/login" \
   -H "Content-Type: application/json" \
   -d '{"email":"client@marketingos.local","password":"Client123!"}')
@@ -29,6 +57,17 @@ curl -s -X POST "$BASE_URL/api/projects/$PROJ_ID/members" \
   -H "Content-Type: application/json" \
   -d "{\"user_id\":\"$CLIENT_ID\",\"role_in_project\":\"client\"}"
 echo "Client $CLIENT_ID attached to project."
+
+MEMBER_USER=$(curl -s -X POST "$BASE_URL/api/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"email":"member@marketingos.local","password":"Member123!"}')
+MEMBER_ID=$(echo "$MEMBER_USER" | node -e "let d=JSON.parse(require('fs').readFileSync(0)); console.log(d.user.id);")
+MEMBER_TOKEN=$(echo "$MEMBER_USER" | node -e "let d=JSON.parse(require('fs').readFileSync(0)); console.log(d.token);")
+curl -s -X POST "$BASE_URL/api/projects/$PROJ_ID/members" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"user_id\":\"$MEMBER_ID\",\"role_in_project\":\"member\"}"
+echo "Member $MEMBER_ID attached to project."
 
 echo -e "\n=== 4. Create Task: Landing Page for Nile Supplies ==="
 TASK_RES=$(curl -s -X POST "$BASE_URL/api/projects/$PROJ_ID/tasks" \
@@ -49,11 +88,19 @@ TASK_CHECK=$(curl -s -X GET "$BASE_URL/api/tasks/$TASK_ID" \
 STATUS=$(echo "$TASK_CHECK" | node -e "let d=JSON.parse(require('fs').readFileSync(0)); console.log(d.task.status);")
 echo "Current Task Status: $STATUS (Expected: in_review)"
 
-echo -e "\n=== 7. Test Member RBAC (Member tries to deliver -> must return 403) ==="
-MEMBER_USER=$(curl -s -X POST "$BASE_URL/api/auth/login" \
+echo -e "\n=== 7a. Test Member Array Type Confusion Exploit (Expect HTTP 400) ==="
+MEMBER_ARRAY_STATUS=$(curl -s -o /dev/null -w "%{http_code}" -X PATCH "$BASE_URL/api/tasks/$TASK_ID" \
+  -H "Authorization: Bearer $MEMBER_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"email":"member@marketingos.local","password":"Member123!"}')
-MEMBER_TOKEN=$(echo "$MEMBER_USER" | node -e "let d=JSON.parse(require('fs').readFileSync(0)); console.log(d.token);")
+  -d '{"status":["delivered"]}')
+echo "Member array delivery attempt HTTP code: $MEMBER_ARRAY_STATUS (Expected: 400)"
+if [ "$MEMBER_ARRAY_STATUS" -ne 400 ]; then
+  echo "❌ Error: Expected HTTP 400 for array status exploit, got $MEMBER_ARRAY_STATUS"
+  exit 1
+fi
+echo "Verified: Array type confusion exploit safely rejected with HTTP 400 Bad Request"
+
+echo -e "\n=== 7b. Test Member RBAC Gate (Member tries string deliver -> Expect HTTP 403) ==="
 MEMBER_TRY_DELIVER=$(curl -s -X PATCH "$BASE_URL/api/tasks/$TASK_ID" \
   -H "Authorization: Bearer $MEMBER_TOKEN" \
   -H "Content-Type: application/json" \
