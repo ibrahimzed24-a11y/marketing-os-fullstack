@@ -804,9 +804,13 @@ app.post('/api/tasks/:id/run', authMiddleware, asyncHandler(async (req, res) => 
 
   if (result.ok) {
     db.prepare("UPDATE tasks SET status='running', updated_at=CURRENT_TIMESTAMP WHERE id=?").run(task.id);
+    const runningTask = db.prepare('SELECT * FROM tasks WHERE id=?').get(task.id);
     return res.json({
       ok: true,
       mode: 'n8n',
+      execution_mode: 'n8n',
+      status: 'running',
+      task: runningTask,
       n8n: result,
       message: 'Executed via n8n'
     });
@@ -825,11 +829,14 @@ app.post('/api/tasks/:id/run', authMiddleware, asyncHandler(async (req, res) => 
   db.prepare('INSERT INTO activity (id,project_id,task_id,user_id,action) VALUES (?,?,?,?,?)')
     .run(uuidv4(), task.project_id, task.id, req.user.id, `executed_locally:${task.pipeline}`);
 
+  const updatedTask = db.prepare('SELECT * FROM tasks WHERE id=?').get(task.id);
   return res.json({
     ok: true,
     mode: 'local',
+    execution_mode: 'local_fallback',
     message: 'Executed LOCALLY - n8n offline',
     task_id: task.id,
+    task: updatedTask,
     status: 'in_review',
     n8n_error: result.error
   });
@@ -869,7 +876,7 @@ app.patch('/api/tasks/:id', authMiddleware, asyncHandler(async (req, res) => {
         .run(uuidv4(), task.project_id, task.id, req.user.id, 'task_approved_delivered');
     }
   }
-  res.json({ ok: true, status });
+  res.json({ ok: true, status, task: { id: task.id, status } });
 }));
 
 app.get('/api/tasks/:id', authMiddleware, asyncHandler(async (req, res) => {
@@ -904,7 +911,7 @@ app.post('/api/webhooks/n8n', asyncHandler(async (req, res) => {
   db.prepare('INSERT INTO activity (id,project_id,task_id,user_id,action) VALUES (?,?,?,?,?)')
     .run(uuidv4(), task.project_id, task_id, 'system-n8n', `agent_finished:${status}`);
 
-  res.json({ ok: true, task_id });
+  res.json({ ok: true, received: true, task_id });
 }));
 
 // =============================================================================
