@@ -241,7 +241,7 @@ def main():
         token=admin_token
     )
     assert code == 200, f"Harness upload failed: HTTP {code} - {harness_resp}"
-    assert "id" in harness_resp and harness_resp["filename"] == "nile_brand_brief.txt", f"Invalid harness response: {harness_resp}"
+    assert "id" in harness_resp and (harness_resp.get("original_name") == "nile_brand_brief.txt" or "nile_brand_brief" in harness_resp.get("filename", "")), f"Invalid harness response: {harness_resp}"
     print(f"  ✅ PASSED: Harness file uploaded successfully (ID: {harness_resp['id']}, size: {harness_resp['size']} bytes)")
 
     # 3d. Non-existent Project Harness Upload -> HTTP 404

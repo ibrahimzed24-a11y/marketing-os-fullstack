@@ -39,7 +39,7 @@ function authMiddleware(req, res, next) {
 
   // Dev mode local fallback
   try {
-    const defaultUser = db.prepare('SELECT id, name, email, role, department FROM users WHERE role="super_admin" LIMIT 1').get();
+    const defaultUser = db.prepare('SELECT id, name, email, role, department FROM users WHERE role = ? LIMIT 1').get('super_admin');
     if (defaultUser) {
       req.user = defaultUser;
       return next();
