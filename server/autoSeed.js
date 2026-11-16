@@ -20,8 +20,7 @@ function autoSeedIfEmpty(db) {
     const users = [
       ['Super Admin', 'admin@marketingos.local', hash('Admin123!'), 'super_admin', 'Leadership'],
       ['Sara Manager', 'manager@marketingos.local', hash('Manager123!'), 'manager', 'Growth'],
-      ['Omar Member', 'member@marketingos.local', hash('Member123!'), 'member', 'Content'],
-      ['Nile Client', 'client@marketingos.local', hash('Client123!'), 'client', 'Client']
+      ['Omar Member', 'member@marketingos.local', hash('Member123!'), 'member', 'Content']
     ];
 
     const userIds = {};
@@ -54,7 +53,6 @@ function autoSeedIfEmpty(db) {
     const insertMember = db.prepare('INSERT INTO project_members (id, project_id, user_id, role_in_project) VALUES (?, ?, ?, ?)');
     insertMember.run(uuidv4(), p1, userIds['manager@marketingos.local'], 'manager');
     insertMember.run(uuidv4(), p1, userIds['member@marketingos.local'], 'member');
-    insertMember.run(uuidv4(), p1, userIds['client@marketingos.local'], 'client');
 
     // Seed Initial Task
     const t1 = uuidv4();

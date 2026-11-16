@@ -24,17 +24,19 @@ function authMiddleware(req, res, next) {
     }
   }
 
-  // Session role fallback for UI role testing and local testing
-  const sessionRole = req.headers['x-session-role'] || req.headers['x-role'];
-  if (sessionRole) {
-    try {
-      const searchRole = sessionRole === 'admin' ? 'super_admin' : sessionRole;
-      const u = db.prepare('SELECT id, name, email, role, department FROM users WHERE role=? LIMIT 1').get(searchRole);
-      if (u) {
-        req.user = u;
-        return next();
-      }
-    } catch (dbErr) {}
+  // Session role fallback ONLY for local automated test suites when NODE_ENV === 'test'
+  if (process.env.NODE_ENV === 'test') {
+    const sessionRole = req.headers['x-session-role'] || req.headers['x-role'];
+    if (sessionRole) {
+      try {
+        const searchRole = sessionRole === 'admin' ? 'super_admin' : sessionRole;
+        const u = db.prepare('SELECT id, name, email, role, department FROM users WHERE role=? LIMIT 1').get(searchRole);
+        if (u) {
+          req.user = u;
+          return next();
+        }
+      } catch (dbErr) {}
+    }
   }
 
   // Dev mode local fallback (only enabled if explicitly opted-in via environment variable)

@@ -836,8 +836,167 @@ function toggleTheme() {
   document.documentElement.classList.toggle('dark');
 }
 
+// --- Standard Secure Authentication (JWT & Isolated Sessions) ---
+let authToken = localStorage.getItem('marketing_os_token') || '';
+let currentUser = null;
+try {
+  const stored = localStorage.getItem('marketing_os_user');
+  if (stored) currentUser = JSON.parse(stored);
+} catch (_) {}
+
 function getCurrentUser() {
+  if (currentUser) return currentUser;
   return state.users.find(u => u.role === state.currentUserRole) || state.users[0];
+}
+
+async function apiFetch(url, options = {}) {
+  const headers = Object.assign({}, options.headers || {});
+  if (authToken) {
+    headers['Authorization'] = 'Bearer ' + authToken;
+  }
+  options.headers = headers;
+
+  const res = await fetch(url, options);
+  if (res.status === 401 && !url.includes('/api/auth/login')) {
+    console.warn('[auth] Unauthorized response (401). Opening authentication modal.');
+    authToken = '';
+    currentUser = null;
+    localStorage.removeItem('marketing_os_token');
+    localStorage.removeItem('marketing_os_user');
+    openAuthModal(false);
+  }
+  return res;
+}
+
+function openAuthModal(canClose = true) {
+  const modal = document.getElementById('authModal');
+  const closeBtn = document.getElementById('authModalCloseBtn');
+  const errEl = document.getElementById('authErrorMessage');
+  if (errEl) errEl.classList.add('hidden');
+  if (closeBtn) {
+    if (canClose && authToken) {
+      closeBtn.classList.remove('hidden');
+    } else {
+      closeBtn.classList.add('hidden');
+    }
+  }
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closeAuthModal() {
+  if (!authToken) {
+    showToast('Please sign in to access the marketing team workspace.');
+    return;
+  }
+  const modal = document.getElementById('authModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function autofillLogin(email, pass) {
+  const emailInput = document.getElementById('loginEmailInput');
+  const passInput = document.getElementById('loginPassInput');
+  if (emailInput) emailInput.value = email;
+  if (passInput) passInput.value = pass;
+}
+
+async function submitLoginForm() {
+  const emailInput = document.getElementById('loginEmailInput');
+  const passInput = document.getElementById('loginPassInput');
+  const submitBtn = document.getElementById('loginSubmitBtn');
+  const errEl = document.getElementById('authErrorMessage');
+
+  const email = emailInput?.value?.trim();
+  const password = passInput?.value?.trim();
+
+  if (!email || !password) {
+    if (errEl) {
+      errEl.textContent = 'Please enter your work email and password.';
+      errEl.classList.remove('hidden');
+    }
+    return;
+  }
+
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Signing in...';
+  }
+
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+
+    if (res.ok && data.token && data.user) {
+      authToken = data.token;
+      currentUser = data.user;
+      state.currentUserRole = data.user.role;
+      localStorage.setItem('marketing_os_token', authToken);
+      localStorage.setItem('marketing_os_user', JSON.stringify(data.user));
+
+      if (errEl) errEl.classList.add('hidden');
+      closeAuthModal();
+      showToast(`Welcome back, ${data.user.name} (${data.user.role.toUpperCase()})`);
+      await syncFromBackend();
+      renderAll();
+    } else {
+      if (errEl) {
+        errEl.textContent = data.error || 'Invalid work email or password.';
+        errEl.classList.remove('hidden');
+      }
+    }
+  } catch (err) {
+    if (errEl) {
+      errEl.textContent = 'Network or server error. Please try again.';
+      errEl.classList.remove('hidden');
+    }
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Sign In to Workspace';
+    }
+  }
+}
+
+function handleUserSignOut() {
+  authToken = '';
+  currentUser = null;
+  localStorage.removeItem('marketing_os_token');
+  localStorage.removeItem('marketing_os_user');
+  showToast('You have been signed out.');
+  openAuthModal(false);
+  renderHeaderAndRoleBanner();
+}
+
+async function initAuthSession() {
+  if (!authToken) {
+    openAuthModal(false);
+    return false;
+  }
+  try {
+    const res = await fetch('/api/auth/me', {
+      headers: { 'Authorization': 'Bearer ' + authToken }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.user) {
+        currentUser = data.user;
+        state.currentUserRole = data.user.role;
+        localStorage.setItem('marketing_os_user', JSON.stringify(data.user));
+        closeAuthModal();
+        return true;
+      }
+    }
+  } catch (e) {}
+
+  authToken = '';
+  currentUser = null;
+  localStorage.removeItem('marketing_os_token');
+  localStorage.removeItem('marketing_os_user');
+  openAuthModal(false);
+  return false;
 }
 
 function getSelectedProject() {
@@ -848,9 +1007,7 @@ function getSelectedProject() {
 async function syncFromBackend() {
   try {
     // 1. Fetch live projects from backend SQLite
-    const resProjects = await fetch('/api/projects', {
-      headers: { 'x-session-role': state.currentUserRole }
-    });
+    const resProjects = await apiFetch('/api/projects');
     if (resProjects.ok) {
       const data = await resProjects.json();
       if (data.projects && data.projects.length > 0) {
@@ -869,7 +1026,7 @@ async function syncFromBackend() {
               verdict: p.status === 'delivered' ? 'Approved & Delivered' : (p.status === 'in_review' ? 'Ready to Deliver' : 'Staged'),
               grounded: 'Yes • Verified against project harness',
               usable: 'Yes • Enterprise production grade',
-              sellable: 'Yes • Tailored for ' + (p.client_name || 'Client'),
+              sellable: 'Yes • Tailored for ' + (p.client_name || 'Marketing Team'),
               summary: 'Project initialized in Marketing OS Factory.',
               shipped: 'Workspace staged for execution.',
               blocked: 'None',
@@ -884,9 +1041,7 @@ async function syncFromBackend() {
     }
 
     // 2. Fetch live saved logins from backend SQLite
-    const resLogins = await fetch('/api/saved-logins?reveal=' + state.loginsRevealed, {
-      headers: { 'x-session-role': state.currentUserRole }
-    });
+    const resLogins = await apiFetch('/api/saved-logins?reveal=' + state.loginsRevealed);
     if (resLogins.ok) {
       const data = await resLogins.json();
       if (data.logins && data.logins.length > 0) {
@@ -899,9 +1054,7 @@ async function syncFromBackend() {
     // 3. Fetch live project tasks and harness files
     const proj = getSelectedProject();
     if (proj) {
-      const pRes = await fetch('/api/projects/' + proj.id, {
-        headers: { 'x-session-role': state.currentUserRole }
-      });
+      const pRes = await apiFetch('/api/projects/' + proj.id);
       if (pRes.ok) {
         const pData = await pRes.json();
         if (pData.files) {
@@ -929,22 +1082,8 @@ async function syncFromBackend() {
     await fetchSeoTree();
     await fetchAdminSettingsData();
   } catch (err) {
-    console.warn('[Sync] Using local resilient storage:', err.message);
+    console.warn('[Sync] Backend sync warning:', err.message);
   }
-}
-
-function switchRoleSession(role) {
-  state.currentUserRole = role;
-  // If client switches into an admin view, redirect to workbench or roleDash
-  if (role === 'client' && ['adminSettings', 'team', 'logins', 'rag'].includes(state.mainView)) {
-    state.mainView = 'workbench';
-  } else if (role === 'member' && state.mainView === 'adminSettings') {
-    state.mainView = 'workbench';
-  }
-  saveState();
-  renderAll();
-  const user = getCurrentUser();
-  showToast('Switched session to ' + user.name + ' (' + role.toUpperCase() + '). UI permissions refreshed.');
 }
 
 function switchMainView(view) {
@@ -1106,10 +1245,10 @@ async function handleHarnessFileUpload(event) {
   showToast(`Uploading ${files.length} harness file(s) into ${proj.name}...`);
 
   try {
-    const res = await fetch(`/api/projects/${proj.id}/harness`, {
+    const res = await apiFetch(`/api/projects/${proj.id}/harness`, {
       method: 'POST',
       headers: {
-        'x-session-role': state.currentUserRole
+        
       },
       body: formData
     });
@@ -1139,9 +1278,9 @@ async function deleteHarnessFile(projectId, fileId, originalName) {
   if (!confirm(`Are you sure you want to delete ${originalName}?`)) return;
 
   try {
-    const res = await fetch(`/api/projects/${projectId}/harness/${fileId}`, {
+    const res = await apiFetch(`/api/projects/${projectId}/harness/${fileId}`, {
       method: 'DELETE',
-      headers: { 'x-session-role': state.currentUserRole }
+      
     });
     if (!res.ok) {
       const err = await res.json();
@@ -1165,8 +1304,8 @@ async function applyFileAsGuidelines(filename) {
   if (!proj) return;
 
   try {
-    const pRes = await fetch(`/api/projects/${proj.id}`, {
-      headers: { 'x-session-role': state.currentUserRole }
+    const pRes = await apiFetch(`/api/projects/${proj.id}`, {
+      
     });
     const pData = await pRes.json();
     const targetFile = (pData.files || []).find(f => f.original_name === filename || f.filename === filename);
@@ -1175,16 +1314,16 @@ async function applyFileAsGuidelines(filename) {
       return;
     }
 
-    const fileContentRes = await fetch(`/api/projects/${proj.id}/harness/${targetFile.id}/view`, {
-      headers: { 'x-session-role': state.currentUserRole }
+    const fileContentRes = await apiFetch(`/api/projects/${proj.id}/harness/${targetFile.id}/view`, {
+      
     });
     const content = await fileContentRes.text();
 
-    await fetch(`/api/projects/${proj.id}/guidelines`, {
+    await apiFetch(`/api/projects/${proj.id}/guidelines`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'x-session-role': state.currentUserRole
+        
       },
       body: JSON.stringify({ guidelines: content })
     });
@@ -1245,11 +1384,11 @@ async function executePipelineCommand() {
 
   try {
     // 1. Create Task in SQLite
-    const taskRes = await fetch(`/api/projects/${proj.id}/tasks`, {
+    const taskRes = await apiFetch(`/api/projects/${proj.id}/tasks`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-session-role': state.currentUserRole
+        
       },
       body: JSON.stringify({
         title: `${proj.name} — ${pipe.name}`,
@@ -1268,11 +1407,11 @@ async function executePipelineCommand() {
     renderExecutionStepper();
 
     // 2. Run Task via Dual-Engine Runner
-    const runRes = await fetch(`/api/tasks/${taskId}/run`, {
+    const runRes = await apiFetch(`/api/tasks/${taskId}/run`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-session-role': state.currentUserRole
+        
       }
     });
 
@@ -1327,11 +1466,11 @@ async function approveAndDeliverCurrent() {
   const taskId = proj.activeTask?.id;
   if (taskId) {
     try {
-      await fetch(`/api/tasks/${taskId}`, {
+      await apiFetch(`/api/tasks/${taskId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'x-session-role': state.currentUserRole
+          
         },
         body: JSON.stringify({ status: 'delivered' })
       });
@@ -1355,11 +1494,11 @@ async function requestFixOnCurrent() {
   const taskId = proj.activeTask?.id;
   if (taskId) {
     try {
-      await fetch(`/api/tasks/${taskId}`, {
+      await apiFetch(`/api/tasks/${taskId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'x-session-role': state.currentUserRole
+          
         },
         body: JSON.stringify({ status: 'needs_fix' })
       });
@@ -1412,7 +1551,7 @@ function downloadActiveDeliverable() {
 // --- Preview Modal for HTML Deliverables ---
 async function openLiveHtmlPreview(taskId) {
   try {
-    const res = await fetch('/api/tasks/' + taskId);
+    const res = await apiFetch('/api/tasks/' + taskId);
     if (res.ok) {
       const data = await res.json();
       const out = JSON.parse(data.task.output_json || '{}');
@@ -1511,7 +1650,7 @@ async function saveLoginTool() {
   try {
     const url = editId ? '/api/saved-logins/' + editId : '/api/saved-logins';
     const method = editId ? 'PUT' : 'POST';
-    const res = await fetch(url, {
+    const res = await apiFetch(url, {
       method: method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
@@ -1550,7 +1689,7 @@ async function deleteLoginTool(id) {
   if (!confirm('Are you sure you want to delete this saved tool login?')) return;
 
   try {
-    await fetch('/api/saved-logins/' + id, { method: 'DELETE' });
+    await apiFetch('/api/saved-logins/' + id, { method: 'DELETE' });
   } catch (e) {}
 
   state.savedLogins = state.savedLogins.filter(l => l.id !== id);
@@ -1562,7 +1701,7 @@ async function deleteLoginTool(id) {
 async function testLoginConnection(id) {
   showToast('Pinging target website...');
   try {
-    const res = await fetch('/api/saved-logins/' + id + '/test', { method: 'POST' });
+    const res = await apiFetch('/api/saved-logins/' + id + '/test', { method: 'POST' });
     if (res.ok) {
       const data = await res.json();
       showToast('Live test result: ' + (data.ok ? '✓ Connected (' + data.latency_ms + 'ms)' : '⚠️ Check URL: ' + data.message));
@@ -1595,28 +1734,20 @@ function copyToClipboard(text, label = 'Copied') {
 // --- RENDER VIEWS ---
 function renderHeaderAndRoleBanner() {
   const user = getCurrentUser();
-  const roles = ['super_admin', 'admin', 'manager', 'member', 'client'];
-  roles.forEach(r => {
-    const btn = document.getElementById('roleBtn-' + r);
-    if (btn) {
-      btn.className = (r === state.currentUserRole)
-        ? 'px-2.5 py-1 rounded-full text-[11px] font-bold bg-indigo-600 text-white shadow-sm transition'
-        : 'px-2.5 py-1 rounded-full text-[11px] font-medium text-[var(--text-soft)] hover:text-[var(--text)] transition';
-    }
-  });
+  const role = user.role || state.currentUserRole;
 
   const navTabs = ['workbench', 'roleDash', 'pipelines', 'team', 'seo', 'logins', 'agents', 'rag', 'adminSettings'];
-  const isAdmin = ['super_admin', 'admin'].includes(state.currentUserRole);
-  const isClient = state.currentUserRole === 'client';
-  const isMember = state.currentUserRole === 'member';
+  const isAdmin = ['super_admin', 'admin'].includes(role);
+  const isManager = role === 'manager';
+  const isMember = role === 'member';
 
   navTabs.forEach(t => {
     const el = document.getElementById('navTab-' + t);
     if (el) {
       if (t === 'adminSettings') {
         el.style.display = isAdmin ? 'inline-flex' : 'none';
-      } else if (['team', 'logins', 'rag'].includes(t)) {
-        el.style.display = isClient ? 'none' : 'inline-flex';
+      } else if (t === 'team') {
+        el.style.display = (isAdmin || isManager) ? 'inline-flex' : 'none';
       } else {
         el.style.display = 'inline-flex';
       }
@@ -1634,8 +1765,13 @@ function renderHeaderAndRoleBanner() {
 
   const badge = document.getElementById('headerUserBadge');
   const chip = document.getElementById('headerRoleChip');
-  if (badge) badge.textContent = user.name;
-  if (chip) chip.textContent = user.role.toUpperCase();
+  const avatarPill = document.getElementById('headerAvatarPill');
+  if (badge) badge.textContent = user.name || 'Marketing Team';
+  if (chip) chip.textContent = (user.role || state.currentUserRole).toUpperCase().replace('_', ' ');
+  if (avatarPill) {
+    const initials = (user.name || 'MT').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    avatarPill.textContent = initials;
+  }
 
   const delivCount = state.projects.filter(p => p.stage === 'Delivered').length;
   const delivBadge = document.getElementById('headerDeliveredBadge');
@@ -1644,36 +1780,38 @@ function renderHeaderAndRoleBanner() {
   const roleMeta = {
     super_admin: {
       title: 'Super Admin Factory Control (' + user.name + ')',
-      perm: 'Full System Access • RBAC Admin • Saved Logins Database • Approve & Deliver',
-      desc: 'You control all projects, credentials for all 14 tools (Hostinger, Gmail, Google Console, Keyword Planner, etc.), and final client delivery sign-offs.'
+      perm: 'Full Platform Access • Team Management • LLM Routing • Task Delivery',
+      desc: 'Complete oversight across all marketing workspaces, sovereign agents, dynamic LLM routing, and project deliveries.'
     },
     admin: {
       title: 'Operations Admin Dashboard (' + user.name + ')',
-      perm: 'Team Management • Project Creation • Saved Logins Access • Approve & Deliver',
-      desc: 'Review pending deliverables, manage workflow credentials, and release verified assets to clients.'
+      perm: 'Team Oversight • Pipeline Architecture • Saved Logins • Approve Deliverables',
+      desc: 'Manage marketing pipelines, team assignments, credential vault, and deliverable reviews.'
     },
     manager: {
       title: 'Growth Manager Sprint Hub (' + user.name + ')',
-      perm: 'Create Projects • Assign Tasks • Manage Saved Logins • Review Squad Outputs',
-      desc: 'Create client campaigns, manage Hostinger and Google tools, and assign marketing pipelines across your team.'
+      perm: 'Create Projects • Assign Tasks • Review Deliverables • SOP Directives',
+      desc: 'Orchestrate marketing sprints, assign tasks to specialists, and approve completed deliverables.'
     },
     member: {
-      title: 'Team Member Execution Workbench (' + user.name + ')',
-      perm: 'Run Assigned Pipelines • View Saved Logins • Submit to Review',
-      desc: 'Execute assigned marketing tasks using n8n + Antigravity squads. Passwords are masked.'
-    },
-    client: {
-      title: 'Client Deliverable Showroom (' + user.name + ')',
-      perm: 'View-Only Client Portal • Inspect Verified Deliverables',
-      desc: 'Inspect your delivered campaigns and landing pages. Internal agent controls and credentials are hidden.'
+      title: 'Specialist Execution Workbench (' + user.name + ')',
+      perm: 'Run Marketing Pipelines • Upload Harness Assets • Staged Task Execution',
+      desc: 'Execute assigned pipeline commands, ground tasks in harness data, and stage deliverables for manager review.'
     }
-  }[state.currentUserRole];
+  }[role] || {
+    title: 'Marketing Workforce OS (' + user.name + ')',
+    perm: 'Internal Team Access',
+    desc: 'Execute marketing pipelines and campaigns.'
+  };
 
   const av = document.getElementById('roleBannerAvatar');
   const rt = document.getElementById('roleBannerTitle');
   const rp = document.getElementById('roleBannerPermBadge');
   const rd = document.getElementById('roleBannerDesc');
-  if (av) av.textContent = user.initials;
+  if (av) {
+    const initials = (user.name || 'MT').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    av.textContent = initials;
+  }
   if (rt) rt.textContent = roleMeta.title;
   if (rp) rp.textContent = roleMeta.perm;
   if (rd) rd.textContent = roleMeta.desc;
@@ -1681,9 +1819,9 @@ function renderHeaderAndRoleBanner() {
   const npBtn = document.getElementById('newProjectTopBtn');
   const nlBtn = document.getElementById('newLoginTopBtn');
   const ntBtn = document.getElementById('newTaskTopBtn');
-  if (npBtn) npBtn.className = ['member', 'client'].includes(state.currentUserRole) ? 'hidden' : 'btn-ink px-3.5 py-2 text-xs inline-flex items-center gap-1.5';
-  if (nlBtn) nlBtn.className = (state.currentUserRole === 'client') ? 'hidden' : 'btn-outline px-3.5 py-2 text-xs inline-flex items-center gap-1.5';
-  if (ntBtn) ntBtn.className = (state.currentUserRole === 'client') ? 'hidden' : 'btn-primary px-3.5 py-2 text-xs inline-flex items-center gap-1.5';
+  if (npBtn) npBtn.className = isMember ? 'hidden' : 'btn-ink px-3.5 py-2 text-xs inline-flex items-center gap-1.5';
+  if (nlBtn) nlBtn.className = isMember ? 'hidden' : 'btn-outline px-3.5 py-2 text-xs inline-flex items-center gap-1.5';
+  if (ntBtn) ntBtn.className = 'btn-primary px-3.5 py-2 text-xs inline-flex items-center gap-1.5';
 }
 
 function renderStageRibbonAndProjects() {
@@ -2174,60 +2312,50 @@ function renderRoleSpecificDashboard() {
   const container = document.getElementById('roleSpecificDashboardContent');
   if (!container) return;
   const user = getCurrentUser();
-  const role = state.currentUserRole;
+  const role = user.role || state.currentUserRole;
 
-  if (role === 'client') {
-    const clientTasks = state.tasks.filter(t => t.status === 'delivered' || t.status === 'in_review');
-    container.innerHTML = '<div class="card-surface p-5 space-y-4">' +
-      '<div class="flex items-center justify-between">' +
-        '<div>' +
-          '<h2 class="text-base font-extrabold text-indigo-600 dark:text-indigo-400">Client Portal — Verified Agency Deliverables</h2>' +
-          '<p class="text-xs text-[var(--text-soft)] mt-0.5">Official deliverables and marketing assets prepared for your review and sign-off.</p>' +
-        '</div>' +
-        '<span class="text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-700">' + clientTasks.length + ' Available Assets</span>' +
-      '</div>' +
-      '<div class="space-y-2.5">' +
-        (clientTasks.length > 0 ? clientTasks.map(t =>
-          '<div class="card-subtle p-3.5 flex flex-wrap items-center justify-between gap-3">' +
-            '<div>' +
-              '<div class="font-bold text-xs flex items-center gap-2">' +
-                '<span>' + escapeHtml(t.title) + '</span>' +
-                '<span class="text-[10px] px-2 py-0.5 rounded-full font-bold ' + (t.status === 'delivered' ? 'bg-emerald-500/20 text-emerald-700' : 'bg-amber-500/20 text-amber-700') + '">' +
-                  (t.status === 'delivered' ? 'Delivered & Approved' : 'In Review') +
-                '</span>' +
-              '</div>' +
-              '<div class="text-[11px] text-[var(--text-soft)] mt-0.5">Pipeline: ' + escapeHtml(t.pipeline) + ' &bull; Priority: ' + escapeHtml(t.priority || 'medium') + '</div>' +
-            '</div>' +
-            '<button onclick="selectPipeline(\'' + t.pipeline + '\'); switchMainView(\'workbench\')" class="btn-primary px-3.5 py-1.5 text-xs font-bold">Inspect Asset →</button>' +
-          '</div>'
-        ).join('') : '<div class="text-xs text-[var(--text-soft)] p-4 text-center">No delivered deliverables yet. Staged deliverables will appear here once ready.</div>') +
-      '</div>' +
-    '</div>';
+  let dashboardSubtitle = 'Internal Marketing Workforce Tasks & Execution';
+  let badgeLabel = state.tasks.length + ' Tasks in Factory';
+
+  if (role === 'super_admin' || role === 'admin') {
+    dashboardSubtitle = 'Executive Oversight & Cross-Pipeline Task Telemetry';
+  } else if (role === 'manager') {
+    dashboardSubtitle = 'Sprint Lead Management & Deliverable Reviews';
   } else {
-    container.innerHTML = '<div class="card-surface p-5 space-y-4">' +
-      '<div class="flex items-center justify-between">' +
-        '<div>' +
-          '<h2 class="text-base font-extrabold">' + escapeHtml(user.name) + ' — Active Pipeline Tasks</h2>' +
-          '<p class="text-xs text-[var(--text-soft)] mt-0.5">Role: ' + role.toUpperCase() + ' &bull; Live task queue and delivery staging.</p>' +
-        '</div>' +
-        '<span class="text-xs font-bold px-3 py-1 rounded-full bg-indigo-500/15 text-indigo-700">' + state.tasks.length + ' Total Tasks</span>' +
-      '</div>' +
-      '<div class="space-y-2.5">' +
-        (state.tasks.length > 0 ? state.tasks.map(t =>
-          '<div class="card-subtle p-3.5 flex flex-wrap items-center justify-between gap-3">' +
-            '<div>' +
-              '<div class="font-bold text-xs flex items-center gap-2">' +
-                '<span>' + escapeHtml(t.title) + '</span>' +
-                '<span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-[var(--bg-soft)] text-[var(--text-soft)] mono">' + escapeHtml(t.status || 'draft') + '</span>' +
-              '</div>' +
-              '<div class="text-[11px] text-[var(--text-soft)] mt-0.5">Pipeline: ' + escapeHtml(t.pipeline) + ' &bull; Priority: ' + escapeHtml(t.priority || 'medium') + '</div>' +
-            '</div>' +
-            '<button onclick="selectPipeline(\'' + t.pipeline + '\'); switchMainView(\'workbench\')" class="btn-ink px-3.5 py-1.5 text-xs">Open in Workbench →</button>' +
-          '</div>'
-        ).join('') : '<div class="text-xs text-[var(--text-soft)] p-4 text-center">No active tasks in queue.</div>') +
-      '</div>' +
-    '</div>';
+    dashboardSubtitle = 'Specialist Queue & Active Task Deliverables';
   }
+
+  container.innerHTML = '<div class="card-surface p-5 space-y-4">' +
+    '<div class="flex items-center justify-between">' +
+      '<div>' +
+        '<h2 class="text-base font-extrabold flex items-center gap-2">' +
+          '<span>' + escapeHtml(user.name) + '</span>' +
+          '<span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 mono uppercase">' + escapeHtml(role.replace('_', ' ')) + '</span>' +
+        '</h2>' +
+        '<p class="text-xs text-[var(--text-soft)] mt-0.5">' + dashboardSubtitle + '</p>' +
+      '</div>' +
+      '<span class="text-xs font-bold px-3 py-1 rounded-full bg-indigo-500/15 text-indigo-700 dark:text-indigo-300">' + badgeLabel + '</span>' +
+    '</div>' +
+    '<div class="space-y-2.5">' +
+      (state.tasks.length > 0 ? state.tasks.map(t => {
+        let statusBadgeClass = 'bg-slate-500/15 text-slate-700 dark:text-slate-300';
+        if (t.status === 'delivered') statusBadgeClass = 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300';
+        else if (t.status === 'in_review') statusBadgeClass = 'bg-amber-500/15 text-amber-700 dark:text-amber-300';
+        else if (t.status === 'running') statusBadgeClass = 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 animate-pulse';
+
+        return '<div class="card-subtle p-3.5 flex flex-wrap items-center justify-between gap-3">' +
+          '<div>' +
+            '<div class="font-bold text-xs flex items-center gap-2">' +
+              '<span>' + escapeHtml(t.title) + '</span>' +
+              '<span class="text-[10px] px-2 py-0.5 rounded-full font-bold ' + statusBadgeClass + ' uppercase mono">' + escapeHtml(t.status || 'draft') + '</span>' +
+            '</div>' +
+            '<div class="text-[11px] text-[var(--text-soft)] mt-0.5">Pipeline: ' + escapeHtml(t.pipeline) + ' &bull; Priority: ' + escapeHtml(t.priority || 'medium') + '</div>' +
+          '</div>' +
+          '<button onclick="selectPipeline(\'' + t.pipeline + '\'); switchMainView(\'workbench\')" class="btn-ink px-3.5 py-1.5 text-xs font-semibold">Open in Workbench →</button>' +
+        '</div>';
+      }).join('') : '<div class="text-xs text-[var(--text-soft)] p-4 text-center">No active tasks in queue. Create or dispatch a pipeline task to get started.</div>') +
+    '</div>' +
+  '</div>';
 }
 
 function renderPipelinesCatalogView() {
@@ -2432,11 +2560,11 @@ async function submitAgentDispatch() {
   }
 
   try {
-    const res = await fetch('/api/agents/dispatch', {
+    const res = await apiFetch('/api/agents/dispatch', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-session-role': state.currentUserRole
+        
       },
       body: JSON.stringify({
         agent_slug: activeDispatchAgentSlug,
@@ -2494,8 +2622,8 @@ async function renderRagView() {
   const proj = getSelectedProject();
   if (proj) {
     try {
-      const res = await fetch(`/api/projects/${proj.id}/rag/chunks`, {
-        headers: { 'x-session-role': state.currentUserRole }
+      const res = await apiFetch(`/api/projects/${proj.id}/rag/chunks`, {
+        
       });
       if (res.ok) {
         const data = await res.json();
@@ -2532,11 +2660,11 @@ async function runRagSemanticSearch() {
   }
 
   try {
-    const res = await fetch(`/api/projects/${proj.id}/rag/search`, {
+    const res = await apiFetch(`/api/projects/${proj.id}/rag/search`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-session-role': state.currentUserRole
+        
       },
       body: JSON.stringify({ query, top_k: topK })
     });
@@ -2624,11 +2752,11 @@ async function ingestNewRagDocument() {
   }
 
   try {
-    const res = await fetch(`/api/projects/${proj.id}/rag/ingest`, {
+    const res = await apiFetch(`/api/projects/${proj.id}/rag/ingest`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-session-role': state.currentUserRole
+        
       },
       body: JSON.stringify({ document_name: docName, content })
     });
@@ -2690,8 +2818,8 @@ async function openGuidelinesModal() {
   if (!modal) return;
 
   try {
-    const res = await fetch(`/api/projects/${proj.id}/guidelines`, {
-      headers: { 'x-session-role': state.currentUserRole }
+    const res = await apiFetch(`/api/projects/${proj.id}/guidelines`, {
+      
     });
     if (res.ok) {
       const data = await res.json();
@@ -2763,11 +2891,11 @@ async function saveProjectGuidelines() {
   const custom_rules = document.getElementById('guidelinesCustomRules')?.value || '';
 
   try {
-    const res = await fetch(`/api/projects/${proj.id}/guidelines`, {
+    const res = await apiFetch(`/api/projects/${proj.id}/guidelines`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
-        'x-session-role': state.currentUserRole
+        
       },
       body: JSON.stringify({ guidelines, deliverable_specs, custom_rules })
     });
@@ -2793,8 +2921,8 @@ let activeSeoCategory = 'all';
 
 async function fetchSeoTree() {
   try {
-    const res = await fetch('/api/seo/tree', {
-      headers: { 'x-session-role': state.currentUserRole }
+    const res = await apiFetch('/api/seo/tree', {
+      
     });
     if (res.ok) {
       const data = await res.json();
@@ -2991,11 +3119,11 @@ async function submitSeoActionTask() {
   showToast(`Queuing ${activeSeoModalContext.sub.name} for ${proj.name}...`);
 
   try {
-    const res = await fetch('/api/seo/execute', {
+    const res = await apiFetch('/api/seo/execute', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-session-role': state.currentUserRole
+        
       },
       body: JSON.stringify({
         project_id: proj.id,
@@ -3045,8 +3173,8 @@ async function fetchAdminSettingsData() {
   if (!['super_admin', 'admin'].includes(state.currentUserRole)) return;
   try {
     const [llmRes, wdRes] = await Promise.all([
-      fetch('/api/admin/llm-config', { headers: { 'x-session-role': state.currentUserRole } }),
-      fetch('/api/admin/watchdog/status', { headers: { 'x-session-role': state.currentUserRole } })
+      apiFetch('/api/admin/llm-config', {  }),
+      apiFetch('/api/admin/watchdog/status', {  })
     ]);
 
     if (llmRes.ok) {
@@ -3080,11 +3208,11 @@ function filterLlmProviders(filter) {
 async function pingLlmProvider(provider) {
   showToast(`Testing connection to ${provider}...`);
   try {
-    const res = await fetch(`/api/admin/llm-config/${provider}/test`, {
+    const res = await apiFetch(`/api/admin/llm-config/${provider}/test`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-session-role': state.currentUserRole
+        
       }
     });
     const data = await res.json();
@@ -3104,9 +3232,9 @@ async function pingAllLlmProviders() {
   showToast('Testing all 6 LLM provider endpoints...');
   for (const p of adminLlmProviders) {
     try {
-      await fetch(`/api/admin/llm-config/${p.provider}/test`, {
+      await apiFetch(`/api/admin/llm-config/${p.provider}/test`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-session-role': state.currentUserRole }
+        headers: { 'Content-Type': 'application/json', }
       });
     } catch (_) {}
   }
@@ -3129,11 +3257,11 @@ async function saveLlmProviderConfig(provider) {
 
   showToast(`Saving configuration for ${provider}...`);
   try {
-    const res = await fetch('/api/admin/llm-config', {
+    const res = await apiFetch('/api/admin/llm-config', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-session-role': state.currentUserRole
+        
       },
       body: JSON.stringify(payload)
     });
@@ -3153,11 +3281,11 @@ async function saveLlmProviderConfig(provider) {
 async function setActiveLlmRouting(provider) {
   showToast(`Switching primary routing engine to ${provider}...`);
   try {
-    const res = await fetch('/api/admin/llm-config', {
+    const res = await apiFetch('/api/admin/llm-config', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-session-role': state.currentUserRole
+        
       },
       body: JSON.stringify({ default_provider: provider })
     });
@@ -3177,11 +3305,11 @@ async function setActiveLlmRouting(provider) {
 async function triggerAdminWatchdogScan() {
   showToast('Triggering self-healing watchdog scan...');
   try {
-    const res = await fetch('/api/admin/watchdog/scan', {
+    const res = await apiFetch('/api/admin/watchdog/scan', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-session-role': state.currentUserRole
+        
       },
       body: JSON.stringify({ sla_seconds: 300 })
     });
@@ -3309,24 +3437,26 @@ function renderAll() {
   setupDragAndDrop();
 }
 
-window.addEventListener('DOMContentLoaded', function() {
-  syncFromBackend().then(() => {
-    if (window.location.hash === '#seo') state.mainView = 'seo';
-    else if (window.location.hash === '#logins') state.mainView = 'logins';
-    else if (window.location.hash === '#agents') state.mainView = 'agents';
-    else if (window.location.hash === '#adminSettings') state.mainView = 'adminSettings';
-    else if (window.location.hash === '#rag') {
-      state.mainView = 'rag';
-      setTimeout(runRagSemanticSearch, 250);
-    }
-    else if (window.location.hash === '#dispatch') {
-      state.mainView = 'agents';
-      setTimeout(() => openAgentDispatchModal('coordinator'), 200);
-    }
-    else if (window.location.hash === '#guidelines') {
-      state.mainView = 'workbench';
-      setTimeout(openGuidelinesModal, 100);
-    }
-    renderAll();
-  });
+window.addEventListener('DOMContentLoaded', async function() {
+  const authed = await initAuthSession();
+  if (authed) {
+    await syncFromBackend();
+  }
+  if (window.location.hash === '#seo') state.mainView = 'seo';
+  else if (window.location.hash === '#logins') state.mainView = 'logins';
+  else if (window.location.hash === '#agents') state.mainView = 'agents';
+  else if (window.location.hash === '#adminSettings') state.mainView = 'adminSettings';
+  else if (window.location.hash === '#rag') {
+    state.mainView = 'rag';
+    setTimeout(runRagSemanticSearch, 250);
+  }
+  else if (window.location.hash === '#dispatch') {
+    state.mainView = 'agents';
+    setTimeout(() => openAgentDispatchModal('coordinator'), 200);
+  }
+  else if (window.location.hash === '#guidelines') {
+    state.mainView = 'workbench';
+    setTimeout(openGuidelinesModal, 100);
+  }
+  renderAll();
 });

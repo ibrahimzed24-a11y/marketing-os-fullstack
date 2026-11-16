@@ -149,25 +149,22 @@
         </div>
       </div>
 
-      <!-- Instant Role Switcher (RBAC Live Testing) -->
-      <div class="flex items-center gap-1.5 flex-wrap bg-[var(--bg-soft)] p-1 rounded-full border border-[var(--border)]">
-        <span class="text-[11px] font-medium text-[var(--text-soft)] px-2 hidden xl:inline">Active Session Role:</span>
-        <button id="roleBtn-super_admin" onclick="switchRoleSession('super_admin')" class="px-2.5 py-1 rounded-full text-[11px] font-semibold transition">Super Admin</button>
-        <button id="roleBtn-admin" onclick="switchRoleSession('admin')" class="px-2.5 py-1 rounded-full text-[11px] font-semibold transition">Admin</button>
-        <button id="roleBtn-manager" onclick="switchRoleSession('manager')" class="px-2.5 py-1 rounded-full text-[11px] font-semibold transition">Manager</button>
-        <button id="roleBtn-member" onclick="switchRoleSession('member')" class="px-2.5 py-1 rounded-full text-[11px] font-semibold transition">Member</button>
-        <button id="roleBtn-client" onclick="switchRoleSession('client')" class="px-2.5 py-1 rounded-full text-[11px] font-semibold transition">Client</button>
-      </div>
-
-      <!-- Status Indicators & Actions -->
-      <div class="flex items-center gap-2 shrink-0">
-        <button onclick="openMcpModal()" class="btn-outline px-3 py-1.5 text-[11px] inline-flex items-center gap-1.5">
+      <!-- Authenticated User Profile & Sign Out (Standard Secure Auth) -->
+      <div id="authHeaderControls" class="flex items-center gap-2 shrink-0">
+        <button onclick="openMcpModal()" class="btn-outline px-3 py-1.5 text-[11px] inline-flex items-center gap-1.5 hidden sm:inline-flex">
           <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span class="mono">n8n-mcp: connected</span>
+          <span class="mono">n8n: online</span>
         </button>
-        <button onclick="openAuthModal()" class="btn-outline px-3 py-1.5 text-[11px] inline-flex items-center gap-1.5">
-          <span id="headerUserBadge" class="font-semibold">Ibrahim Zid</span>
-          <span id="headerRoleChip" class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 mono">SUPER_ADMIN</span>
+        <div id="userProfileBadge" class="flex items-center gap-2 px-3 py-1.5 rounded-full card-subtle border border-[var(--border)]">
+          <div id="headerAvatarPill" class="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold text-[10px] uppercase shadow-sm">SA</div>
+          <div class="leading-tight text-left">
+            <span id="headerUserBadge" class="block font-bold text-xs truncate max-w-[120px]">Super Admin</span>
+            <span id="headerRoleChip" class="block text-[9px] font-semibold text-indigo-600 dark:text-indigo-400 mono uppercase tracking-wider">SUPER ADMIN</span>
+          </div>
+        </div>
+        <button onclick="handleUserSignOut()" id="signOutBtn" class="btn-outline px-3 py-1.5 text-xs font-semibold inline-flex items-center gap-1.5 hover:text-red-500 hover:border-red-500 transition" title="Sign Out">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+          <span class="hidden md:inline">Sign Out</span>
         </button>
         <button onclick="toggleTheme()" id="themeToggleBtn" class="btn-outline w-8 h-8 grid place-items-center text-xs" title="Toggle Dark/Light Mode">◐</button>
       </div>
@@ -1071,31 +1068,51 @@ agent = Agent(
   </div>
 
   <!-- ======================================================================= -->
-  <!-- MODAL 6: LOGIN / ACCOUNT CREDENTIALS SWITCHER                           -->
+  <!-- MODAL 6: LOGIN / STANDARD SECURE AUTHENTICATION (JWT)                   -->
   <!-- ======================================================================= -->
-  <div id="authModal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="card-surface w-full max-w-md p-5 space-y-4">
+  <div id="authModal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="card-surface w-full max-w-md p-6 sm:p-7 space-y-5 rounded-2xl shadow-2xl border border-[var(--border-strong)]">
       <div class="flex items-center justify-between">
-        <h3 class="text-sm font-bold">Authenticate Session (JWT + RBAC)</h3>
-        <button onclick="closeAuthModal()" class="text-xs text-[var(--text-faint)] hover:text-[var(--text)]">✕</button>
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-600 text-white flex items-center justify-center font-extrabold text-sm shadow-md">AG</div>
+          <div>
+            <h3 class="text-base font-bold">Marketing OS &bull; Team Login</h3>
+            <p class="text-xs text-[var(--text-soft)]">Internal Workforce Operating System</p>
+          </div>
+        </div>
+        <button id="authModalCloseBtn" onclick="closeAuthModal()" class="hidden text-xs text-[var(--text-faint)] hover:text-[var(--text)] w-7 h-7 rounded-full bg-[var(--bg-soft)] grid place-items-center">✕</button>
       </div>
-      <div class="space-y-2.5">
+
+      <div id="authErrorMessage" class="hidden p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs font-medium"></div>
+
+      <form id="authLoginForm" onsubmit="event.preventDefault(); submitLoginForm();" class="space-y-3.5">
         <div>
-          <label class="block text-[11px] font-medium text-[var(--text-soft)] mb-1">Email</label>
-          <input id="loginEmailInput" class="input-field" value="admin@marketingos.local" />
+          <label class="block text-xs font-bold text-[var(--text)] mb-1">Work Email</label>
+          <input id="loginEmailInput" type="email" required class="input-field" placeholder="admin@marketingos.local" value="admin@marketingos.local" autocomplete="username" />
         </div>
         <div>
-          <label class="block text-[11px] font-medium text-[var(--text-soft)] mb-1">Password</label>
-          <input id="loginPassInput" type="password" class="input-field" value="Admin123!" />
+          <label class="block text-xs font-bold text-[var(--text)] mb-1">Password</label>
+          <input id="loginPassInput" type="password" required class="input-field" placeholder="••••••••••••" value="Admin123!" autocomplete="current-password" />
         </div>
-        <button onclick="submitLoginForm()" class="btn-primary w-full py-2 text-xs">Sign In with Credentials</button>
-      </div>
-      <div class="card-subtle p-3 text-[11px] space-y-1">
-        <div class="font-bold text-[var(--text)]">Seeded RBAC Accounts (Click to Autofill):</div>
-        <button onclick="autofillLogin('admin@marketingos.local','Admin123!')" class="block w-full text-left hover:text-indigo-500">• <b>Super Admin:</b> admin@marketingos.local / Admin123!</button>
-        <button onclick="autofillLogin('manager@marketingos.local','Manager123!')" class="block w-full text-left hover:text-indigo-500">• <b>Manager:</b> manager@marketingos.local / Manager123!</button>
-        <button onclick="autofillLogin('member@marketingos.local','Member123!')" class="block w-full text-left hover:text-indigo-500">• <b>Member:</b> member@marketingos.local / Member123!</button>
-        <button onclick="autofillLogin('client@marketingos.local','Client123!')" class="block w-full text-left hover:text-indigo-500">• <b>Client:</b> client@marketingos.local / Client123!</button>
+        <button type="submit" id="loginSubmitBtn" class="btn-primary w-full py-2.5 text-xs font-bold shadow-md hover:shadow-lg transition">Sign In to Workspace</button>
+      </form>
+
+      <div class="card-subtle p-3.5 rounded-xl text-xs space-y-2 border border-[var(--border)]">
+        <div class="font-bold text-[11px] text-[var(--text-soft)] uppercase tracking-wider">Internal Marketing Team Accounts:</div>
+        <div class="grid grid-cols-3 gap-2">
+          <button type="button" onclick="autofillLogin('admin@marketingos.local','Admin123!')" class="p-2 rounded-lg card-surface border border-[var(--border)] text-left hover:border-indigo-500 transition">
+            <div class="font-bold text-[11px] text-indigo-600 dark:text-indigo-400">Super Admin</div>
+            <div class="text-[10px] text-[var(--text-soft)]">Leadership</div>
+          </button>
+          <button type="button" onclick="autofillLogin('manager@marketingos.local','Manager123!')" class="p-2 rounded-lg card-surface border border-[var(--border)] text-left hover:border-purple-500 transition">
+            <div class="font-bold text-[11px] text-purple-600 dark:text-purple-400">Manager</div>
+            <div class="text-[10px] text-[var(--text-soft)]">Growth Lead</div>
+          </button>
+          <button type="button" onclick="autofillLogin('member@marketingos.local','Member123!')" class="p-2 rounded-lg card-surface border border-[var(--border)] text-left hover:border-emerald-500 transition">
+            <div class="font-bold text-[11px] text-emerald-600 dark:text-emerald-400">Member</div>
+            <div class="text-[10px] text-[var(--text-soft)]">Specialist</div>
+          </button>
+        </div>
       </div>
     </div>
   </div>
