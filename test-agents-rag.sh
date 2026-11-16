@@ -1,7 +1,31 @@
 #!/usr/bin/env bash
 set -e
 
-BASE_URL="http://127.0.0.1:3000"
+PORT=${PORT:-3000}
+BASE_URL="http://127.0.0.1:${PORT}"
+
+# Auto-start server if not already running on target port
+STARTED_SERVER=false
+if ! curl -s "${BASE_URL}/api/health" | grep -q "ok"; then
+  echo "Starting background test server on port $PORT..."
+  PORT=$PORT NODE_ENV=development WATCHDOG_INTERVAL_MS=60000 node server/index.js > /dev/null 2>&1 &
+  SERVER_PID=$!
+  STARTED_SERVER=true
+  cleanup() {
+    if [ "$STARTED_SERVER" = true ] && [ -n "$SERVER_PID" ]; then
+      echo "Stopping test server PID $SERVER_PID..."
+      kill -9 $SERVER_PID 2>/dev/null || true
+    fi
+  }
+  trap cleanup EXIT
+  for i in {1..10}; do
+    if curl -s "${BASE_URL}/api/health" | grep -q "ok"; then
+      echo "Server up on ${BASE_URL} (attempt $i)"
+      break
+    fi
+    sleep 0.5
+  done
+fi
 
 echo "=== 1. Login Super Admin ==="
 ADMIN_RES=$(curl -s -X POST "$BASE_URL/api/auth/login" \

@@ -449,6 +449,26 @@ ${guidelinesSection}${customRulesSection}
     };
   }
 
+  // Guarantee unified deliverable schema contract for frontend rendering and verification
+  if (!outputJson.deliverable) {
+    outputJson.deliverable = {
+      type: pipeline === 'landing-page' ? 'landing_page'
+        : (pipeline === 'lead-research' ? 'lead_list'
+        : (pipeline === 'brand-kit' ? 'brand_kit'
+        : (pipeline === 'ads-creative' ? 'ad_set'
+        : (pipeline === 'email-campaign' ? 'email_campaign'
+        : (pipeline === 'social-content' ? 'social_posts'
+        : (pipeline === 'market-intel' ? 'market_report' : 'article')))))),
+      title: title,
+      summary: outputJson.summary,
+      content: deliverableMd || outputJson.content || '',
+      html: outputJson.html || '',
+      leads: outputJson.leads || outputJson.lead_list || [],
+      sections: outputJson.sections || [],
+      metadata: outputJson.metadata
+    };
+  }
+
   return { outputJson, reportMd };
 }
 

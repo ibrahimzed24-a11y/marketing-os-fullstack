@@ -330,6 +330,7 @@ function getWatchdogStatus() {
   const deadLettersCount = db.prepare("SELECT COUNT(*) as count FROM webhook_retries WHERE status = 'dead_letter'").get()?.count || 0;
 
   return {
+    active: watchdogTimer !== null,
     is_running: watchdogTimer !== null,
     scan_interval_ms: DEFAULT_SCAN_INTERVAL_MS,
     sla_timeout_seconds: DEFAULT_SLA_SECONDS,
