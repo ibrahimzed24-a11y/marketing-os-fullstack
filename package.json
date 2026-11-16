@@ -8,7 +8,15 @@
     "dev": "node server/index.js",
     "start": "node server/index.js",
     "seed": "node server/seed.js",
-    "reset": "rm -rf data/marketing-os.db && node server/seed.js"
+    "reset": "rm -rf data/marketing-os.db && node server/seed.js",
+    "test": "./test-all-e2e.sh",
+    "test:e2e": "./test-all-e2e.sh",
+    "test:flow": "./test-flow.sh",
+    "test:ui": "./test-frontend-ui.sh",
+    "test:watchdog": "./test-watchdog.sh",
+    "test:pipelines": "./test-pipeline-schemas.sh",
+    "test:llm": "./test-llm-config.sh",
+    "test:rag": "./test-agents-rag.sh"
   },
   "dependencies": {
     "express": "^4.19.2",
