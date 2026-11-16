@@ -320,9 +320,24 @@ try {
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
+  -- 21. Project-Scoped RAG Document Chunks & Vector Store
+  CREATE TABLE IF NOT EXISTS rag_chunks (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    document_name TEXT NOT NULL,
+    chunk_index INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    token_count INTEGER DEFAULT 0,
+    keywords_json TEXT DEFAULT '[]',
+    embedding_json TEXT DEFAULT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+  );
+
   -- Performance Indexes
   CREATE INDEX IF NOT EXISTS idx_saved_logins_category ON saved_logins(category);
   CREATE INDEX IF NOT EXISTS idx_saved_logins_status ON saved_logins(status);
+  CREATE INDEX IF NOT EXISTS idx_rag_chunks_project ON rag_chunks(project_id);
   CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id);
   CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
   CREATE INDEX IF NOT EXISTS idx_tasks_pipeline ON tasks(pipeline);

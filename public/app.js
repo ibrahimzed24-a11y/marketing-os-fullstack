@@ -69,38 +69,437 @@ const PIPELINE_CATALOG = {
 };
 
 const AGENTS_32 = [
-  { id: 'c1', slug: 'coordinator', name: 'Coordinator', role: 'Orchestration Lead', dept: 'Leadership', initials: 'CO', color: '#4F46E5' },
-  { id: 'c2', slug: 'strategist', name: 'Strategist', role: 'Direction & OKRs', dept: 'Leadership', initials: 'ST', color: '#7C3AED' },
-  { id: 'c3', slug: 'chief-staff', name: 'Chief Staff', role: 'Execution Ops', dept: 'Leadership', initials: 'CS', color: '#4F46E5' },
-  { id: 'c4', slug: 'vision-keeper', name: 'Vision Keeper', role: 'Narrative & Ethics', dept: 'Leadership', initials: 'VK', color: '#DB2777' },
-  { id: 'r1', slug: 'insight-miner', name: 'Insight Miner', role: 'Pattern Extraction', dept: 'Research', initials: 'IM', color: '#0891B2' },
-  { id: 'r2', slug: 'browser-researcher', name: 'Browser Researcher', role: 'Source Forensics', dept: 'Research', initials: 'BR', color: '#0284C7' },
-  { id: 'r3', slug: 'signal-scout', name: 'Signal Scout', role: 'Trend Sensing', dept: 'Research', initials: 'SS', color: '#0D9488' },
-  { id: 'r4', slug: 'truth-seeker', name: 'Truth Seeker', role: 'Fact Validation', dept: 'Research', initials: 'TS', color: '#059669' },
-  { id: 'e1', slug: 'architect', name: 'Architect', role: 'Systems Design', dept: 'Engineering', initials: 'AR', color: '#4F46E5' },
-  { id: 'e2', slug: 'software-engineer', name: 'Software Engineer', role: 'Full-Stack Code', dept: 'Engineering', initials: 'SE', color: '#7C3AED' },
-  { id: 'e3', slug: 'guardian', name: 'Guardian', role: 'Security & TDD', dept: 'Engineering', initials: 'GU', color: '#DC2626' },
-  { id: 'e4', slug: 'integrator', name: 'Integrator', role: 'API & Data Harness', dept: 'Engineering', initials: 'IN', color: '#D97706' },
-  { id: 'd1', slug: 'aesthetic', name: 'Aesthetic', role: 'Visual Language', dept: 'Design', initials: 'AE', color: '#DB2777' },
-  { id: 'd2', slug: 'flow-maker', name: 'Flow Maker', role: 'UX Orchestration', dept: 'Design', initials: 'FM', color: '#7C3AED' },
-  { id: 'd3', slug: 'motion', name: 'Motion', role: 'Interaction & Delight', dept: 'Design', initials: 'MO', color: '#4F46E5' },
-  { id: 'd4', slug: 'scribe', name: 'Scribe', role: 'Content Systems', dept: 'Design', initials: 'SC', color: '#0891B2' },
-  { id: 'o1', slug: 'conductor', name: 'Conductor', role: 'Release Ops', dept: 'Ops', initials: 'CN', color: '#059669' },
-  { id: 'o2', slug: 'keeper', name: 'Keeper', role: 'Knowledge Sync', dept: 'Ops', initials: 'KE', color: '#0D9488' },
-  { id: 'o3', slug: 'resolver', name: 'Resolver', role: 'Incident Response', dept: 'Ops', initials: 'RE', color: '#D97706' },
-  { id: 'o4', slug: 'master-reporting-agent', name: 'Master Reporting', role: 'Executive Audit', dept: 'Ops', initials: 'MR', color: '#4F46E5' },
-  { id: 'g1', slug: 'amplifier', name: 'Amplifier', role: 'Growth Loops', dept: 'Growth', initials: 'AM', color: '#DB2777' },
-  { id: 'g2', slug: 'storyteller', name: 'Storyteller', role: 'Narrative Growth', dept: 'Growth', initials: 'ST', color: '#7C3AED' },
-  { id: 'g3', slug: 'connector', name: 'Connector', role: 'Partnership Mesh', dept: 'Growth', initials: 'CN', color: '#4F46E5' },
-  { id: 'g4', slug: 'analyst', name: 'Analyst', role: 'Attribution', dept: 'Growth', initials: 'AN', color: '#0891B2' },
-  { id: 'f1', slug: 'steward', name: 'Steward', role: 'Capital Strategy', dept: 'Finance', initials: 'SW', color: '#059669' },
-  { id: 'f2', slug: 'forecaster', name: 'Forecaster', role: 'Model & Runway', dept: 'Finance', initials: 'FC', color: '#0284C7' },
-  { id: 'f3', slug: 'auditor', name: 'Auditor', role: 'Compliance Scan', dept: 'Finance', initials: 'AU', color: '#D97706' },
-  { id: 'f4', slug: 'negotiator', name: 'Negotiator', role: 'Deal Structuring', dept: 'Finance', initials: 'NE', color: '#4F46E5' },
-  { id: 'l1', slug: 'sentry', name: 'Sentry', role: 'Risk & Legal', dept: 'Legal', initials: 'SN', color: '#DC2626' },
-  { id: 'l2', slug: 'counsel', name: 'Counsel', role: 'Contract Logic', dept: 'Legal', initials: 'CL', color: '#7C3AED' },
-  { id: 'l3', slug: 'guardian-l', name: 'Guardian L', role: 'Policy Shield', dept: 'Legal', initials: 'GL', color: '#4F46E5' },
-  { id: 'l4', slug: 'ethicist', name: 'Ethicist', role: 'Sovereign Review', dept: 'Legal', initials: 'ET', color: '#0D9488' }
+  // Leadership & Strategy (4)
+  {
+    id: 'c1',
+    slug: 'coordinator',
+    name: 'Coordinator',
+    role: 'Orchestration Lead & COO',
+    dept: 'Leadership',
+    initials: 'CO',
+    color: '#4F46E5',
+    capabilities: ['5-Stage Loop Governance', 'Task DAG Scheduling', 'Gate G2 Enforcer', 'Agent Delegation'],
+    assigned_pipelines: ['landing-page', 'email-campaign', 'lead-research', 'content-seo', 'market-intel', 'brand-kit', 'social-content', 'ads-creative'],
+    system_directive: 'Decompose complex marketing briefs into deterministic 5-stage agent pipelines (Plan -> Assign -> Execute -> Verify -> Report). Enforce ground-truth harness compliance and human-in-the-loop Gate G2 approval before live delivery.',
+    status: 'active'
+  },
+  {
+    id: 'c2',
+    slug: 'strategist',
+    name: 'Strategist',
+    role: 'Market Positioning & OKRs',
+    dept: 'Leadership',
+    initials: 'ST',
+    color: '#7C3AED',
+    capabilities: ['Competitive Moat Analysis', 'Value Proposition Design', 'Quarterly OKR Mapping', 'Channel Economics'],
+    assigned_pipelines: ['market-intel', 'brand-kit'],
+    system_directive: 'Formulate high-yield strategic positioning frameworks. Align client offerings with market whitespace and validate economics against harness pricing data.',
+    status: 'active'
+  },
+  {
+    id: 'c3',
+    slug: 'chief-staff',
+    name: 'Chief Staff',
+    role: 'Cross-Functional Execution Ops',
+    dept: 'Leadership',
+    initials: 'CS',
+    color: '#4F46E5',
+    capabilities: ['Resource Allocation', 'Bottleneck Elimination', 'Inter-Agent Handoffs', 'Execution Velocity'],
+    assigned_pipelines: ['landing-page', 'email-campaign'],
+    system_directive: 'Ensure zero-stall execution across agent squads. Monitor token throughput, task dependencies, and error recovery policies.',
+    status: 'active'
+  },
+  {
+    id: 'c4',
+    slug: 'vision-keeper',
+    name: 'Vision Keeper',
+    role: 'Brand Integrity & Narrative',
+    dept: 'Leadership',
+    initials: 'VK',
+    color: '#DB2777',
+    capabilities: ['Brand Voice Calibration', 'Ethical Guardrails', 'Mission Alignment', 'Executive Polish'],
+    assigned_pipelines: ['brand-kit', 'social-content'],
+    system_directive: 'Audit all outbound narratives against the brand guidelines. Guarantee that voice, tone, typography, and visual assets communicate sovereign authority.',
+    status: 'active'
+  },
+
+  // Research & Intelligence (4)
+  {
+    id: 'r1',
+    slug: 'insight-miner',
+    name: 'Insight Miner',
+    role: 'Pattern & Data Extraction',
+    dept: 'Research',
+    initials: 'IM',
+    color: '#0891B2',
+    capabilities: ['Customer Sentiment Mining', 'Review Teardowns', 'Objection Harvesting', 'Feature Gap Extraction'],
+    assigned_pipelines: ['market-intel', 'lead-research'],
+    system_directive: 'Analyze customer review corpuses, forum discussions, and feedback transcripts. Extract unvarnished pain points, conversion blockers, and emotional hooks.',
+    status: 'active'
+  },
+  {
+    id: 'r2',
+    slug: 'browser-researcher',
+    name: 'Browser Researcher',
+    role: 'Autonomous Forensics & Web Scraping',
+    dept: 'Research',
+    initials: 'BR',
+    color: '#0284C7',
+    capabilities: ['Headless Chromium Navigation', 'DOM Tree Extraction', 'SERP Analysis', 'Pricing Table Forensic Scrape'],
+    assigned_pipelines: ['lead-research', 'market-intel', 'content-seo'],
+    system_directive: 'Perform automated web investigation, SERP queries, and competitor audits. Capture exact evidence citations and prevent stale assumptions.',
+    status: 'active'
+  },
+  {
+    id: 'r3',
+    slug: 'signal-scout',
+    name: 'Signal Scout',
+    role: 'Trend Sensing & Market Shifts',
+    dept: 'Research',
+    initials: 'SS',
+    color: '#0D9488',
+    capabilities: ['Google Trends Velocity', 'Algorithmic Shift Detection', 'Viral Loop Modeling', 'Emerging Entity Radar'],
+    assigned_pipelines: ['content-seo', 'social-content'],
+    system_directive: 'Monitor real-time search volume velocity, rising queries, and category shifts to capture high-intent organic demand ahead of competitors.',
+    status: 'active'
+  },
+  {
+    id: 'r4',
+    slug: 'truth-seeker',
+    name: 'Truth Seeker',
+    role: 'Fact & Claim Validation',
+    dept: 'Research',
+    initials: 'TS',
+    color: '#059669',
+    capabilities: ['Source Grounding Verification', 'Citation Cross-Check', 'Anti-Hallucination Gate', 'Numeric Reconciliation'],
+    assigned_pipelines: ['market-intel', 'lead-research'],
+    system_directive: 'Cross-reference every metric, price, and doctor or clinic name directly against uploaded harness files. Reject ungrounded claims with zero tolerance.',
+    status: 'active'
+  },
+
+  // Engineering & Full-Stack Development (4)
+  {
+    id: 'e1',
+    slug: 'architect',
+    name: 'Architect',
+    role: 'Distributed Systems & Data Modeling',
+    dept: 'Engineering',
+    initials: 'AR',
+    color: '#4F46E5',
+    capabilities: ['Schema Normalization', 'State Machine Design', 'API Contract Specs', 'Fault-Tolerant Topology'],
+    assigned_pipelines: ['landing-page'],
+    system_directive: 'Design robust, low-latency architectures with clear interface boundaries, strict SQLite pragma enforcement, and centralized error hierarchies.',
+    status: 'active'
+  },
+  {
+    id: 'e2',
+    slug: 'software-engineer',
+    name: 'Software Engineer',
+    role: 'Full-Stack Code & UI Deliverables',
+    dept: 'Engineering',
+    initials: 'SE',
+    color: '#7C3AED',
+    capabilities: ['Tailwind CSS Generation', 'Responsive HTML Landing Pages', 'AST Validation', 'Interactive DOM Components'],
+    assigned_pipelines: ['landing-page', 'email-campaign', 'brand-kit'],
+    system_directive: 'Author production-grade HTML, CSS, JavaScript, and Node.js microservices. Implement defensive try/catch blocks and guarantee responsive mobile rendering.',
+    status: 'active'
+  },
+  {
+    id: 'e3',
+    slug: 'guardian',
+    name: 'Guardian',
+    role: 'Security & Automated TDD',
+    dept: 'Engineering',
+    initials: 'GU',
+    color: '#DC2626',
+    capabilities: ['RBAC Boundary Auditing', 'Type Confusion Defense', 'SQL Injection Mitigation', 'Automated Test Harness'],
+    assigned_pipelines: ['landing-page'],
+    system_directive: 'Maintain rigorous defensive perimeter checks. Block privilege escalation, enforce credential masking, and run regression test suites on every release.',
+    status: 'active'
+  },
+  {
+    id: 'e4',
+    slug: 'integrator',
+    name: 'Integrator',
+    role: 'API Webhooks & Data Pipelines',
+    dept: 'Engineering',
+    initials: 'IN',
+    color: '#D97706',
+    capabilities: ['n8n Dual Engine Routing', 'SMTP Protocol Handshakes', 'Webhook Retry Mechanics', 'Multipart Stream Parsing'],
+    assigned_pipelines: ['email-campaign', 'lead-research'],
+    system_directive: 'Orchestrate seamless telemetry between local Antigravity runtimes, n8n webhook nodes, Hostinger mail servers, and external CRM sync endpoints.',
+    status: 'active'
+  },
+
+  // Design & Creative Assets (4)
+  {
+    id: 'd1',
+    slug: 'aesthetic',
+    name: 'Aesthetic',
+    role: 'Visual Language & Brand Style',
+    dept: 'Design',
+    initials: 'AE',
+    color: '#DB2777',
+    capabilities: ['Design System Tokens', 'Color Theory & Harmony', 'Hero Section Composition', 'Visual Hierarchy'],
+    assigned_pipelines: ['brand-kit', 'landing-page'],
+    system_directive: 'Establish premium visual standards utilizing modern dark/light gradients, crisp borders, and balanced whitespace that converts high-ticket buyers.',
+    status: 'active'
+  },
+  {
+    id: 'd2',
+    slug: 'flow-maker',
+    name: 'Flow Maker',
+    role: 'Conversion UX & Funnels',
+    dept: 'Design',
+    initials: 'FM',
+    color: '#7C3AED',
+    capabilities: ['Friction Reduction', 'Form Step Optimization', 'Checkout Flow Audit', 'Micro-Interaction Design'],
+    assigned_pipelines: ['landing-page'],
+    system_directive: 'Engineer frictionless user conversion journeys. Reduce drop-off rates on booking forms, consultation schedulers, and inquiry CTA buttons.',
+    status: 'active'
+  },
+  {
+    id: 'd3',
+    slug: 'motion',
+    name: 'Motion',
+    role: 'Interactive Animation & Delight',
+    dept: 'Design',
+    initials: 'MO',
+    color: '#4F46E5',
+    capabilities: ['CSS Micro-Animations', 'Skeleton Loaders', 'Scroll-Trigger Transitions', 'Mobile Touch Feedback'],
+    assigned_pipelines: ['landing-page'],
+    system_directive: 'Infuse lightweight, GPU-accelerated motion tokens that guide user focus without compromising page load speeds or Google Core Web Vitals.',
+    status: 'active'
+  },
+  {
+    id: 'd4',
+    slug: 'scribe',
+    name: 'Scribe',
+    role: 'Content Systems & Copy Architecture',
+    dept: 'Design',
+    initials: 'SC',
+    color: '#0891B2',
+    capabilities: ['Direct-Response Copywriting', 'H1-H3 Structure', 'FAQ Schema Generation', 'Meta Description Crafting'],
+    assigned_pipelines: ['content-seo', 'email-campaign', 'social-content'],
+    system_directive: 'Produce authoritative, persuasive copywriting. Frame compelling headlines, benefit bullet points, and authoritative FAQs grounded in search intent.',
+    status: 'active'
+  },
+
+  // Operations & Quality Assurance (4)
+  {
+    id: 'o1',
+    slug: 'conductor',
+    name: 'Conductor',
+    role: 'Release Management & CI/CD',
+    dept: 'Ops',
+    initials: 'CN',
+    color: '#059669',
+    capabilities: ['Artifact Versioning', 'Rollback Triggers', 'Build Automation', 'Environment Staging'],
+    assigned_pipelines: ['landing-page', 'email-campaign'],
+    system_directive: 'Manage build artifacts and deployment pipelines. Verify system health checks and maintain clean migration rollbacks.',
+    status: 'active'
+  },
+  {
+    id: 'o2',
+    slug: 'keeper',
+    name: 'Keeper',
+    role: 'Knowledge Base & RAG Indexing',
+    dept: 'Ops',
+    initials: 'KE',
+    color: '#0D9488',
+    capabilities: ['Harness Chunking', 'Vector Ingestion', 'Semantic Cache Sync', 'Context Window Packing'],
+    assigned_pipelines: ['market-intel', 'content-seo'],
+    system_directive: 'Maintain the project RAG vector database. Ensure newly uploaded harness files, CSV leads, and SOP guidelines are immediately chunked and searchable.',
+    status: 'active'
+  },
+  {
+    id: 'o3',
+    slug: 'resolver',
+    name: 'Resolver',
+    role: 'Incident Response & Fallbacks',
+    dept: 'Ops',
+    initials: 'RE',
+    color: '#D97706',
+    capabilities: ['Dead Letter Queue Handling', 'Webhook Fallback Routing', 'Rate Limit Backoff', 'Error Correlation Diagnostics'],
+    assigned_pipelines: ['email-campaign', 'landing-page'],
+    system_directive: 'Detect infrastructure disconnects (e.g. n8n offline) and route instantly to Antigravity sovereign local runners without dropping task states.',
+    status: 'active'
+  },
+  {
+    id: 'o4',
+    slug: 'master-reporting-agent',
+    name: 'Master Reporting',
+    role: 'Executive Audit & Delivery Verdict',
+    dept: 'Ops',
+    initials: 'MR',
+    color: '#4F46E5',
+    capabilities: ['Executive QA Audit', 'Deliverable Verification', 'Admin Markdown Reports', 'Ready-to-Deliver Sign-off'],
+    assigned_pipelines: ['landing-page', 'email-campaign', 'lead-research', 'content-seo', 'market-intel', 'brand-kit', 'social-content', 'ads-creative'],
+    system_directive: 'Audit all deliverables for ground truth alignment, usability, and commercial readiness. Emit official Admin Reports with final Ready to Deliver verdicts.',
+    status: 'active'
+  },
+
+  // Growth & Acquisition (4)
+  {
+    id: 'g1',
+    slug: 'amplifier',
+    name: 'Amplifier',
+    role: 'Growth Loops & Viral Dynamics',
+    dept: 'Growth',
+    initials: 'AM',
+    color: '#DB2777',
+    capabilities: ['Referral Engine Design', 'Social Share Mechanics', 'Product-Led Growth', 'Flywheel Optimization'],
+    assigned_pipelines: ['social-content', 'ads-creative'],
+    system_directive: 'Architect viral acquisition loops and referral programs that turn satisfied patients and customers into organic acquisition drivers.',
+    status: 'active'
+  },
+  {
+    id: 'g2',
+    slug: 'storyteller',
+    name: 'Storyteller',
+    role: 'Narrative Growth & Case Studies',
+    dept: 'Growth',
+    initials: 'ST',
+    color: '#7C3AED',
+    capabilities: ['Customer Proof Case Studies', 'Email Nurture Storytelling', 'Founder Angle Framing', 'Emotional Resonance'],
+    assigned_pipelines: ['email-campaign', 'content-seo'],
+    system_directive: 'Craft compelling narrative arcs across cold email sequences and content assets. Transform raw clinic metrics into undeniable transformation stories.',
+    status: 'active'
+  },
+  {
+    id: 'g3',
+    slug: 'connector',
+    name: 'Connector',
+    role: 'Partnerships & B2B Distribution',
+    dept: 'Growth',
+    initials: 'CN',
+    color: '#4F46E5',
+    capabilities: ['Strategic Channel Alliances', 'Affiliate Mesh Modeling', 'Supplier Co-Marketing', 'B2B Deal Routing'],
+    assigned_pipelines: ['lead-research', 'market-intel'],
+    system_directive: 'Identify high-leverage distribution partners, dental associations, and supplier networks to scale B2B pipeline without linear ad spend.',
+    status: 'active'
+  },
+  {
+    id: 'g4',
+    slug: 'analyst',
+    name: 'Analyst',
+    role: 'Attribution & Conversion Analytics',
+    dept: 'Growth',
+    initials: 'AN',
+    color: '#0891B2',
+    capabilities: ['Multi-Touch Attribution', 'CAC / LTV Modeling', 'ROAS Optimization', 'Funnel Cohort Analysis'],
+    assigned_pipelines: ['ads-creative', 'market-intel'],
+    system_directive: 'Compute customer acquisition costs, lifetime value ratios, and channel attribution models to ensure advertising dollars yield profitable growth.',
+    status: 'active'
+  },
+
+  // Finance & Deal Structuring (4)
+  {
+    id: 'f1',
+    slug: 'steward',
+    name: 'Steward',
+    role: 'Capital Strategy & Budgeting',
+    dept: 'Finance',
+    initials: 'SW',
+    color: '#059669',
+    capabilities: ['Unit Economics Modeling', 'Margin Protection', 'Media Budget Allocation', 'Runway Forecasting'],
+    assigned_pipelines: ['ads-creative'],
+    system_directive: 'Monitor advertising burn rates and campaign spend. Protect gross margins on setup fees and recurring software retainers.',
+    status: 'active'
+  },
+  {
+    id: 'f2',
+    slug: 'forecaster',
+    name: 'Forecaster',
+    role: 'Financial Projections & Modeling',
+    dept: 'Finance',
+    initials: 'FC',
+    color: '#0284C7',
+    capabilities: ['MRR / ARR Projections', 'Churn Sensitivity Modeling', 'Lead-to-Close Modeling', 'Seasonality Adjustments'],
+    assigned_pipelines: ['market-intel'],
+    system_directive: 'Project pipeline yields and revenue velocity based on outreach conversion rates and closed retainer contracts.',
+    status: 'active'
+  },
+  {
+    id: 'f3',
+    slug: 'auditor',
+    name: 'Auditor',
+    role: 'Financial Reconciliation & Invoicing',
+    dept: 'Finance',
+    initials: 'AU',
+    color: '#D97706',
+    capabilities: ['Invoice Verification', 'Payment Gateway Sync', 'Tax Jurisdiction Compliance', 'Billing Dispute Resolution'],
+    assigned_pipelines: ['landing-page'],
+    system_directive: 'Verify invoice generation and Stripe payment webhook receipts against deliverable milestones before client asset release.',
+    status: 'active'
+  },
+  {
+    id: 'f4',
+    slug: 'negotiator',
+    name: 'Negotiator',
+    role: 'Deal Terms & Commercial Contracts',
+    dept: 'Finance',
+    initials: 'NE',
+    color: '#4F46E5',
+    capabilities: ['Retainer Tier Pricing', 'Discount Guardrails', 'Performance Fee Clauses', 'Commercial Proposal Generation'],
+    assigned_pipelines: ['email-campaign', 'lead-research'],
+    system_directive: 'Structure profitable retainer packages ($499 setup + $299/mo growth retainer) with strict contract terms protecting intellectual property.',
+    status: 'active'
+  },
+
+  // Legal, Risk & Governance (4)
+  {
+    id: 'l1',
+    slug: 'sentry',
+    name: 'Sentry',
+    role: 'Risk Assessment & Policy Shield',
+    dept: 'Legal',
+    initials: 'SN',
+    color: '#DC2626',
+    capabilities: ['CAN-SPAM Compliance', 'CASL (Canada) Verification', 'GDPR / CCPA Audit', 'Unsubscribe Header Checks'],
+    assigned_pipelines: ['email-campaign', 'lead-research'],
+    system_directive: 'Ensure all outbound email sequences strictly comply with Canadian Anti-Spam Legislation (CASL) and CAN-SPAM, including physical postal address and opt-out links.',
+    status: 'active'
+  },
+  {
+    id: 'l2',
+    slug: 'counsel',
+    name: 'Counsel',
+    role: 'Contract Terms & IP Protection',
+    dept: 'Legal',
+    initials: 'CL',
+    color: '#7C3AED',
+    capabilities: ['Master Services Agreements', 'SOW Drafting', 'Copyright & Asset Ownership Clauses', 'NDA Verification'],
+    assigned_pipelines: ['brand-kit', 'landing-page'],
+    system_directive: 'Draft clear intellectual property transfer agreements ensuring clients permanently retain 100% domain and website asset ownership.',
+    status: 'active'
+  },
+  {
+    id: 'l3',
+    slug: 'guardian-l',
+    name: 'Guardian L',
+    role: 'Healthcare & Regulatory Compliance',
+    dept: 'Legal',
+    initials: 'GL',
+    color: '#4F46E5',
+    capabilities: ['RCDSO Advertising Standards', 'CDCP Compliance Verification', 'Patient Data Confidentiality', 'PIPEDA Privacy Shield'],
+    assigned_pipelines: ['landing-page', 'email-campaign', 'content-seo'],
+    system_directive: 'Ensure dental clinic website claims and advertising copy adhere to provincial dental regulatory college advertising guidelines and PIPEDA privacy regulations.',
+    status: 'active'
+  },
+  {
+    id: 'l4',
+    slug: 'ethicist',
+    name: 'Ethicist',
+    role: 'AI Ethics & Autonomous Governance',
+    dept: 'Legal',
+    initials: 'ET',
+    color: '#0D9488',
+    capabilities: ['Bias Mitigation', 'Truthful AI Representations', 'Safety Boundary Reviews', 'Transparency Disclosures'],
+    assigned_pipelines: ['market-intel', 'brand-kit'],
+    system_directive: 'Audit AI agent communication to maintain transparency, avoid misleading medical representations, and ensure ethical marketing standards.',
+    status: 'active'
+  }
 ];
 
 const INITIAL_SAVED_LOGINS = [
@@ -1530,36 +1929,416 @@ function renderTeamView() {
   ).join('');
 }
 
-function renderAgentsDirectory() {
-  const grid = document.getElementById('agentsDirectoryGrid');
-  if (!grid) return;
-  grid.innerHTML = AGENTS_32.map(a =>
-    '<div class="card-subtle p-3.5 hover:border-indigo-500 transition cursor-pointer">' +
-      '<div class="flex items-center gap-2.5">' +
-        '<div class="w-9 h-9 rounded-xl text-white font-bold text-xs grid place-items-center shrink-0" style="background:' + a.color + '">' + a.initials + '</div>' +
-        '<div class="min-w-0 flex-1">' +
-          '<div class="font-bold text-xs truncate">@' + a.slug + '</div>' +
-          '<div class="text-[11px] text-[var(--text-soft)] truncate">' + a.role + ' • ' + a.dept + '</div>' +
-        '</div>' +
-      '</div>' +
-    '</div>'
-  ).join('');
+// =============================================================================
+// 32 SOVEREIGN AGENTS DIRECTORY & SQUAD DISPATCH INTERACTION
+// =============================================================================
+function setAgentDeptFilter(dept) {
+  state.agentDeptFilter = dept;
+  saveState();
+  renderAgentsView();
 }
 
-function renderRagView() {
-  const selEl = document.getElementById('ragProjectSelect');
-  if (selEl) {
-    selEl.innerHTML = state.projects.map(p => '<option value="' + p.id + '">' + p.name + '</option>').join('');
-    selEl.value = state.selectedProjectId;
+function renderAgentsView() {
+  // Render department filter pills
+  const pillsEl = document.getElementById('agentsDeptFilterPills');
+  const depts = ['All', 'Leadership', 'Research', 'Engineering', 'Design', 'Ops', 'Growth', 'Finance', 'Legal'];
+  if (pillsEl) {
+    pillsEl.innerHTML = depts.map(d => {
+      const active = (state.agentDeptFilter || 'All') === d;
+      const count = d === 'All' ? AGENTS_32.length : AGENTS_32.filter(a => a.dept === d).length;
+      return `<button onclick="setAgentDeptFilter('${d}')" class="px-2.5 py-1 rounded-full text-xs font-semibold transition ${
+        active
+          ? 'bg-[var(--text)] text-[var(--surface)] shadow-sm'
+          : 'bg-[var(--bg-soft)] text-[var(--text-soft)] hover:text-[var(--text)] border border-[var(--border)]'
+      }">${d} (${count})</button>`;
+    }).join('');
+  }
+
+  // Filter agents
+  const searchInput = document.getElementById('agentsSearchInput');
+  const query = (searchInput ? searchInput.value : '').toLowerCase().trim();
+  const currentDept = state.agentDeptFilter || 'All';
+
+  const filtered = AGENTS_32.filter(a => {
+    const matchDept = currentDept === 'All' || a.dept === currentDept;
+    if (!matchDept) return false;
+    if (!query) return true;
+    const matchText = (a.name + ' ' + a.slug + ' ' + a.role + ' ' + a.dept + ' ' + (a.capabilities || []).join(' ') + ' ' + (a.system_directive || '')).toLowerCase();
+    return matchText.includes(query);
+  });
+
+  const grid = document.getElementById('agentsGridContainer') || document.getElementById('agentsDirectoryGrid');
+  if (!grid) return;
+
+  if (filtered.length === 0) {
+    grid.innerHTML = `<div class="col-span-full py-12 text-center text-xs text-[var(--text-soft)]">No sovereign agents match your search filter.</div>`;
+    return;
+  }
+
+  grid.innerHTML = filtered.map(a => `
+    <div class="card-surface p-4 flex flex-col justify-between hover:border-indigo-500/50 transition shadow-sm space-y-3">
+      <div>
+        <div class="flex items-start justify-between gap-2 mb-2.5">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <div class="w-10 h-10 rounded-2xl text-white font-bold text-xs grid place-items-center shrink-0 shadow-sm" style="background:${a.color}">
+              ${a.initials}
+            </div>
+            <div class="min-w-0">
+              <div class="font-bold text-xs tracking-tight truncate flex items-center gap-1.5">
+                <span>${a.name}</span>
+                <span class="text-[10px] text-indigo-600 dark:text-indigo-400 font-mono">@${a.slug}</span>
+              </div>
+              <div class="text-[11px] text-[var(--text-soft)] truncate">${a.role}</div>
+            </div>
+          </div>
+          <span class="text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-500/20 shrink-0">● Online</span>
+        </div>
+
+        <div class="flex items-center gap-1.5 mb-2">
+          <span class="text-[10px] px-2 py-0.5 rounded-md bg-[var(--bg-soft)] text-[var(--text-soft)] font-semibold border border-[var(--border)]">${a.dept}</span>
+          <span class="text-[10px] text-[var(--text-faint)] font-mono">${(a.assigned_pipelines || []).length} Pipelines</span>
+        </div>
+
+        <p class="text-[11px] text-[var(--text-soft)] line-clamp-2 leading-relaxed mb-2.5">
+          ${a.system_directive || 'Autonomous agent execution with strict harness grounding and 5-stage loop governance.'}
+        </p>
+
+        <div class="flex flex-wrap gap-1">
+          ${(a.capabilities || ['Ground Truth', 'Deterministic Check']).slice(0, 3).map(c => `
+            <span class="text-[9px] px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 font-medium">${c}</span>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="pt-2 border-t border-[var(--border)] flex items-center justify-between gap-2">
+        <button onclick="openAgentModal('${a.slug}')" class="btn-outline px-2.5 py-1 text-[11px] flex-1">
+          🔍 Blueprint
+        </button>
+        <button onclick="openAgentDispatchModal('${a.slug}')" class="btn-primary px-3 py-1 text-[11px] flex-1 font-bold inline-flex items-center justify-center gap-1">
+          ⚡ Dispatch
+        </button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderAgentsDirectory() {
+  renderAgentsView();
+}
+
+let activeDispatchAgentSlug = 'coordinator';
+
+function openAgentDispatchModal(agentSlug) {
+  if (state.currentUserRole === 'client') {
+    showToast('Client role is read-only. Switch to Member, Manager, or Admin to dispatch agents.');
+    return;
+  }
+
+  activeDispatchAgentSlug = agentSlug || 'coordinator';
+  const agent = AGENTS_32.find(a => a.slug === activeDispatchAgentSlug) || AGENTS_32[0];
+  const modal = document.getElementById('agentDispatchModal');
+  if (!modal) return;
+
+  const avatar = document.getElementById('dispatchModalAvatar');
+  const title = document.getElementById('dispatchModalTitle');
+  const sub = document.getElementById('dispatchModalSub');
+  const projSelect = document.getElementById('dispatchModalProjectSelect');
+  const taskTitle = document.getElementById('dispatchModalTaskTitle');
+  const taskBrief = document.getElementById('dispatchModalBrief');
+
+  if (avatar) {
+    avatar.textContent = agent.initials;
+    avatar.style.background = agent.color;
+  }
+  if (title) title.textContent = `Dispatch Agent: @${agent.slug}`;
+  if (sub) sub.textContent = `${agent.dept} • ${agent.role}`;
+
+  if (projSelect) {
+    projSelect.innerHTML = state.projects.map(p => `
+      <option value="${p.id}" ${p.id === state.selectedProjectId ? 'selected' : ''}>${p.name}</option>
+    `).join('');
+  }
+
+  const proj = getSelectedProject();
+  if (taskTitle) taskTitle.value = `[@${agent.slug}] ${agent.role} for ${proj ? proj.name : 'Campaign'}`;
+  if (taskBrief) taskBrief.value = agent.system_directive || 'Execute grounded marketing analysis and output validated deliverable.';
+
+  modal.classList.remove('hidden');
+}
+
+function closeAgentDispatchModal() {
+  const modal = document.getElementById('agentDispatchModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+async function submitAgentDispatch() {
+  const btn = document.getElementById('dispatchModalSubmitBtn');
+  const projSelect = document.getElementById('dispatchModalProjectSelect');
+  const titleInput = document.getElementById('dispatchModalTaskTitle');
+  const briefInput = document.getElementById('dispatchModalBrief');
+  const prioritySelect = document.getElementById('dispatchModalPriority');
+
+  const projectId = projSelect ? projSelect.value : state.selectedProjectId;
+  const title = titleInput ? titleInput.value.trim() : '';
+  const brief = briefInput ? briefInput.value.trim() : '';
+  const priority = prioritySelect ? prioritySelect.value : 'normal';
+
+  if (!title) {
+    showToast('Task title is required.');
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<span class="animate-spin inline-block mr-1">◐</span> Dispatching @${activeDispatchAgentSlug}...`;
+  }
+
+  try {
+    const res = await fetch('/api/agents/dispatch', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-session-role': state.currentUserRole
+      },
+      body: JSON.stringify({
+        agent_slug: activeDispatchAgentSlug,
+        project_id: projectId,
+        title,
+        brief,
+        priority
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to dispatch agent');
+
+    closeAgentDispatchModal();
+    showToast(`@${activeDispatchAgentSlug} completed task! Deliverable staged in review.`);
+    state.selectedProjectId = projectId;
+    state.mainView = 'workbench';
+    state.activeWorkbenchTab = 'report';
+    await syncFromBackend();
+    renderAll();
+  } catch (err) {
+    showToast(`Dispatch error: ${err.message}`);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '⚡ Dispatch Agent';
+    }
   }
 }
 
-function runRagSemanticSearch() {
-  showToast('Semantic search executed against project harness vectors.');
+// =============================================================================
+// PROJECT RAG VECTOR ENGINE & RETRIEVAL CONTROLS
+// =============================================================================
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
-function ingestNewRagDocument() {
-  showToast('Document ingested into RAG vector engine.');
+let latestRagResults = [];
+
+async function renderRagView() {
+  const selEl = document.getElementById('ragProjectSelect');
+  if (selEl) {
+    selEl.innerHTML = state.projects.map(p => `
+      <option value="${p.id}" ${p.id === state.selectedProjectId ? 'selected' : ''}>${p.name}</option>
+    `).join('');
+  }
+
+  const badge = document.getElementById('ragChunkCountBadge');
+  const proj = getSelectedProject();
+  if (proj) {
+    try {
+      const res = await fetch(`/api/projects/${proj.id}/rag/chunks`, {
+        headers: { 'x-session-role': state.currentUserRole }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (badge) badge.textContent = `${data.count || 0} chunks indexed`;
+      }
+    } catch (e) {}
+  }
+}
+
+function selectProjectFromRag(projectId) {
+  state.selectedProjectId = projectId;
+  saveState();
+  renderAll();
+  runRagSemanticSearch();
+}
+
+async function runRagSemanticSearch() {
+  const queryInput = document.getElementById('ragQueryInput');
+  const topKSelect = document.getElementById('ragTopKSelect');
+  const resultsContainer = document.getElementById('ragSearchResultsList');
+
+  const query = queryInput ? queryInput.value.trim() : '';
+  const topK = topKSelect ? Number(topKSelect.value) : 5;
+  const proj = getSelectedProject();
+
+  if (!proj) return;
+  if (!query) {
+    showToast('Please enter a search query for the project harness.');
+    return;
+  }
+
+  if (resultsContainer) {
+    resultsContainer.innerHTML = `<div class="p-4 text-center text-xs text-[var(--text-soft)]"><span class="animate-spin inline-block mr-1.5">◐</span> Computing BM25 & cosine relevance across project chunks...</div>`;
+  }
+
+  try {
+    const res = await fetch(`/api/projects/${proj.id}/rag/search`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-session-role': state.currentUserRole
+      },
+      body: JSON.stringify({ query, top_k: topK })
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'RAG search error');
+
+    latestRagResults = data.results || [];
+
+    if (!resultsContainer) return;
+    if (latestRagResults.length === 0) {
+      resultsContainer.innerHTML = `<div class="p-4 text-center text-xs text-[var(--text-soft)]">No matching chunks found in project harness for "${query}". Ingest more documents below.</div>`;
+      return;
+    }
+
+    resultsContainer.innerHTML = latestRagResults.map((r, i) => `
+      <div class="card-surface p-3.5 space-y-2 border border-[var(--border)] hover:border-indigo-500/50 transition">
+        <div class="flex items-center justify-between gap-2 flex-wrap">
+          <div class="flex items-center gap-1.5 min-w-0">
+            <span class="w-5 h-5 rounded-full bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 font-mono text-[10px] grid place-items-center font-bold">#${i+1}</span>
+            <span class="font-bold text-xs truncate">${r.document_name}</span>
+            <span class="text-[10px] mono text-[var(--text-faint)]">chunk ${r.chunk_index} &bull; ${r.token_count} tokens</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${
+              r.match_pct >= 75
+                ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30'
+                : 'bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30'
+            }">${r.match_pct}% Match</span>
+            <button onclick="copyChunkContent(${i})" class="btn-outline px-2 py-0.5 text-[10px]" title="Copy Chunk">📋 Copy</button>
+            <button onclick="insertChunkIntoTask(${i})" class="btn-ink px-2 py-0.5 text-[10px]" title="Use in Task">⚡ Insert</button>
+          </div>
+        </div>
+        <div class="card-subtle p-2.5 text-[11px] mono text-[var(--text-soft)] leading-relaxed whitespace-pre-wrap max-h-32 overflow-y-auto">
+          ${escapeHtml(r.content)}
+        </div>
+      </div>
+    `).join('');
+
+    showToast(`Retrieved ${latestRagResults.length} relevant chunks for active project.`);
+  } catch (err) {
+    if (resultsContainer) {
+      resultsContainer.innerHTML = `<div class="p-4 text-center text-xs text-rose-500">Retrieval error: ${err.message}</div>`;
+    }
+  }
+}
+
+function copyChunkContent(index) {
+  if (latestRagResults[index]) {
+    navigator.clipboard.writeText(latestRagResults[index].content);
+    showToast(`Copied chunk from ${latestRagResults[index].document_name} to clipboard.`);
+  }
+}
+
+function insertChunkIntoTask(index) {
+  if (latestRagResults[index]) {
+    const chunk = latestRagResults[index];
+    const cmdInput = document.getElementById('wbCommandInput');
+    if (cmdInput) {
+      cmdInput.value = `${cmdInput.value}\n[GROUNDING CITATION: ${chunk.document_name} chunk ${chunk.chunk_index}]\n${chunk.content}`;
+    }
+    state.mainView = 'workbench';
+    saveState();
+    renderAll();
+    showToast(`Inserted chunk into Workbench Task Brief!`);
+  }
+}
+
+async function ingestNewRagDocument() {
+  if (state.currentUserRole === 'client') {
+    showToast('Client role is read-only. Switch to Member, Manager, or Admin.');
+    return;
+  }
+
+  const nameInput = document.getElementById('ragNewDocName');
+  const contentInput = document.getElementById('ragNewDocContent');
+  const docName = nameInput ? nameInput.value.trim() : '';
+  const content = contentInput ? contentInput.value.trim() : '';
+  const proj = getSelectedProject();
+
+  if (!proj) return;
+  if (!docName || !content) {
+    showToast('Source filename and document content are required.');
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/projects/${proj.id}/rag/ingest`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-session-role': state.currentUserRole
+      },
+      body: JSON.stringify({ document_name: docName, content })
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to ingest document');
+
+    showToast(`Successfully indexed ${docName} into project RAG (${data.chunks_created} chunks, ${data.total_tokens} tokens)!`);
+    renderRagView();
+
+    // Auto-search for the newly ingested document
+    const queryInput = document.getElementById('ragQueryInput');
+    if (queryInput) queryInput.value = docName.replace(/[._-]/g, ' ');
+    runRagSemanticSearch();
+  } catch (err) {
+    showToast(`Ingestion error: ${err.message}`);
+  }
+}
+
+function copyAntigravityRagPrompt() {
+  const proj = getSelectedProject();
+  if (!proj) return;
+
+  const topChunks = latestRagResults.slice(0, 3).map((r, i) => `
+### [Harness Chunk ${i+1}: ${r.document_name} (Chunk ${r.chunk_index})]
+\`\`\`text
+${r.content.trim()}
+\`\`\`
+`).join('\n');
+
+  const masterPrompt = `
+# Antigravity Task Prompt: ${proj.name}
+**Client:** ${proj.client || 'Valioz Health'}
+**Goal:** ${proj.goal || 'High-conversion marketing system'}
+**Guidelines & Rules:**
+${proj.guidelines || 'Strict adherence to Ground Truth; zero hallucinations allowed.'}
+
+## Retrieved Project Grounding Context (RAG Top Matches)
+${topChunks || 'No RAG chunks currently queried. Ingest harness files in RAG Control Center.'}
+
+## Instructions for Antigravity Squad
+1. Decompose the request into deterministic 5-stage loop steps.
+2. Ground all pricing, clinic names, and claims directly in the RAG chunks above.
+3. Emit both structured JSON deliverable and Executive Admin Report markdown.
+`.trim();
+
+  navigator.clipboard.writeText(masterPrompt);
+  showToast('Copied master Antigravity RAG prompt to clipboard!');
 }
 
 // =============================================================================
@@ -1934,6 +2713,15 @@ window.addEventListener('DOMContentLoaded', function() {
   syncFromBackend().then(() => {
     if (window.location.hash === '#seo') state.mainView = 'seo';
     else if (window.location.hash === '#logins') state.mainView = 'logins';
+    else if (window.location.hash === '#agents') state.mainView = 'agents';
+    else if (window.location.hash === '#rag') {
+      state.mainView = 'rag';
+      setTimeout(runRagSemanticSearch, 250);
+    }
+    else if (window.location.hash === '#dispatch') {
+      state.mainView = 'agents';
+      setTimeout(() => openAgentDispatchModal('coordinator'), 200);
+    }
     else if (window.location.hash === '#guidelines') {
       state.mainView = 'workbench';
       setTimeout(openGuidelinesModal, 100);

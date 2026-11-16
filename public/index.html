@@ -608,6 +608,41 @@
     </div>
 
     <!-- ===================================================================== -->
+    <!-- VIEW 7: 32 SOVEREIGN AGENTS WORKFORCE & SPECIALIST SQUADS             -->
+    <!-- ===================================================================== -->
+    <div id="view-agents" class="hidden space-y-5">
+      <div class="card-surface p-5 space-y-5">
+        <!-- Hero Header -->
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] pb-4">
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-xl">🤖</span>
+              <h2 class="text-lg font-extrabold tracking-tight">32 Sovereign Agents Workforce</h2>
+              <span class="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-500/30">8 Squads &bull; 100% Grounded Execution</span>
+            </div>
+            <p class="text-xs text-[var(--text-soft)] mt-1">Autonomous specialists operating across Leadership, Research, Engineering, Design, Ops, Growth, Finance, and Legal. Grounded in project harness files with zero hallucination tolerance.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="openAgentDispatchModal('coordinator')" class="btn-primary px-4 py-2 text-xs font-bold inline-flex items-center gap-1.5 shadow-sm">
+              <span>⚡ Dispatch Agent / Squad</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter Pills & Search -->
+        <div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+          <div id="agentsDeptFilterPills" class="flex flex-wrap gap-1.5"></div>
+          <div class="w-full md:w-72">
+            <input id="agentsSearchInput" oninput="renderAgentsView()" class="input-field text-xs" placeholder="Search agent name, @slug, role, or capability..." />
+          </div>
+        </div>
+
+        <!-- 32 Agents Cards Grid -->
+        <div id="agentsGridContainer" class="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+      </div>
+    </div>
+
+    <!-- ===================================================================== -->
     <!-- VIEW 6: RAG VECTOR STORE, SEMANTIC SEARCH & ANTIGRAVITY BUILDER       -->
     <!-- ===================================================================== -->
     <div id="view-rag" class="hidden space-y-5">
@@ -1057,6 +1092,54 @@ agent = Agent(
         <div class="flex items-center gap-2">
           <button onclick="closeSeoActionModal()" class="btn-outline px-4 py-2 text-xs">Cancel</button>
           <button id="seoModalSubmitBtn" onclick="submitSeoActionTask()" class="btn-primary px-5 py-2 text-xs font-bold">⚡ Execute Task</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================= -->
+  <!-- MODAL 9: AGENT TASK DISPATCH & SQUAD LAUNCHER                           -->
+  <!-- ======================================================================= -->
+  <div id="agentDispatchModal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="card-surface w-full max-w-xl flex flex-col overflow-hidden shadow-2xl">
+      <div class="p-4 sm:p-5 border-b border-[var(--border)] flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div id="dispatchModalAvatar" class="w-10 h-10 rounded-2xl text-white font-bold text-sm grid place-items-center bg-indigo-600 shadow-sm shrink-0">CO</div>
+          <div>
+            <h3 id="dispatchModalTitle" class="text-base font-bold">Dispatch Agent: @coordinator</h3>
+            <p id="dispatchModalSub" class="text-xs text-[var(--text-soft)] mono">Leadership &bull; Orchestration Lead</p>
+          </div>
+        </div>
+        <button onclick="closeAgentDispatchModal()" class="text-xs text-[var(--text-soft)] hover:text-[var(--text)] w-8 h-8 grid place-items-center rounded-full bg-[var(--bg-soft)]">✕</button>
+      </div>
+
+      <div class="p-5 space-y-3.5 text-xs">
+        <div>
+          <label class="block font-bold mb-1">Target Project</label>
+          <select id="dispatchModalProjectSelect" class="input-field text-xs"></select>
+        </div>
+        <div>
+          <label class="block font-bold mb-1">Task Title</label>
+          <input id="dispatchModalTaskTitle" class="input-field text-xs" placeholder="e.g. Conduct Canadian Dental Market Moat Analysis" />
+        </div>
+        <div>
+          <label class="block font-bold mb-1">Operational Brief & Instructions</label>
+          <textarea id="dispatchModalBrief" rows="4" class="input-field text-xs mono leading-relaxed" placeholder="Specify audience, data harness files to evaluate, and exact deliverable requirements..."></textarea>
+        </div>
+        <div>
+          <label class="block font-bold mb-1">Execution Priority</label>
+          <select id="dispatchModalPriority" class="input-field text-xs mono">
+            <option value="normal" selected>Normal Priority</option>
+            <option value="urgent">Urgent Priority (Immediate Queue)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="p-4 border-t border-[var(--border)] bg-[var(--bg-soft)] flex items-center justify-between">
+        <span class="text-[11px] text-[var(--text-faint)]">Grounded in project harness &bull; Dual-Engine Runner</span>
+        <div class="flex items-center gap-2">
+          <button onclick="closeAgentDispatchModal()" class="btn-outline px-4 py-2 text-xs">Cancel</button>
+          <button id="dispatchModalSubmitBtn" onclick="submitAgentDispatch()" class="btn-primary px-5 py-2 text-xs font-bold">⚡ Dispatch Agent</button>
         </div>
       </div>
     </div>

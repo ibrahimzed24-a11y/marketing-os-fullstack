@@ -24,6 +24,8 @@ const db = require('./db');
 const { signToken, authMiddleware, requireRole, hashPassword, verifyPassword } = require('./auth');
 const { triggerN8n } = require('./n8n');
 const { generateLocalDeliverable } = require('./localRunner');
+const rag = require('./rag');
+const { AGENTS_CATALOG } = require('./agentsData');
 const {
   ErrorCategory,
   AppError,
@@ -351,6 +353,19 @@ app.post('/api/projects/:id/harness', authMiddleware, (req, res) => {
         .run(uuidv4(), req.params.id, req.user.id, 'harness_uploaded', `Uploaded ${uploadedFile.originalname} (${fileCategory})`);
     } catch (actErr) {}
 
+    // Auto-ingest text-based harness file into project RAG engine
+    try {
+      const ext = path.extname(uploadedFile.originalname).toLowerCase();
+      if (['.txt', '.md', '.csv', '.html', '.json', '.sql'].includes(ext)) {
+        const rawContent = fs.readFileSync(uploadedFile.path, 'utf-8');
+        if (rawContent && rawContent.length > 10) {
+          rag.ingestDocument(req.params.id, uploadedFile.originalname, rawContent);
+        }
+      }
+    } catch (ragErr) {
+      console.warn(`[WARN] RAG auto-ingest note: ${ragErr.message}`);
+    }
+
     res.json({
       ok: true,
       id,
@@ -465,6 +480,147 @@ app.put('/api/projects/:id/guidelines', authMiddleware, requireRole('super_admin
   } catch (e) {}
 
   res.json({ ok: true, message: 'Workflow guidelines and deliverable specs successfully updated.' });
+}));
+
+// =============================================================================
+// RAG VECTOR STORE & SEMANTIC SEARCH ENGINE (Project Scoped)
+// =============================================================================
+app.get('/api/projects/:id/rag/chunks', authMiddleware, asyncHandler(async (req, res) => {
+  if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
+  const count = rag.getProjectChunkCount(req.params.id);
+  const chunks = rag.getAllProjectChunks(req.params.id);
+  res.json({
+    ok: true,
+    project_id: req.params.id,
+    count,
+    chunks: chunks.slice(0, 50)
+  });
+}));
+
+app.post('/api/projects/:id/rag/ingest', authMiddleware, requireRole('super_admin', 'admin', 'manager', 'member'), asyncHandler(async (req, res) => {
+  if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
+  const { document_name, content } = req.body;
+  if (!document_name || !content) return res.status(400).json({ error: 'document_name and content are required' });
+
+  const result = rag.ingestDocument(req.params.id, document_name, content);
+  const totalCount = rag.getProjectChunkCount(req.params.id);
+
+  try {
+    db.prepare('INSERT INTO activity (id, project_id, user_id, action, details) VALUES (?, ?, ?, ?, ?)')
+      .run(uuidv4(), req.params.id, req.user.id, 'rag_doc_ingested', `Ingested ${document_name} (${result.chunks_created} chunks, ${result.total_tokens} tokens)`);
+  } catch (e) {}
+
+  res.json({
+    ok: true,
+    document_name,
+    chunks_created: result.chunks_created,
+    total_tokens: result.total_tokens,
+    total_project_chunks: totalCount
+  });
+}));
+
+app.post('/api/projects/:id/rag/search', authMiddleware, asyncHandler(async (req, res) => {
+  if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
+  const { query, top_k } = req.body;
+  if (!query) return res.status(400).json({ error: 'query string required' });
+
+  const results = rag.searchChunks(req.params.id, query, top_k || 5);
+  res.json({
+    ok: true,
+    query,
+    results_count: results.length,
+    results
+  });
+}));
+
+// =============================================================================
+// 32 SOVEREIGN AGENTS DIRECTORY & SQUAD DISPATCH
+// =============================================================================
+app.get('/api/agents', authMiddleware, asyncHandler(async (req, res) => {
+  res.json({
+    ok: true,
+    count: AGENTS_CATALOG.length,
+    agents: AGENTS_CATALOG
+  });
+}));
+
+app.post('/api/agents/dispatch', authMiddleware, requireRole('super_admin', 'admin', 'manager', 'member'), asyncHandler(async (req, res) => {
+  const { agent_slug, project_id, title, brief, priority = 'normal' } = req.body;
+  if (!agent_slug) return res.status(400).json({ error: 'agent_slug required' });
+  if (!project_id) return res.status(400).json({ error: 'project_id required' });
+
+  const agent = AGENTS_CATALOG.find(a => a.slug === agent_slug);
+  if (!agent) return res.status(404).json({ error: `Agent @${agent_slug} not found in sovereign registry` });
+
+  const proj = db.prepare('SELECT * FROM projects WHERE id=?').get(project_id);
+  if (!proj) return res.status(404).json({ error: 'Project not found' });
+  if (!canAccessProject(req.user, project_id)) return res.status(403).json({ error: 'No access' });
+
+  const taskTitle = title || `[@${agent.slug}] ${agent.role} Execution`;
+  const taskBrief = brief || `Execute autonomous operations aligned with ${agent.role} under ${proj.name}.`;
+  const primaryPipeline = agent.assigned_pipelines && agent.assigned_pipelines.length ? agent.assigned_pipelines[0] : 'market-intel';
+
+  const taskId = uuidv4();
+  const inputData = {
+    agent_slug: agent.slug,
+    agent_name: agent.name,
+    agent_dept: agent.dept,
+    agent_role: agent.role,
+    brief: taskBrief,
+    priority
+  };
+
+  db.prepare(`
+    INSERT INTO tasks (id, project_id, title, description, pipeline, status, input_json, output_json, report_md, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, 'running', ?, '{}', '', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+  `).run(
+    taskId,
+    project_id,
+    taskTitle,
+    taskBrief,
+    primaryPipeline,
+    JSON.stringify(inputData)
+  );
+
+  const harness = db.prepare('SELECT * FROM harness_files WHERE project_id=?').all(project_id);
+  const taskObj = { id: taskId, title: taskTitle, description: taskBrief, input_json: inputData };
+
+  // Run through dual-engine with local fallback
+  let finalOutput = {};
+  let finalReport = '';
+
+  const n8nResult = await triggerN8n(primaryPipeline, { ...taskObj, project: proj, agent: agent.slug });
+  if (n8nResult.ok && n8nResult.data) {
+    finalOutput = n8nResult.data.deliverable || n8nResult.data.output || n8nResult.data;
+    finalReport = n8nResult.data.report || '';
+  } else {
+    const local = generateLocalDeliverable(primaryPipeline, taskObj, proj, harness, n8nResult.error);
+    finalOutput = local.outputJson;
+    finalReport = local.reportMd;
+  }
+
+  db.prepare(`
+    UPDATE tasks
+    SET status='in_review', output_json=?, report_md=?, updated_at=CURRENT_TIMESTAMP
+    WHERE id=?
+  `).run(
+    typeof finalOutput === 'string' ? finalOutput : JSON.stringify(finalOutput),
+    finalReport,
+    taskId
+  );
+
+  try {
+    db.prepare('INSERT INTO activity (id, project_id, user_id, action, details) VALUES (?, ?, ?, ?, ?)')
+      .run(uuidv4(), project_id, req.user.id, 'agent_dispatched', `Dispatched @${agent.slug} (${agent.name}) on "${taskTitle}"`);
+  } catch (e) {}
+
+  const completedTask = db.prepare('SELECT * FROM tasks WHERE id=?').get(taskId);
+  res.json({
+    ok: true,
+    agent,
+    task: completedTask,
+    message: `@${agent.slug} completed execution. Task ready in review.`
+  });
 }));
 
 // =============================================================================
