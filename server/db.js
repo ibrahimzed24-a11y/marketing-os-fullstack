@@ -70,7 +70,7 @@ try {
     title TEXT NOT NULL,
     pipeline TEXT NOT NULL,
     description TEXT,
-    status TEXT DEFAULT 'draft' CHECK(status IN ('draft','queued','running','in_review','needs_fix','delivered')),
+    status TEXT DEFAULT 'draft' CHECK(status IN ('draft','queued','running','in_review','needs_fix','needs_attention','delivered')),
     assignee_id TEXT,
     created_by TEXT,
     priority TEXT DEFAULT 'medium' CHECK(priority IN ('low','medium','high','urgent')),
@@ -492,6 +492,23 @@ try {
   CREATE INDEX IF NOT EXISTS idx_llm_exec_project ON llm_execution_logs(project_id);
   CREATE INDEX IF NOT EXISTS idx_llm_exec_correlation ON llm_execution_logs(correlation_id);
   CREATE INDEX IF NOT EXISTS idx_llm_quotas_project ON llm_cost_quotas(project_id);
+
+  -- 29. Webhook Retries & Dead-Letter Queue (Self-Healing Execution)
+  CREATE TABLE IF NOT EXISTS webhook_retries (
+    id TEXT PRIMARY KEY,
+    task_id TEXT NOT NULL,
+    url TEXT NOT NULL,
+    payload TEXT NOT NULL,
+    attempt_count INTEGER NOT NULL DEFAULT 0,
+    max_attempts INTEGER NOT NULL DEFAULT 3,
+    next_retry_at DATETIME,
+    last_error TEXT,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','succeeded','dead_letter')),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_webhook_retries_status ON webhook_retries(status, next_retry_at);
   `);
 
   // Safe runtime migrations for customizable guidelines and multi-format files
@@ -513,6 +530,20 @@ try {
     const pragmaHarness = db.prepare("PRAGMA table_info(harness_files)").all();
     if (!pragmaHarness.some(c => c.name === 'file_category')) {
       db.prepare("ALTER TABLE harness_files ADD COLUMN file_category TEXT DEFAULT 'General Asset'").run();
+    }
+
+    // Verify tasks table supports 'needs_attention'
+    const tableInfo = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='tasks'").get();
+    if (tableInfo && tableInfo.sql && !tableInfo.sql.includes('needs_attention')) {
+      db.pragma('foreign_keys = OFF');
+      db.transaction(() => {
+        const newSql = tableInfo.sql.replace("'needs_fix'", "'needs_fix','needs_attention'");
+        db.prepare("CREATE TABLE tasks_migrated " + newSql.slice(newSql.indexOf('('))).run();
+        db.prepare("INSERT INTO tasks_migrated SELECT * FROM tasks").run();
+        db.prepare("DROP TABLE tasks").run();
+        db.prepare("ALTER TABLE tasks_migrated RENAME TO tasks").run();
+      })();
+      db.pragma('foreign_keys = ON');
     }
 
     // Initialize Admin LLM configurations and routing rules

@@ -24,6 +24,13 @@ const db = require('./db');
 const { signToken, authMiddleware, requireRole, hashPassword, verifyPassword } = require('./auth');
 const { triggerN8n } = require('./n8n');
 const { generateLocalDeliverable } = require('./localRunner');
+const {
+  startWatchdog,
+  stopWatchdog,
+  runWatchdogScan,
+  getWatchdogStatus,
+  enqueueWebhookDispatch
+} = require('./watchdog');
 const rag = require('./rag');
 const { AGENTS_CATALOG } = require('./agentsData');
 const {
@@ -853,7 +860,7 @@ app.patch('/api/tasks/:id', authMiddleware, asyncHandler(async (req, res) => {
   if (!canAccessProject(req.user, task.project_id)) return res.status(403).json({ error: 'No access' });
 
   let { status, report_md } = req.body;
-  const ALLOWED_STATUSES = ['draft', 'queued', 'running', 'in_review', 'delivered', 'needs_fix'];
+  const ALLOWED_STATUSES = ['draft', 'queued', 'running', 'in_review', 'delivered', 'needs_fix', 'needs_attention'];
   if (status !== undefined) {
     if (typeof status !== 'string' || !ALLOWED_STATUSES.includes(status.trim().toLowerCase())) {
       return res.status(400).json({ error: 'Invalid status value' });
@@ -897,21 +904,61 @@ app.post('/api/webhooks/n8n', asyncHandler(async (req, res) => {
   }
 
   const { task_id, status = 'in_review', output = {}, report_md = '', n8n_execution_id = '' } = req.body;
+  if (!task_id || typeof task_id !== 'string') {
+    return res.status(400).json({ error: 'task_id string is required' });
+  }
+
+  const ALLOWED_STATUSES = ['draft', 'queued', 'running', 'in_review', 'delivered', 'needs_fix', 'needs_attention'];
+  const normalizedStatus = (typeof status === 'string' ? status.trim().toLowerCase() : '');
+  if (!ALLOWED_STATUSES.includes(normalizedStatus)) {
+    return res.status(400).json({ error: `Invalid status. Allowed: ${ALLOWED_STATUSES.join(', ')}` });
+  }
+
   const task = db.prepare('SELECT * FROM tasks WHERE id=?').get(task_id);
   if (!task) return res.status(404).json({ error: 'Task not found' });
 
-  db.prepare('UPDATE tasks SET status=?, output_json=?, report_md=?, n8n_execution_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?')
-    .run(status, JSON.stringify(output), report_md, n8n_execution_id, task_id);
-
-  if (report_md) {
-    db.prepare('INSERT INTO reports (id,task_id,project_id,title,content_md,verdict,created_by) VALUES (?,?,?,?,?,?,?)')
-      .run(uuidv4(), task_id, task.project_id, `Admin Report - ${task.title}`, report_md, 'pending', 'system-n8n');
+  let outputJsonStr = '{}';
+  if (typeof output === 'string') {
+    outputJsonStr = output;
+  } else if (typeof output === 'object' && output !== null) {
+    outputJsonStr = JSON.stringify(output);
   }
 
-  db.prepare('INSERT INTO activity (id,project_id,task_id,user_id,action) VALUES (?,?,?,?,?)')
-    .run(uuidv4(), task.project_id, task_id, 'system-n8n', `agent_finished:${status}`);
+  // Atomically update task and related entities within SQLite transaction
+  db.transaction(() => {
+    db.prepare('UPDATE tasks SET status=?, output_json=?, report_md=?, n8n_execution_id=?, updated_at=CURRENT_TIMESTAMP WHERE id=?')
+      .run(normalizedStatus, outputJsonStr, report_md || '', n8n_execution_id || '', task_id);
 
-  res.json({ ok: true, received: true, task_id });
+    if (report_md) {
+      db.prepare('INSERT INTO reports (id,task_id,project_id,title,content_md,verdict,created_by) VALUES (?,?,?,?,?,?,?)')
+        .run(uuidv4(), task_id, task.project_id, `Admin Report - ${task.title}`, report_md, 'pending', 'system-n8n');
+    }
+
+    db.prepare('INSERT INTO activity (id,project_id,task_id,user_id,action,meta) VALUES (?,?,?,?,?,?)')
+      .run(uuidv4(), task.project_id, task_id, 'system-n8n', `agent_finished:${normalizedStatus}`, JSON.stringify({ status: normalizedStatus, n8n_execution_id }));
+  })();
+
+  res.json({ ok: true, received: true, task_id, status: normalizedStatus });
+}));
+
+// Webhook Ingress (alias & validation contract for external tasks)
+app.post('/webhook/marketing-os-task', asyncHandler(async (req, res) => {
+  const { task_id, pipeline, input, project, harness, callback_url } = req.body;
+  if (!task_id || typeof task_id !== 'string') {
+    return res.status(400).json({ error: 'task_id string is required' });
+  }
+  if (pipeline && !PIPELINES[pipeline]) {
+    return res.status(400).json({ error: `Unknown pipeline '${pipeline}'` });
+  }
+
+  res.json({
+    ok: true,
+    received: true,
+    task_id,
+    pipeline: pipeline || 'content-seo',
+    status: 'queued',
+    message: 'Webhook ingress received and verified successfully'
+  });
 }));
 
 // =============================================================================
@@ -1583,6 +1630,24 @@ app.post('/api/admin/llm-config/test', authMiddleware, requireRole('super_admin'
 app.post('/api/admin/llm-config/ping', authMiddleware, requireRole('super_admin', 'admin'), testPingHandler);
 app.post('/api/admin/llm-config/:provider/test', authMiddleware, requireRole('super_admin', 'admin'), testPingHandler);
 
+// =============================================================================
+// SELF-HEALING WATCHDOG & SYSTEM OBSERVABILITY
+// =============================================================================
+
+// Get real-time watchdog status, telemetry counters, and stall metrics
+app.get('/api/admin/watchdog/status', authMiddleware, requireRole('super_admin', 'admin'), asyncHandler(async (req, res) => {
+  const status = getWatchdogStatus();
+  res.json({ ok: true, watchdog: status });
+}));
+
+// Manually trigger a watchdog scan cycle (hung tasks + webhook retries)
+app.post('/api/admin/watchdog/scan', authMiddleware, requireRole('super_admin', 'admin'), asyncHandler(async (req, res) => {
+  const slaSeconds = req.body && req.body.sla_seconds ? parseInt(req.body.sla_seconds, 10) : undefined;
+  const scanResult = await runWatchdogScan(slaSeconds);
+  const status = getWatchdogStatus();
+  res.json({ ok: true, scan_result: scanResult, watchdog: status });
+}));
+
 // SPA Fallback
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, '../public/index.html')));
 
@@ -1591,7 +1656,10 @@ app.use(errorHandler);
 
 // Start Server
 if (process.env.NODE_ENV !== 'test') {
-  app.listen(PORT, () => console.log(`\n✅ Marketing OS running at http://localhost:${PORT}\n   Seed: npm run seed\n   n8n webhook: ${process.env.N8N_WEBHOOK_TASK}\n`));
+  app.listen(PORT, () => {
+    console.log(`\n✅ Marketing OS running at http://localhost:${PORT}\n   Seed: npm run seed\n   n8n webhook: ${process.env.N8N_WEBHOOK_TASK}\n`);
+    startWatchdog();
+  });
 }
 
 module.exports = app;

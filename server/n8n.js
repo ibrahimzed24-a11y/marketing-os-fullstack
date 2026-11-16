@@ -1,3 +1,10 @@
+let getActiveLLMConfig;
+try {
+  ({ getActiveLLMConfig } = require('./llmConfig'));
+} catch (_) {
+  getActiveLLMConfig = () => null;
+}
+
 // Calls n8n webhook for a task with timeout, dual-stack localhost / 127.0.0.1 fallback, and clean return values.
 async function sendWebhook(targetUrl, payload, timeoutMs = 10000) {
   const controller = new AbortController();
@@ -48,6 +55,22 @@ async function triggerN8n(task, project, harness) {
       goal: project?.goal || '',
       client: project?.client_name || ''
     },
+    llm_config: (function() {
+      try {
+        const active = typeof getActiveLLMConfig === 'function' ? getActiveLLMConfig() : null;
+        if (!active) return null;
+        return {
+          provider: active.provider,
+          provider_type: active.provider_type,
+          endpoint_url: active.endpoint_url,
+          model: active.default_model,
+          temperature: active.temperature || 0.7,
+          max_tokens: active.max_tokens || 4096
+        };
+      } catch (_) {
+        return null;
+      }
+    })(),
     callback_url: callbackUrl,
     api_key: process.env.OS_API_KEY || 'local-dev-key-change-me',
     timestamp: new Date().toISOString()
