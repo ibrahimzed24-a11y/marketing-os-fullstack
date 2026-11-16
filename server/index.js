@@ -27,6 +27,14 @@ const { generateLocalDeliverable } = require('./localRunner');
 const rag = require('./rag');
 const { AGENTS_CATALOG } = require('./agentsData');
 const {
+  SUPPORTED_PROVIDERS,
+  PROVIDER_METADATA,
+  maskApiKey,
+  isMaskedKey,
+  pingProvider,
+  sanitizeConfigRow
+} = require('./llmConfig');
+const {
   ErrorCategory,
   AppError,
   ValidationError,
@@ -349,8 +357,8 @@ app.post('/api/projects/:id/harness', authMiddleware, (req, res) => {
     );
 
     try {
-      db.prepare('INSERT INTO activity (id, project_id, user_id, action, details) VALUES (?, ?, ?, ?, ?)')
-        .run(uuidv4(), req.params.id, req.user.id, 'harness_uploaded', `Uploaded ${uploadedFile.originalname} (${fileCategory})`);
+      db.prepare('INSERT INTO activity (id, project_id, user_id, action, meta) VALUES (?, ?, ?, ?, ?)')
+        .run(uuidv4(), req.params.id, req.user.id, 'harness_uploaded', JSON.stringify({ filename: uploadedFile.originalname, category: fileCategory }));
     } catch (actErr) {}
 
     // Auto-ingest text-based harness file into project RAG engine
@@ -475,8 +483,8 @@ app.put('/api/projects/:id/guidelines', authMiddleware, requireRole('super_admin
   );
 
   try {
-    db.prepare('INSERT INTO activity (id, project_id, user_id, action, details) VALUES (?, ?, ?, ?, ?)')
-      .run(uuidv4(), req.params.id, req.user.id, 'guidelines_updated', `Customized workflow guidelines and deliverable rules for ${proj.name}`);
+    db.prepare('INSERT INTO activity (id, project_id, user_id, action, meta) VALUES (?, ?, ?, ?, ?)')
+      .run(uuidv4(), req.params.id, req.user.id, 'guidelines_updated', JSON.stringify({ project: proj.name }));
   } catch (e) {}
 
   res.json({ ok: true, message: 'Workflow guidelines and deliverable specs successfully updated.' });
@@ -506,8 +514,8 @@ app.post('/api/projects/:id/rag/ingest', authMiddleware, requireRole('super_admi
   const totalCount = rag.getProjectChunkCount(req.params.id);
 
   try {
-    db.prepare('INSERT INTO activity (id, project_id, user_id, action, details) VALUES (?, ?, ?, ?, ?)')
-      .run(uuidv4(), req.params.id, req.user.id, 'rag_doc_ingested', `Ingested ${document_name} (${result.chunks_created} chunks, ${result.total_tokens} tokens)`);
+    db.prepare('INSERT INTO activity (id, project_id, user_id, action, meta) VALUES (?, ?, ?, ?, ?)')
+      .run(uuidv4(), req.params.id, req.user.id, 'rag_doc_ingested', JSON.stringify({ document_name, chunks: result.chunks_created, tokens: result.total_tokens }));
   } catch (e) {}
 
   res.json({
@@ -589,10 +597,19 @@ app.post('/api/agents/dispatch', authMiddleware, requireRole('super_admin', 'adm
   let finalOutput = {};
   let finalReport = '';
 
-  const n8nResult = await triggerN8n(primaryPipeline, { ...taskObj, project: proj, agent: agent.slug });
-  if (n8nResult.ok && n8nResult.data) {
-    finalOutput = n8nResult.data.deliverable || n8nResult.data.output || n8nResult.data;
-    finalReport = n8nResult.data.report || '';
+  const n8nResult = await triggerN8n(taskObj, proj, harness);
+  let n8nData = null;
+  if (n8nResult.ok && n8nResult.body) {
+    try {
+      n8nData = typeof n8nResult.body === 'string' ? JSON.parse(n8nResult.body) : n8nResult.body;
+    } catch (_) {
+      n8nData = { output: n8nResult.body };
+    }
+  }
+
+  if (n8nResult.ok && n8nData) {
+    finalOutput = n8nData.deliverable || n8nData.output || n8nData;
+    finalReport = n8nData.report || '';
   } else {
     const local = generateLocalDeliverable(primaryPipeline, taskObj, proj, harness, n8nResult.error);
     finalOutput = local.outputJson;
@@ -610,8 +627,8 @@ app.post('/api/agents/dispatch', authMiddleware, requireRole('super_admin', 'adm
   );
 
   try {
-    db.prepare('INSERT INTO activity (id, project_id, user_id, action, details) VALUES (?, ?, ?, ?, ?)')
-      .run(uuidv4(), project_id, req.user.id, 'agent_dispatched', `Dispatched @${agent.slug} (${agent.name}) on "${taskTitle}"`);
+    db.prepare('INSERT INTO activity (id, project_id, user_id, action, meta) VALUES (?, ?, ?, ?, ?)')
+      .run(uuidv4(), project_id, req.user.id, 'agent_dispatched', JSON.stringify({ agent: agent.slug, agent_name: agent.name, title: taskTitle }));
   } catch (e) {}
 
   const completedTask = db.prepare('SELECT * FROM tasks WHERE id=?').get(taskId);
@@ -702,9 +719,18 @@ app.post('/api/seo/execute', authMiddleware, asyncHandler(async (req, res) => {
   const result = await triggerN8n(task, proj, harness);
   let finalOutput = null;
   let finalReport = '';
-  if (result.ok && result.data) {
-    finalOutput = result.data.deliverable || result.data.output || result.data;
-    finalReport = result.data.report || '';
+  let resultData = null;
+  if (result.ok && result.body) {
+    try {
+      resultData = typeof result.body === 'string' ? JSON.parse(result.body) : result.body;
+    } catch (_) {
+      resultData = { output: result.body };
+    }
+  }
+
+  if (result.ok && resultData) {
+    finalOutput = resultData.deliverable || resultData.output || resultData;
+    finalReport = resultData.report || '';
   } else {
     const local = generateLocalDeliverable(pipeline, task, proj, harness, result.error);
     finalOutput = local.outputJson;
@@ -1127,26 +1153,29 @@ app.get('/api/reports/:id', authMiddleware, asyncHandler(async (req, res) => {
 
 app.get('/api/dashboard', authMiddleware, asyncHandler(async (req, res) => {
   const isAdmin = ['super_admin', 'admin'].includes(req.user.role);
-  const where = isAdmin ? '' : `WHERE project_id IN (SELECT project_id FROM project_members WHERE user_id='${req.user.id}')`;
+  const where = isAdmin ? '' : 'WHERE project_id IN (SELECT project_id FROM project_members WHERE user_id = ?)';
+  const params = isAdmin ? [] : [req.user.id];
 
-  const totalTasks = db.prepare(`SELECT COUNT(*) c FROM tasks ${where}`).get().c;
-  const delivered = db.prepare(`SELECT COUNT(*) c FROM tasks ${where ? where + ' AND' : 'WHERE'} status='delivered'`).get().c;
-  const inReview = db.prepare(`SELECT COUNT(*) c FROM tasks ${where ? where + ' AND' : 'WHERE'} status='in_review'`).get().c;
-  const running = db.prepare(`SELECT COUNT(*) c FROM tasks ${where ? where + ' AND' : 'WHERE'} status IN ('running','queued')`).get().c;
+  const totalTasks = db.prepare(`SELECT COUNT(*) c FROM tasks ${where}`).get(...params).c;
+  const delivered = db.prepare(`SELECT COUNT(*) c FROM tasks ${where ? where + ' AND' : 'WHERE'} status='delivered'`).get(...params).c;
+  const inReview = db.prepare(`SELECT COUNT(*) c FROM tasks ${where ? where + ' AND' : 'WHERE'} status='in_review'`).get(...params).c;
+  const running = db.prepare(`SELECT COUNT(*) c FROM tasks ${where ? where + ' AND' : 'WHERE'} status IN ('running','queued')`).get(...params).c;
 
   let projectsCount = 0;
   if (isAdmin) {
     projectsCount = db.prepare('SELECT COUNT(*) c FROM projects').get().c;
   } else {
-    projectsCount = db.prepare(`SELECT COUNT(DISTINCT project_id) c FROM project_members WHERE user_id='${req.user.id}'`).get().c;
+    projectsCount = db.prepare('SELECT COUNT(DISTINCT project_id) c FROM project_members WHERE user_id = ?').get(req.user.id).c;
   }
 
   let recentQuery = `SELECT t.*, p.name as project_name FROM tasks t JOIN projects p ON p.id=t.project_id ORDER BY t.updated_at DESC LIMIT 8`;
+  let recentParams = [];
   if (!isAdmin) {
     const statusFilter = req.user.role === 'client' ? "AND t.status='delivered'" : '';
-    recentQuery = `SELECT t.*, p.name as project_name FROM tasks t JOIN projects p ON p.id=t.project_id WHERE p.id IN (SELECT project_id FROM project_members WHERE user_id='${req.user.id}') ${statusFilter} ORDER BY t.updated_at DESC LIMIT 8`;
+    recentQuery = `SELECT t.*, p.name as project_name FROM tasks t JOIN projects p ON p.id=t.project_id WHERE p.id IN (SELECT project_id FROM project_members WHERE user_id = ?) ${statusFilter} ORDER BY t.updated_at DESC LIMIT 8`;
+    recentParams = [req.user.id];
   }
-  const recent = db.prepare(recentQuery).all();
+  const recent = db.prepare(recentQuery).all(...recentParams);
 
   res.json({
     stats: { totalTasks, delivered, inReview, running, projects: projectsCount },
@@ -1293,6 +1322,259 @@ app.post('/api/saved-logins/:id/test', authMiddleware, asyncHandler(async (req, 
     message: statusMessage
   });
 }));
+
+// =============================================================================
+// ADMIN LOCAL LLM & CLOUD API CONFIGURATION & ROUTING ENGINE
+// =============================================================================
+
+// List all 6 LLM provider configurations with masked keys
+app.get('/api/admin/llm-config', authMiddleware, requireRole('super_admin', 'admin'), asyncHandler(async (req, res) => {
+  const { provider, reveal } = req.query;
+  const canReveal = req.user.role === 'super_admin' && reveal === 'true';
+
+  let rows = [];
+  if (provider) {
+    const row = db.prepare('SELECT * FROM admin_llm_configs WHERE provider = ?').get(provider.toLowerCase());
+    rows = row ? [row] : [];
+  } else {
+    rows = db.prepare('SELECT * FROM admin_llm_configs ORDER BY is_default DESC, provider_type ASC, provider ASC').all();
+  }
+
+  const sanitized = rows.map(r => sanitizeConfigRow(r, canReveal));
+  const routing = db.prepare('SELECT * FROM admin_llm_routing LIMIT 1').get() || {
+    primary_provider: 'ollama',
+    fallback_provider: 'lmstudio',
+    auto_fallback: 1,
+    routing_strategy: 'primary_with_fallback'
+  };
+
+  const defaultRow = sanitized.find(c => c.is_default) || sanitized.find(c => c.is_active) || sanitized[0];
+
+  res.json({
+    configs: sanitized,
+    providers: sanitized,
+    total: sanitized.length,
+    active_provider: defaultRow ? defaultRow.provider : 'ollama',
+    default_provider: defaultRow ? defaultRow.provider : 'ollama',
+    routing: {
+      primary_provider: routing.primary_provider,
+      fallback_provider: routing.fallback_provider,
+      auto_fallback: Boolean(routing.auto_fallback),
+      routing_strategy: routing.routing_strategy,
+      pipeline_overrides: typeof routing.pipeline_overrides === 'string'
+        ? JSON.parse(routing.pipeline_overrides || '{}')
+        : (routing.pipeline_overrides || {})
+    }
+  });
+}));
+
+// Get current active primary LLM configuration
+app.get('/api/admin/llm-config/active', authMiddleware, requireRole('super_admin', 'admin'), asyncHandler(async (req, res) => {
+  const row = db.prepare('SELECT * FROM admin_llm_configs WHERE is_default = 1 LIMIT 1').get()
+    || db.prepare('SELECT * FROM admin_llm_configs WHERE is_active = 1 LIMIT 1').get()
+    || db.prepare("SELECT * FROM admin_llm_configs WHERE provider = 'ollama' LIMIT 1").get();
+
+  if (!row) throw new NotFoundError('No active LLM provider configured');
+  res.json({ active_config: sanitizeConfigRow(row, false) });
+}));
+
+// Get single provider configuration
+app.get('/api/admin/llm-config/:provider', authMiddleware, requireRole('super_admin', 'admin'), asyncHandler(async (req, res) => {
+  const provider = req.params.provider.toLowerCase();
+  const row = db.prepare('SELECT * FROM admin_llm_configs WHERE provider = ?').get(provider);
+  if (!row) throw new NotFoundError(`LLM provider '${provider}' not found`);
+
+  const canReveal = req.user.role === 'super_admin' && req.query.reveal === 'true';
+  res.json({ config: sanitizeConfigRow(row, canReveal) });
+}));
+
+// Update LLM configuration (single provider, bulk configs, or default routing)
+app.post('/api/admin/llm-config', authMiddleware, requireRole('super_admin', 'admin'), asyncHandler(async (req, res) => {
+  const payload = req.body;
+
+  // Handle single provider update or routing update
+  const handleSingleUpdate = (item) => {
+    const provider = (item.provider || '').toLowerCase().trim();
+    if (!provider || !SUPPORTED_PROVIDERS.includes(provider)) {
+      throw new ValidationError(`Invalid provider '${provider}'. Supported: ${SUPPORTED_PROVIDERS.join(', ')}`);
+    }
+
+    const existing = db.prepare('SELECT * FROM admin_llm_configs WHERE provider = ?').get(provider);
+    if (!existing) {
+      throw new NotFoundError(`Provider '${provider}' is not registered`);
+    }
+
+    // Determine API key update logic:
+    // If incoming api_key is masked or undefined, preserve existing stored key
+    let finalApiKey = existing.api_key;
+    if (item.api_key !== undefined) {
+      if (item.api_key === null || item.api_key === '') {
+        finalApiKey = null;
+      } else if (!isMaskedKey(item.api_key)) {
+        finalApiKey = String(item.api_key).trim();
+      }
+    }
+
+    const isDefault = item.is_default !== undefined ? (item.is_default ? 1 : 0) : existing.is_default;
+    const isActive = item.is_active !== undefined ? (item.is_active ? 1 : 0) : existing.is_active;
+
+    // If making this provider the default, clear is_default on others and update routing primary_provider
+    if (isDefault === 1) {
+      db.prepare('UPDATE admin_llm_configs SET is_default = 0 WHERE provider != ?').run(provider);
+      db.prepare('UPDATE admin_llm_routing SET primary_provider = ?').run(provider);
+    }
+
+    const availableModels = item.available_models !== undefined
+      ? JSON.stringify(Array.isArray(item.available_models) ? item.available_models : [item.available_models])
+      : existing.available_models;
+
+    const extraHeaders = item.extra_headers !== undefined
+      ? (typeof item.extra_headers === 'object' ? JSON.stringify(item.extra_headers) : item.extra_headers)
+      : existing.extra_headers;
+
+    db.prepare(`
+      UPDATE admin_llm_configs SET
+        display_name = COALESCE(?, display_name),
+        base_url = COALESCE(?, base_url),
+        api_key = ?,
+        default_model = COALESCE(?, default_model),
+        available_models = ?,
+        is_active = ?,
+        is_default = ?,
+        temperature = COALESCE(?, temperature),
+        max_tokens = COALESCE(?, max_tokens),
+        timeout_ms = COALESCE(?, timeout_ms),
+        extra_headers = ?,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE provider = ?
+    `).run(
+      item.display_name || null,
+      item.base_url ? item.base_url.trim() : null,
+      finalApiKey,
+      item.default_model ? item.default_model.trim() : null,
+      availableModels,
+      isActive,
+      isDefault,
+      item.temperature !== undefined ? item.temperature : null,
+      item.max_tokens !== undefined ? item.max_tokens : null,
+      item.timeout_ms !== undefined ? item.timeout_ms : null,
+      extraHeaders,
+      provider
+    );
+
+    const updated = db.prepare('SELECT * FROM admin_llm_configs WHERE provider = ?').get(provider);
+    return sanitizeConfigRow(updated, false);
+  };
+
+  // If payload is an array or contains configs array
+  let results = [];
+  if (Array.isArray(payload)) {
+    results = payload.map(handleSingleUpdate);
+  } else if (Array.isArray(payload.configs)) {
+    results = payload.configs.map(handleSingleUpdate);
+  } else if (payload.provider) {
+    results = [handleSingleUpdate(payload)];
+  } else if (payload.default_provider) {
+    const prov = payload.default_provider.toLowerCase();
+    if (!SUPPORTED_PROVIDERS.includes(prov)) {
+      throw new ValidationError(`Unsupported provider '${prov}' for default routing`);
+    }
+    db.prepare('UPDATE admin_llm_configs SET is_default = 0').run();
+    db.prepare('UPDATE admin_llm_configs SET is_default = 1, is_active = 1 WHERE provider = ?').run(prov);
+    db.prepare('UPDATE admin_llm_routing SET primary_provider = ?').run(prov);
+    const updated = db.prepare('SELECT * FROM admin_llm_configs WHERE provider = ?').get(prov);
+    results = [sanitizeConfigRow(updated, false)];
+  } else {
+    throw new ValidationError('Expected provider config object or array of configs');
+  }
+
+  // Record audit log
+  try {
+    db.prepare(`
+      INSERT INTO activity (id, user_id, action, meta)
+      VALUES (?, ?, 'update_llm_config', ?)
+    `).run(uuidv4(), req.user.id, JSON.stringify({ count: results.length, providers: results.map(r => r.provider) }));
+  } catch (_) {}
+
+  res.json({
+    ok: true,
+    message: 'LLM configuration updated successfully',
+    configs: results,
+    config: results[0]
+  });
+}));
+
+// Test ping endpoint handler: supports POST /api/admin/llm-config/test, POST /api/admin/llm-config/:provider/test, and POST /api/admin/llm-config/ping
+const testPingHandler = asyncHandler(async (req, res) => {
+  const provider = (req.params.provider || req.body.provider || '').toLowerCase().trim();
+  if (!provider) {
+    throw new ValidationError('Provider parameter is required for connection testing');
+  }
+  if (!SUPPORTED_PROVIDERS.includes(provider)) {
+    throw new ValidationError(`Unsupported provider '${provider}'. Supported: ${SUPPORTED_PROVIDERS.join(', ')}`);
+  }
+
+  const saved = db.prepare('SELECT * FROM admin_llm_configs WHERE provider = ?').get(provider);
+
+  // Determine base_url
+  const baseUrl = req.body.base_url && req.body.base_url.trim()
+    ? req.body.base_url.trim()
+    : (saved ? saved.base_url : PROVIDER_METADATA[provider].default_base_url);
+
+  // Determine api_key: use provided if unmasked; otherwise fall back to saved key
+  let apiKey = null;
+  if (req.body.api_key && !isMaskedKey(req.body.api_key)) {
+    apiKey = req.body.api_key.trim();
+  } else if (saved && saved.api_key) {
+    apiKey = saved.api_key;
+  }
+
+  const timeoutMs = req.body.timeout_ms || (saved ? saved.timeout_ms : 6000);
+
+  const testResult = await pingProvider({
+    provider,
+    baseUrl,
+    apiKey,
+    timeoutMs
+  });
+
+  // Update database record status and telemetry if saved record exists
+  if (saved) {
+    const newStatus = testResult.status;
+    const latency = testResult.latency_ms || null;
+    const lastError = testResult.ok ? null : (testResult.error || 'Connection failed');
+    let availableModels = saved.available_models;
+    if (testResult.detected_models && testResult.detected_models.length > 0) {
+      availableModels = JSON.stringify(testResult.detected_models);
+    }
+
+    db.prepare(`
+      UPDATE admin_llm_configs SET
+        status = ?,
+        last_tested = CURRENT_TIMESTAMP,
+        latency_ms = ?,
+        last_error = ?,
+        available_models = ?,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE provider = ?
+    `).run(newStatus, latency, lastError, availableModels, provider);
+  }
+
+  res.json({
+    ok: testResult.ok,
+    provider,
+    status: testResult.status,
+    latency_ms: testResult.latency_ms,
+    http_status: testResult.http_status,
+    message: testResult.message || (testResult.ok ? 'Connection successful' : 'Connection failed'),
+    error: testResult.error,
+    detected_models: testResult.detected_models
+  });
+});
+
+app.post('/api/admin/llm-config/test', authMiddleware, requireRole('super_admin', 'admin'), testPingHandler);
+app.post('/api/admin/llm-config/ping', authMiddleware, requireRole('super_admin', 'admin'), testPingHandler);
+app.post('/api/admin/llm-config/:provider/test', authMiddleware, requireRole('super_admin', 'admin'), testPingHandler);
 
 // SPA Fallback
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, '../public/index.html')));

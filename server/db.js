@@ -56,7 +56,7 @@ try {
     id TEXT PRIMARY KEY,
     project_id TEXT NOT NULL,
     user_id TEXT NOT NULL,
-    role_in_project TEXT DEFAULT 'member' CHECK(role_in_project IN ('owner','lead','specialist','client','member')),
+    role_in_project TEXT DEFAULT 'member' CHECK(role_in_project IN ('owner','lead','specialist','client','member','manager')),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     UNIQUE(project_id, user_id),
     FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
@@ -334,6 +334,138 @@ try {
     FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
   );
 
+  -- 22. Admin Local LLM / Cloud API Configuration
+  CREATE TABLE IF NOT EXISTS admin_llm_configs (
+    id TEXT PRIMARY KEY,
+    provider TEXT UNIQUE NOT NULL CHECK(provider IN ('ollama', 'lmstudio', 'vllm', 'openai', 'anthropic', 'gemini')),
+    display_name TEXT NOT NULL,
+    provider_type TEXT NOT NULL CHECK(provider_type IN ('local', 'cloud')),
+    base_url TEXT NOT NULL,
+    api_key TEXT,
+    default_model TEXT NOT NULL,
+    available_models TEXT DEFAULT '[]',
+    is_active INTEGER DEFAULT 0,
+    is_default INTEGER DEFAULT 0,
+    temperature REAL DEFAULT 0.7,
+    max_tokens INTEGER DEFAULT 4096,
+    timeout_ms INTEGER DEFAULT 30000,
+    extra_headers TEXT DEFAULT '{}',
+    status TEXT DEFAULT 'untested' CHECK(status IN ('connected', 'error', 'untested', 'offline')),
+    last_tested DATETIME,
+    last_error TEXT,
+    latency_ms INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  -- 23. Admin LLM Routing Rules
+  CREATE TABLE IF NOT EXISTS admin_llm_routing (
+    id TEXT PRIMARY KEY,
+    primary_provider TEXT NOT NULL DEFAULT 'ollama',
+    fallback_provider TEXT DEFAULT 'lmstudio',
+    auto_fallback INTEGER DEFAULT 1,
+    routing_strategy TEXT DEFAULT 'primary_with_fallback' CHECK(routing_strategy IN ('primary_only', 'primary_with_fallback', 'round_robin', 'least_latency')),
+    pipeline_overrides TEXT DEFAULT '{}',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  -- 24. Full Blueprint LLM Providers (Engine & Vendors)
+  CREATE TABLE IF NOT EXISTS llm_providers (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    slug TEXT UNIQUE NOT NULL,
+    provider_type TEXT NOT NULL CHECK(provider_type IN ('local', 'cloud', 'hybrid')),
+    base_url TEXT NOT NULL,
+    api_key_vault_id TEXT,
+    is_active BOOLEAN DEFAULT 1,
+    health_status TEXT DEFAULT 'unknown' CHECK(health_status IN ('online', 'degraded', 'offline', 'unknown')),
+    latency_ms INTEGER DEFAULT 0,
+    last_health_check DATETIME,
+    max_concurrency INTEGER DEFAULT 4,
+    config_json TEXT DEFAULT '{}',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(api_key_vault_id) REFERENCES vault_items(id) ON DELETE SET NULL
+  );
+
+  -- 25. Blueprint LLM Models Registry
+  CREATE TABLE IF NOT EXISTS llm_models (
+    id TEXT PRIMARY KEY,
+    provider_id TEXT NOT NULL,
+    model_id TEXT NOT NULL,
+    display_name TEXT NOT NULL,
+    model_type TEXT NOT NULL CHECK(model_type IN ('chat', 'completion', 'embedding', 'vision', 'reasoning')),
+    context_window INTEGER DEFAULT 8192,
+    max_output_tokens INTEGER DEFAULT 4096,
+    cost_per_million_input REAL DEFAULT 0.0,
+    cost_per_million_output REAL DEFAULT 0.0,
+    supports_tools BOOLEAN DEFAULT 1,
+    supports_vision BOOLEAN DEFAULT 0,
+    supports_streaming BOOLEAN DEFAULT 1,
+    is_enabled BOOLEAN DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(provider_id) REFERENCES llm_providers(id) ON DELETE CASCADE
+  );
+
+  -- 26. Blueprint Dynamic Pipeline Routing Rules
+  CREATE TABLE IF NOT EXISTS llm_routes (
+    id TEXT PRIMARY KEY,
+    pipeline_id TEXT NOT NULL,
+    task_priority TEXT DEFAULT 'normal' CHECK(task_priority IN ('low', 'normal', 'high', 'urgent')),
+    routing_strategy TEXT DEFAULT 'local_first' CHECK(routing_strategy IN (
+      'local_first', 'cloud_first', 'local_only', 'cloud_only', 'cost_optimized', 'latency_optimized'
+    )),
+    primary_model_id TEXT NOT NULL,
+    fallback_model_id TEXT,
+    temperature REAL DEFAULT 0.7 CHECK(temperature BETWEEN 0.0 AND 2.0),
+    top_p REAL DEFAULT 0.9,
+    timeout_ms INTEGER DEFAULT 30000,
+    retry_limit INTEGER DEFAULT 2,
+    system_prompt_override TEXT,
+    is_active BOOLEAN DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(primary_model_id) REFERENCES llm_models(id) ON DELETE RESTRICT,
+    FOREIGN KEY(fallback_model_id) REFERENCES llm_models(id) ON DELETE SET NULL
+  );
+
+  -- 27. Blueprint LLM Execution & Telemetry Ledger
+  CREATE TABLE IF NOT EXISTS llm_execution_logs (
+    id TEXT PRIMARY KEY,
+    task_id TEXT,
+    project_id TEXT,
+    correlation_id TEXT NOT NULL,
+    route_id TEXT,
+    provider_slug TEXT NOT NULL,
+    model_id TEXT NOT NULL,
+    is_local BOOLEAN NOT NULL,
+    prompt_tokens INTEGER DEFAULT 0,
+    completion_tokens INTEGER DEFAULT 0,
+    total_tokens INTEGER DEFAULT 0,
+    latency_ms INTEGER NOT NULL,
+    cost_usd REAL DEFAULT 0.0,
+    status TEXT NOT NULL CHECK(status IN ('success', 'failed', 'fallback_triggered', 'timed_out')),
+    error_message TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE SET NULL,
+    FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    FOREIGN KEY(route_id) REFERENCES llm_routes(id) ON DELETE SET NULL
+  );
+
+  -- 28. Blueprint Project Cost Quotas & Budget Guardrails
+  CREATE TABLE IF NOT EXISTS llm_cost_quotas (
+    id TEXT PRIMARY KEY,
+    project_id TEXT UNIQUE,
+    daily_budget_usd REAL DEFAULT 10.0,
+    monthly_budget_usd REAL DEFAULT 150.0,
+    current_day_spend REAL DEFAULT 0.0,
+    current_month_spend REAL DEFAULT 0.0,
+    enforce_local_failover_on_budget BOOLEAN DEFAULT 1,
+    last_reset_date DATE DEFAULT CURRENT_DATE,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+  );
+
   -- Performance Indexes
   CREATE INDEX IF NOT EXISTS idx_saved_logins_category ON saved_logins(category);
   CREATE INDEX IF NOT EXISTS idx_saved_logins_status ON saved_logins(status);
@@ -351,6 +483,15 @@ try {
   CREATE INDEX IF NOT EXISTS idx_email_logs_lead ON email_logs(lead_id);
   CREATE INDEX IF NOT EXISTS idx_error_correlation ON error_log(correlation_id);
   CREATE INDEX IF NOT EXISTS idx_activity_project ON activity(project_id);
+  CREATE INDEX IF NOT EXISTS idx_llm_configs_provider ON admin_llm_configs(provider);
+  CREATE INDEX IF NOT EXISTS idx_llm_configs_active ON admin_llm_configs(is_active);
+  CREATE INDEX IF NOT EXISTS idx_llm_configs_default ON admin_llm_configs(is_default);
+  CREATE INDEX IF NOT EXISTS idx_llm_models_provider ON llm_models(provider_id);
+  CREATE INDEX IF NOT EXISTS idx_llm_routes_pipeline ON llm_routes(pipeline_id, task_priority);
+  CREATE INDEX IF NOT EXISTS idx_llm_exec_task ON llm_execution_logs(task_id);
+  CREATE INDEX IF NOT EXISTS idx_llm_exec_project ON llm_execution_logs(project_id);
+  CREATE INDEX IF NOT EXISTS idx_llm_exec_correlation ON llm_execution_logs(correlation_id);
+  CREATE INDEX IF NOT EXISTS idx_llm_quotas_project ON llm_cost_quotas(project_id);
   `);
 
   // Safe runtime migrations for customizable guidelines and multi-format files
@@ -373,6 +514,10 @@ try {
     if (!pragmaHarness.some(c => c.name === 'file_category')) {
       db.prepare("ALTER TABLE harness_files ADD COLUMN file_category TEXT DEFAULT 'General Asset'").run();
     }
+
+    // Initialize Admin LLM configurations and routing rules
+    const { initLLMDatabase } = require('./llmConfig');
+    initLLMDatabase(db);
   } catch (migErr) {
     console.warn(`[WARN] Migration check note: ${migErr.message}`);
   }

@@ -2,6 +2,7 @@ require('dotenv').config();
 const db = require('./db');
 const {hashPassword} = require('./auth');
 const {v4: uuidv4} = require('uuid');
+const { seedLogins } = require('./seedLogins');
 (async()=>{
   db.prepare('DELETE FROM users').run();
   db.prepare('DELETE FROM projects').run();
@@ -26,5 +27,9 @@ const {v4: uuidv4} = require('uuid');
   const t1=uuidv4();
   db.prepare('INSERT INTO tasks (id,project_id,title,pipeline,description,status,assignee_id,created_by,priority,report_md) VALUES (?,?,?,?,?,?,?,?,?,?)')
     .run(t1,p1,'Landing Page for Nile Supplies','landing-page','Build landing page from catalog + leads','in_review',ids['member@marketingos.local'],ids['admin@marketingos.local'],'high','# Admin Report\n\n**Verdict:** Ready to Deliver\n- Grounded in harness: Yes\n- Usable: Yes\n- Sellable: Yes\n\n**What shipped:** Hero, catalog section, lead form.\n**Next:** Approve to deliver to client.');
+
+  // Seed 43-tool saved logins vault
+  seedLogins();
+
   console.log('✅ Seeded. Logins in README.md');
 })();

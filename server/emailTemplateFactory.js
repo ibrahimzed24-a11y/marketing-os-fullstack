@@ -40,7 +40,7 @@ function parseCSV(text) {
 function loadPriorityALeads() {
   const possiblePaths = [
     path.join(__dirname, '../uploads/Priority_A_Outreach_Email_Merge_Fields.csv'),
-    path.join(__dirname, '../../AI-Workforce/incoming/Personal-AI-Workforce-OS/Priority_A_Outreach_Email_Merge_Fields.csv')
+    path.join(process.cwd(), 'uploads/Priority_A_Outreach_Email_Merge_Fields.csv')
   ];
 
   for (const p of possiblePaths) {
