@@ -40,6 +40,7 @@ SUITES=(
   "test-pipeline-schemas.sh:Unified Pipeline Output Schemas:8 Pipelines Deliverable JSON & Report Markdown"
   "test-frontend-ui.sh:Frontend UX & Workbench Integration:DOM Elements, Async API Dispatch, Role Boundaries"
   "test-handoffs.sh:Cross-Dept Handoffs & Approvals:Research->Sales, Sales->Creative, Human Approval Gate"
+  "test-phase4-walkthrough.sh:Phase 4 Real Agency Lifecycle:End-to-End Walkthrough A-Z"
 )
 
 TOTAL_START=$(date +%s)
