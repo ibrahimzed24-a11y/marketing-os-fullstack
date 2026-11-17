@@ -24,6 +24,7 @@ const db = require('./db');
 const { signToken, authMiddleware, requireRole, hashPassword, verifyPassword } = require('./auth');
 const { triggerN8n } = require('./n8n');
 const { generateLocalDeliverable } = require('./localRunner');
+const { executeAgentTask, researchAgent, salesAgent, creativeDirectorAgent } = require('./agentFramework');
 const {
   startWatchdog,
   stopWatchdog,
@@ -801,6 +802,11 @@ app.post('/api/tasks/:id/run', authMiddleware, asyncHandler(async (req, res) => 
   if (!task) return res.status(404).json({ error: 'Task not found' });
   if (!canAccessProject(req.user, task.project_id)) return res.status(403).json({ error: 'No access' });
 
+  // Idempotency: Prevent duplicate execution if task is already running
+  if (task.status === 'running') {
+    return res.status(409).json({ error: 'Task is currently running. Please wait for completion.' });
+  }
+
   const project = db.prepare('SELECT * FROM projects WHERE id=?').get(task.project_id);
   const harness = db.prepare('SELECT * FROM harness_files WHERE project_id=?').all(task.project_id);
 
@@ -823,18 +829,18 @@ app.post('/api/tasks/:id/run', authMiddleware, asyncHandler(async (req, res) => 
     });
   }
 
-  // 2. n8n failed or offline — activate Local Agent Fallback
-  console.log(`[task-runner] n8n offline (${result.error}). Executing task locally...`);
-  const { outputJson, reportMd } = generateLocalDeliverable(task.pipeline, task, project, harness, result.error);
+  // 2. Execute via Unified 3-Agent Framework (Research, Sales, Creative)
+  console.log(`[task-runner] n8n offline (${result.error}). Executing task via Unified Agent Framework...`);
+  const { outputJson, reportMd, requiresApproval, approvalId, agent } = executeAgentTask(task, project, harness);
 
   db.prepare("UPDATE tasks SET status='in_review', output_json=?, report_md=?, updated_at=CURRENT_TIMESTAMP WHERE id=?")
     .run(JSON.stringify(outputJson), reportMd, task.id);
 
   db.prepare('INSERT INTO reports (id,task_id,project_id,title,content_md,verdict,created_by) VALUES (?,?,?,?,?,?,?)')
-    .run(uuidv4(), task.id, task.project_id, `Admin Report - ${task.title}`, reportMd, 'pending', 'local-agent');
+    .run(uuidv4(), task.id, task.project_id, `Admin Report - ${task.title}`, reportMd, 'pending', agent.name);
 
   db.prepare('INSERT INTO activity (id,project_id,task_id,user_id,action) VALUES (?,?,?,?,?)')
-    .run(uuidv4(), task.project_id, task.id, req.user.id, `executed_locally:${task.pipeline}`);
+    .run(uuidv4(), task.project_id, task.id, req.user.id, `executed_${agent.department}:${task.pipeline}`);
 
   const updatedTask = db.prepare('SELECT * FROM tasks WHERE id=?').get(task.id);
   return res.json({
@@ -844,6 +850,13 @@ app.post('/api/tasks/:id/run', authMiddleware, asyncHandler(async (req, res) => 
     message: 'Executed LOCALLY - n8n offline',
     task_id: task.id,
     task: updatedTask,
+    agent: {
+      id: agent.id,
+      name: agent.name,
+      department: agent.department
+    },
+    requires_approval: requiresApproval,
+    approval_id: approvalId,
     status: 'in_review',
     n8n_error: result.error
   });
