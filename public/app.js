@@ -8,7 +8,7 @@ const PIPELINE_CATALOG = {
     squad: ['CO', 'BR', 'SE', 'MR'],
     squadNames: ['@coordinator', '@browser-researcher', '@software-engineer', '@master-reporting-agent'],
     webhook: '/webhook/marketing-os-task',
-    defaultCmd: '/assign Craft dual-branded email templates for Valioz Health from Priority_A_Outreach_Email_Merge_Fields.csv with 22 clinic merge fields and $499 offer.'
+    defaultCmd: '/assign Craft dual-branded email sequence with personalized merge fields, compelling value proposition, and instant booking CTA.'
   },
   'landing-page': {
     id: 'landing-page', code: 'LP', name: 'Landing Page Factory',
@@ -1526,7 +1526,7 @@ async function openLiveHtmlPreview(taskId) {
   }
 
   // Fallback demo iframe
-  document.getElementById('previewModalTitle').textContent = 'Valioz Health Dual-Branded Email Engine Preview';
+  document.getElementById('previewModalTitle').textContent = 'Campaign Deliverable Live Preview';
   document.getElementById('previewModalFrame').src = '/valioz-preview.html';
   document.getElementById('previewModal').classList.remove('hidden');
 }
@@ -2646,7 +2646,7 @@ async function renderRagView() {
       });
       if (res.ok) {
         const data = await res.json();
-        if (badge) badge.textContent = `${data.count || 0} chunks indexed`;
+        if (badge) badge.textContent = `${data.count || 0} assets indexed`;
       }
     } catch (e) {}
   }
@@ -2807,23 +2807,23 @@ ${r.content.trim()}
 `).join('\n');
 
   const masterPrompt = `
-# Antigravity Task Prompt: ${proj.name}
-**Client:** ${proj.client || 'Valioz Health'}
-**Goal:** ${proj.goal || 'High-conversion marketing system'}
-**Guidelines & Rules:**
-${proj.guidelines || 'Strict adherence to Ground Truth; zero hallucinations allowed.'}
+# Campaign Brief: ${proj.name}
+**Brand / Campaign:** ${proj.client || 'Marketing Campaign'}
+**Goal:** ${proj.goal || 'High-conversion marketing campaign'}
+**Guidelines & Brand Rules:**
+${proj.guidelines || 'Strict adherence to brand guidelines and verified marketing assets.'}
 
-## Retrieved Project Grounding Context (RAG Top Matches)
-${topChunks || 'No RAG chunks currently queried. Ingest harness files in RAG Control Center.'}
+## Reference Campaign Research & Knowledge Base
+${topChunks || 'No research assets currently queried. Add documents in Campaign Knowledge Base.'}
 
-## Instructions for Antigravity Squad
-1. Decompose the request into deterministic 5-stage loop steps.
-2. Ground all pricing, clinic names, and claims directly in the RAG chunks above.
-3. Emit both structured JSON deliverable and Executive Admin Report markdown.
+## Campaign Execution Instructions
+1. Execute structured marketing campaign phases.
+2. Ground all pricing, branding, and claims directly in the reference research above.
+3. Produce verified campaign assets ready for launch.
 `.trim();
 
   navigator.clipboard.writeText(masterPrompt);
-  showToast('Copied master Antigravity RAG prompt to clipboard!');
+  showToast('Copied campaign brief & context to clipboard!');
 }
 
 // =============================================================================
@@ -2869,23 +2869,23 @@ function closeGuidelinesModal() {
 }
 
 function insertTemplateGuidelines() {
-  const template = `# Valioz Health — Clinical B2B Outreach SOP & Guidelines
+  const template = `# Marketing Campaign — Strategic Playbook & Messaging Guidelines
 
-## 1. Brand Identity & Value Stacking
-- **Client:** Valioz Health
-- **Target Persona:** Canadian Dental Clinics (Ontario, BC, Alberta)
-- **Primary Offer:** $499 turnkey website setup with 30-day AI Growth Agent included.
-- **Key Trust Anchor:** 100% asset ownership (domain, Google Analytics, code) transferred directly to the clinic.
-- **Tone:** Authoritative, clinical, consultative, patient-outcome focused.
+## 1. Brand Identity & Value Proposition
+- **Campaign:** Growth & Customer Acquisition
+- **Target Persona:** B2B Decision Makers & Practice Directors
+- **Primary Offer:** High-converting acquisition funnel with instant onboarding.
+- **Key Trust Anchor:** 100% asset ownership, transparent terms, verified ROI case studies.
+- **Tone:** Authoritative, consultative, outcome-focused, engaging.
 
-## 2. Gate G2 Outbound Quality Gates
-- All cold outreach messages staged for human review before sending.
-- Every clinic cited must exist in Priority_A_Outreach_Email_Merge_Fields.csv with verified city and doctor credentials.
-- Zero generic boilerplate. All pitches cite local search volume benchmarks.
+## 2. Campaign Quality Standards
+- All outreach copy and landing page assets reviewed before live launch.
+- Every claim cited must align with verified project assets and research data.
+- Personalized hooks tailored to industry challenges and verified benchmarks.
 
-## 3. SEO & Schema Standards
-- Enforce LocalBusiness + MedicalBusiness JSON-LD markup with geo coordinates.
-- Target zero-competition treatment keywords with KGR < 0.25.`;
+## 3. SEO & Content Standards
+- High-intent search terms with clear user conversion intent.
+- Structured content hierarchy with clear calls-to-action.`;
 
   const ta = document.getElementById('guidelinesTextarea');
   if (ta) ta.value = template;
@@ -3248,7 +3248,7 @@ async function pingLlmProvider(provider) {
 }
 
 async function pingAllLlmProviders() {
-  showToast('Testing all 6 LLM provider endpoints...');
+  showToast('Testing all 6 generation engine connections...');
   for (const p of adminLlmProviders) {
     try {
       await apiFetch(`/api/admin/llm-config/${p.provider}/test`, {

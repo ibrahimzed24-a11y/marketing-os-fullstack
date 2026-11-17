@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Marketing OS — Full-Stack Admin Factory (n8n + Antigravity + Saved Logins Vault)</title>
+  <title>Marketing OS — Marketing Operations Platform</title>
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -143,7 +143,7 @@
         <div class="min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
             <span class="font-extrabold text-sm tracking-tight">Marketing <span class="text-[#FF7A68]">OS</span></span>
-            <span class="text-[11px] px-2 py-0.5 rounded-full bg-[#FFE7E2] dark:bg-indigo-500/15 text-[#E85A48] dark:text-indigo-300 font-bold border border-[#F2E6DB] dark:border-indigo-500/20">Workforce Factory</span>
+            <span class="text-[11px] px-2 py-0.5 rounded-full bg-[#FFE7E2] dark:bg-indigo-500/15 text-[#E85A48] dark:text-indigo-300 font-bold border border-[#F2E6DB] dark:border-indigo-500/20">Marketing Operations</span>
           </div>
           <div class="text-[11px] text-[var(--text-faint)] truncate">Bright. Kind. Growing. • Internal Marketing Platform</div>
         </div>
@@ -156,7 +156,7 @@
         </button>
         <button onclick="openMcpModal()" class="btn-outline px-3 py-1.5 text-[11px] inline-flex items-center gap-1.5 hidden sm:inline-flex">
           <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          <span class="mono">n8n: online</span>
+          <span class="mono">Engine: Online</span>
         </button>
         <div id="userProfileBadge" class="flex items-center gap-2 px-3 py-1.5 rounded-full card-subtle border border-[var(--border)]">
           <div id="headerAvatarPill" class="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 text-white flex items-center justify-center font-bold text-[10px] uppercase shadow-sm">SA</div>
@@ -178,9 +178,9 @@
       <div class="flex items-center gap-1.5">
         <button id="navTab-workbench" onclick="switchMainView('workbench')" class="px-4 py-1.5 rounded-full text-xs font-bold transition">⚡ Workbench</button>
         <button id="navTab-roleDash" onclick="switchMainView('roleDash')" class="px-4 py-1.5 rounded-full text-xs font-semibold transition">📊 Dashboard</button>
-        <button id="navTab-pipelines" onclick="switchMainView('pipelines')" class="px-4 py-1.5 rounded-full text-xs font-semibold transition">🚀 Pipelines & Agents</button>
-        <button id="navTab-seo" onclick="switchMainView('seo')" class="px-4 py-1.5 rounded-full text-xs font-semibold transition">🔍 Intelligence</button>
-        <button id="navTab-adminSettings" onclick="switchMainView('adminSettings')" class="px-4 py-1.5 rounded-full text-xs font-semibold transition">⚙️ Settings & Vault</button>
+        <button id="navTab-pipelines" onclick="switchMainView('pipelines')" class="px-4 py-1.5 rounded-full text-xs font-semibold transition">🚀 Campaigns & Team</button>
+        <button id="navTab-seo" onclick="switchMainView('seo')" class="px-4 py-1.5 rounded-full text-xs font-semibold transition">🔍 Market & SEO</button>
+        <button id="navTab-adminSettings" onclick="switchMainView('adminSettings')" class="px-4 py-1.5 rounded-full text-xs font-semibold transition">⚙️ Settings & Logins</button>
       </div>
       <!-- Hidden compatibility aliases for secondary views -->
       <div class="hidden">
@@ -222,7 +222,7 @@
   <div class="max-w-[1600px] mx-auto px-3 sm:px-6">
     <div id="newProjectDrawer" class="hidden card-surface p-4 mt-3">
       <div class="flex items-center justify-between mb-3">
-        <h3 class="text-sm font-bold">Create Factory Project</h3>
+        <h3 class="text-sm font-bold">Create Marketing Project</h3>
         <button onclick="toggleNewProjectDrawer()" class="text-xs text-[var(--text-faint)]">Cancel ✕</button>
       </div>
       <div class="grid sm:grid-cols-4 gap-3">
@@ -259,11 +259,11 @@
           </select>
         </div>
         <div class="sm:col-span-3">
-          <label class="block text-[11px] font-medium text-[var(--text-soft)] mb-1">One-Line Goal for Antigravity Squad</label>
-          <input id="npGoal" class="input-field" placeholder="e.g. Draft dual-branded outreach email campaigns, schedule consultations, and send via Hostinger SMTP." />
+          <label class="block text-[11px] font-medium text-[var(--text-soft)] mb-1">Campaign Objective & Deliverable Scope</label>
+          <input id="npGoal" class="input-field" placeholder="e.g. Launch dual-branded email outreach campaign with personalized copy and booking CTA." />
         </div>
         <div class="flex items-end">
-          <button onclick="createNewProject()" class="btn-primary w-full py-2 text-xs">Save Project to Factory</button>
+          <button onclick="createNewProject()" class="btn-primary w-full py-2 text-xs">Save Marketing Project</button>
         </div>
       </div>
     </div>
@@ -281,8 +281,8 @@
       <section class="card-surface p-4">
         <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
           <div>
-            <h2 class="text-sm font-bold tracking-tight">Factory Pipeline Stages</h2>
-            <p class="text-[11px] text-[var(--text-soft)]">Strategy & Harness Ingestion → AI Squad Execution → Manager Verification → Team Production Launch</p>
+            <h2 class="text-sm font-bold tracking-tight">Campaign Lifecycle Stages</h2>
+            <p class="text-[11px] text-[var(--text-soft)]">Strategy & Research → Content Creation → Quality Verification → Campaign Launch</p>
           </div>
           <div class="flex items-center gap-2">
             <span id="stageFilterIndicator" class="text-[11px] px-2.5 py-1 rounded-full bg-[var(--bg-soft)] border border-[var(--border)] font-medium">Showing: All Stages</span>
@@ -299,7 +299,7 @@
         <aside class="w-full lg:w-[330px] shrink-0 space-y-4">
           <div class="card-surface p-4">
             <div class="flex items-center justify-between mb-2.5">
-              <span class="text-xs font-bold tracking-tight">Projects in Factory</span>
+              <span class="text-xs font-bold tracking-tight">Active Marketing Projects</span>
               <span id="projectCountBadge" class="text-[11px] px-2 py-0.5 rounded-full bg-[var(--bg-soft)] border border-[var(--border)] mono">4</span>
             </div>
             <div id="projectCardsList" class="space-y-2.5"></div>
@@ -310,11 +310,11 @@
             <div class="flex items-center justify-between mb-2">
               <span class="text-xs font-bold flex items-center gap-1.5">
                 <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
-                Project Grounding Harness
+                Campaign Assets & Reference Data
               </span>
               <label for="harnessFileInput" class="cursor-pointer text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">+ Upload</label>
             </div>
-            <p class="text-[11px] text-[var(--text-soft)] mb-2">Multi-format harness files ground all agent reasoning. Uploaded by Admin, Manager & Members.</p>
+            <p class="text-[11px] text-[var(--text-soft)] mb-2">Upload brand guidelines, target audience data, briefs, and competitor research.</p>
 
             <!-- Supported Format Badges -->
             <div class="flex flex-wrap gap-1 mb-2.5">
@@ -333,7 +333,7 @@
                 <span>📁</span>
                 <span>Click or Drop Files (Max 50MB)</span>
               </div>
-              <p class="text-[10px] text-[var(--text-faint)] mt-0.5">Admin, Manager & Member write access</p>
+              <p class="text-[10px] text-[var(--text-faint)] mt-0.5">Upload brand assets, briefs, and data lists</p>
               <input id="harnessFileInput" type="file" multiple class="hidden" onchange="handleHarnessFileUpload(event)" accept=".db,.sqlite,.sqlite3,.sql,.json,.html,.htm,.png,.jpg,.jpeg,.webp,.svg,.gif,.pdf,.doc,.docx,.csv,.xlsx,.xls,.tsv,.zip,.gz,.tar,.md,.txt,.sop" />
             </div>
 
@@ -348,16 +348,16 @@
             <div class="flex flex-wrap items-start justify-between gap-3 pb-4 border-b border-[var(--border)]">
               <div class="min-w-0">
                 <div class="flex items-center gap-2">
-                  <span id="wbClientTag" class="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">Valioz Health</span>
+                  <span id="wbClientTag" class="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400">Marketing Campaign</span>
                   <span class="text-[11px] text-[var(--text-faint)]">•</span>
                   <span id="wbPipelineTag" class="text-[11px] mono px-2 py-0.5 rounded bg-[var(--bg-soft)] border border-[var(--border)]">email-campaign</span>
                 </div>
-                <h2 id="wbProjectTitle" class="text-lg sm:text-xl font-bold tracking-tight mt-1">Valioz Health sales</h2>
-                <p id="wbProjectGoal" class="text-xs text-[var(--text-soft)] mt-1">Draft dual-branded outreach email campaigns, schedule consultations, and send via Hostinger SMTP.</p>
+                <h2 id="wbProjectTitle" class="text-lg sm:text-xl font-bold tracking-tight mt-1">Marketing Campaign</h2>
+                <p id="wbProjectGoal" class="text-xs text-[var(--text-soft)] mt-1">Campaign objective and deliverable scope.</p>
               </div>
               <div class="flex items-center gap-2 shrink-0">
-                <button onclick="openGuidelinesModal()" class="btn-outline px-3 py-1.5 text-xs inline-flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 font-semibold shadow-xs" title="Customize Project Guidelines, Tone of Voice, and Deliverable SOP">
-                  <span>⚙️ Workflow Guidelines & SOP</span>
+                <button onclick="openGuidelinesModal()" class="btn-outline px-3 py-1.5 text-xs inline-flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 font-semibold shadow-xs" title="Customize Campaign Guidelines, Tone of Voice, and Deliverable Playbook">
+                  <span>⚙️ Campaign Playbook & Rules</span>
                 </button>
                 <span id="wbStageBadge" class="text-xs px-3 py-1 rounded-full font-semibold border">In Review • 95%</span>
               </div>
@@ -366,8 +366,8 @@
             <!-- 8 Marketing Pipeline Quick-Selector Pills -->
             <div class="mt-4">
               <div class="flex items-center justify-between mb-2">
-                <span class="text-xs font-bold">1. Select Marketing Pipeline & Antigravity Squad</span>
-                <span id="activeSquadLabel" class="text-[11px] text-[var(--text-soft)] mono">Squad: @coordinator, @browser-researcher, @software-engineer, @master-reporting</span>
+                <span class="text-xs font-bold">1. Select Campaign Pipeline & Marketing Team</span>
+                <span id="activeSquadLabel" class="text-[11px] text-[var(--text-soft)] mono">Team: Strategy Lead, Market Researcher, Content Creator, Campaign Lead</span>
               </div>
               <div id="wbPipelineSelector" class="grid grid-cols-2 sm:grid-cols-4 gap-2"></div>
             </div>
@@ -391,16 +391,16 @@
                 </div>
               </div>
               <div class="flex flex-col sm:flex-row items-stretch sm:items-end gap-2">
-                <textarea id="wbCommandInput" rows="2" class="input-field mono text-xs flex-1" placeholder="/assign Craft dual-branded email templates for Valioz Health from Priority_A_Outreach_Email_Merge_Fields.csv..."></textarea>
+                <textarea id="wbCommandInput" rows="2" class="input-field mono text-xs flex-1" placeholder="/assign Create high-converting email campaign with personalized tags and compelling offer..."></textarea>
                 <button id="wbRunBtn" onclick="executePipelineCommand()" class="btn-primary px-5 py-2.5 text-xs shrink-0 inline-flex items-center justify-center gap-1.5">
-                  <span>▶ Run in n8n + Antigravity</span>
+                  <span>▶ Launch Campaign Task</span>
                 </button>
               </div>
 
               <!-- Live 5-Stage Execution Stepper & Telemetry Log -->
               <div id="wbExecBox" class="mt-3 rounded-xl bg-[var(--surface)] border border-[var(--border)] p-3">
                 <div class="flex items-center justify-between text-xs font-semibold">
-                  <span id="wbExecStatusText">5-Stage Agent Loop Ready (Plan → Assign → Execute → Verify → Report)</span>
+                  <span id="wbExecStatusText">5-Stage Campaign Workflow (Plan → Assign → Execute → Verify → Final Report)</span>
                   <span id="wbExecPct" class="mono text-indigo-600 dark:text-indigo-400">100%</span>
                 </div>
                 <div class="mt-2 h-1.5 rounded-full bg-[var(--bg-soft)] overflow-hidden">
@@ -416,14 +416,14 @@
               <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
                 <div class="flex items-center gap-2">
                   <h3 class="text-xs font-bold">Live Deliverable Output</h3>
-                  <span id="outputPipelineBadge" class="text-[10px] mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">Verified against 6 harness files</span>
+                  <span id="outputPipelineBadge" class="text-[10px] mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">Verified Against Campaign Assets</span>
                 </div>
                 <div class="flex items-center gap-1 bg-[var(--bg-soft)] p-1 rounded-full border border-[var(--border)]">
                   <button id="outTab-Preview" onclick="switchOutputTab('Preview')" class="px-3 py-1 rounded-full text-[11px] font-semibold transition">Live Preview</button>
-                  <button id="outTab-Code" onclick="switchOutputTab('Code')" class="px-3 py-1 rounded-full text-[11px] font-semibold transition">Code & n8n JSON</button>
-                  <button id="outTab-Data" onclick="switchOutputTab('Data')" class="px-3 py-1 rounded-full text-[11px] font-semibold transition">Harness Data</button>
-                  <button id="outTab-RAG" onclick="switchOutputTab('RAG')" class="px-3 py-1 rounded-full text-[11px] font-semibold transition">RAG Vectors</button>
-                  <button id="outTab-Report" onclick="switchOutputTab('Report')" class="px-3 py-1 rounded-full text-[11px] font-semibold transition">Admin Report</button>
+                  <button id="outTab-Code" onclick="switchOutputTab('Code')" class="px-3 py-1 rounded-full text-[11px] font-semibold transition">Raw Deliverable & Payload</button>
+                  <button id="outTab-Data" onclick="switchOutputTab('Data')" class="px-3 py-1 rounded-full text-[11px] font-semibold transition">Campaign Assets</button>
+                  <button id="outTab-RAG" onclick="switchOutputTab('RAG')" class="px-3 py-1 rounded-full text-[11px] font-semibold transition">Knowledge Base</button>
+                  <button id="outTab-Report" onclick="switchOutputTab('Report')" class="px-3 py-1 rounded-full text-[11px] font-semibold transition">Executive Report</button>
                 </div>
               </div>
 
@@ -440,15 +440,15 @@
             <div class="flex items-center justify-between">
               <h3 class="text-xs font-bold flex items-center gap-1.5">
                 <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-                Master-Reporting Verdict
+                Quality & Verification Verdict
               </h3>
               <span id="reportVerdictBadge" class="text-[10px] px-2.5 py-0.5 rounded-full font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">Ready to Deliver</span>
             </div>
-            <p id="reportProjectSub" class="text-[11px] text-[var(--text-faint)] mt-1">Audited by @master-reporting-agent</p>
+            <p id="reportProjectSub" class="text-[11px] text-[var(--text-faint)] mt-1">Audited for marketing quality & compliance</p>
 
             <div class="mt-3 space-y-1.5 text-xs">
               <div class="flex justify-between items-center card-subtle px-3 py-2">
-                <span class="text-[var(--text-soft)]">Grounded in harness?</span>
+                <span class="text-[var(--text-soft)]">Aligned with brand assets?</span>
                 <span id="repCheckGrounded" class="font-semibold text-emerald-600 dark:text-emerald-400">Yes • 6 files</span>
               </div>
               <div class="flex justify-between items-center card-subtle px-3 py-2">
@@ -478,7 +478,7 @@
 
           <!-- Squad Presets Card -->
           <div class="card-surface p-4">
-            <h3 class="text-xs font-bold mb-2.5">Antigravity Squad Presets</h3>
+            <h3 class="text-xs font-bold mb-2.5">Marketing Specialist Teams</h3>
             <div id="squadPresetsList" class="space-y-2"></div>
           </div>
 
@@ -515,10 +515,10 @@
       <div class="card-surface p-5">
         <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div>
-            <h2 class="text-base font-bold">8 Real Marketing Pipelines (n8n Webhook + Antigravity Squads)</h2>
-            <p class="text-xs text-[var(--text-soft)]">Each pipeline routes via <span class="mono">POST http://localhost:5678/webhook/marketing-os-task</span> → executes Antigravity agents → posts Admin Report to <span class="mono">/api/webhooks/n8n</span>.</p>
+            <h2 class="text-base font-bold">8 Standard Marketing Campaigns & Workflows</h2>
+            <p class="text-xs text-[var(--text-soft)]">Automated, repeatable marketing pipelines: from market research and lead generation to high-converting landing pages and sales sequences.</p>
           </div>
-          <button onclick="openMcpModal()" class="btn-primary px-4 py-2 text-xs">View n8n-mcp & Docker Config</button>
+          <button onclick="openMcpModal()" class="btn-primary px-4 py-2 text-xs">View Integration Setup</button>
         </div>
         <div id="allPipelinesDetailedGrid" class="grid md:grid-cols-2 xl:grid-cols-4 gap-4"></div>
       </div>
@@ -604,15 +604,15 @@
         <div class="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] pb-4">
           <div>
             <div class="flex items-center gap-2 flex-wrap">
-              <span class="text-xl">🤖</span>
-              <h2 class="text-lg font-extrabold tracking-tight">32 Sovereign Agents Workforce</h2>
-              <span class="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-500/30">8 Squads &bull; 100% Grounded Execution</span>
+              <span class="text-xl">👥</span>
+              <h2 class="text-lg font-extrabold tracking-tight">32 Marketing Specialist Roles</h2>
+              <span class="text-xs px-2.5 py-0.5 rounded-full bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 font-bold border border-indigo-500/30">8 Teams &bull; High Conversion Focus</span>
             </div>
-            <p class="text-xs text-[var(--text-soft)] mt-1">Autonomous specialists operating across Leadership, Research, Engineering, Design, Ops, Growth, Finance, and Legal. Grounded in project harness files with zero hallucination tolerance.</p>
+            <p class="text-xs text-[var(--text-soft)] mt-1">Specialized marketing roles across Strategy, Research, Campaign Development, Creative Design, Operations, and Growth. Grounded in project assets and verified conversion benchmarks.</p>
           </div>
           <div class="flex items-center gap-2">
             <button onclick="openAgentDispatchModal('coordinator')" class="btn-primary px-4 py-2 text-xs font-bold inline-flex items-center gap-1.5 shadow-sm">
-              <span>⚡ Dispatch Agent / Squad</span>
+              <span>⚡ Assign Specialist Team</span>
             </button>
           </div>
         </div>
@@ -621,7 +621,7 @@
         <div class="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
           <div id="agentsDeptFilterPills" class="flex flex-wrap gap-1.5"></div>
           <div class="w-full md:w-72">
-            <input id="agentsSearchInput" oninput="renderAgentsView()" class="input-field text-xs" placeholder="Search agent name, @slug, role, or capability..." />
+            <input id="agentsSearchInput" oninput="renderAgentsView()" class="input-field text-xs" placeholder="Search specialist, role, or skill..." />
           </div>
         </div>
 
@@ -631,22 +631,22 @@
     </div>
 
     <!-- ===================================================================== -->
-    <!-- VIEW 6: RAG VECTOR STORE, SEMANTIC SEARCH & ANTIGRAVITY BUILDER       -->
+    <!-- VIEW 6: MARKETING KNOWLEDGE BASE & RESEARCH HUB                       -->
     <!-- ===================================================================== -->
     <div id="view-rag" class="hidden space-y-5">
       <div class="card-surface p-5 space-y-5">
         <div class="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] pb-4">
           <div>
             <div class="flex items-center gap-2">
-              <span class="text-[11px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 mono">PROJECT-ISOLATED RAG ENGINE</span>
-              <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-semibold mono">nomic-embed-text (768-dim) • SQLite Vector Chunks</span>
+              <span class="text-[11px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 mono">CAMPAIGN KNOWLEDGE BASE & RESEARCH ARCHIVE</span>
+              <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-semibold mono">Semantic Asset Search • Grounded Brand Data</span>
             </div>
-            <h2 class="text-base sm:text-lg font-extrabold mt-1">Retrieval-Augmented Generation (RAG) Control Center</h2>
-            <p class="text-xs text-[var(--text-soft)]">Chunk project harness files, run cosine-similarity semantic retrieval scoped to the active project, and copy the master prompt for Antigravity IDE.</p>
+            <h2 class="text-base sm:text-lg font-extrabold mt-1">Marketing Knowledge Base & Research Hub</h2>
+            <p class="text-xs text-[var(--text-soft)]">Search project briefs, customer personas, competitor audits, and brand guidelines to inform every marketing campaign.</p>
           </div>
           <div class="flex items-center gap-2">
             <select id="ragProjectSelect" onchange="selectProjectFromRag(this.value)" class="input-field !w-auto font-semibold text-xs"></select>
-            <button onclick="copyAntigravityRagPrompt()" class="btn-primary px-4 py-2 text-xs">📋 Copy Antigravity RAG Prompt</button>
+            <button onclick="copyAntigravityRagPrompt()" class="btn-primary px-4 py-2 text-xs">📋 Copy Campaign Context</button>
           </div>
         </div>
 
@@ -655,34 +655,34 @@
           <!-- Col 1: Semantic Vector Search -->
           <div class="card-subtle p-4 space-y-3 lg:col-span-2">
             <div class="flex items-center justify-between">
-              <h3 class="text-xs font-bold">1. Semantic Vector Retriever (Project Scoped)</h3>
-              <span id="ragChunkCountBadge" class="text-[11px] mono text-indigo-600 dark:text-indigo-400 font-semibold">0 chunks indexed</span>
+              <h3 class="text-xs font-bold">1. Marketing Asset & Research Search</h3>
+              <span id="ragChunkCountBadge" class="text-[11px] mono text-indigo-600 dark:text-indigo-400 font-semibold">0 assets indexed</span>
             </div>
             <div class="flex flex-col sm:flex-row gap-2">
-              <input id="ragQueryInput" class="input-field flex-1 text-xs" placeholder="Search project harness (e.g. 'Canadian dental patient search volume' or 'CDCP provider intake')..." value="Canadian dental search volume and Valioz website growth offer" />
+              <input id="ragQueryInput" class="input-field flex-1 text-xs" placeholder="Search marketing research, target audience, or campaign offers..." value="Target market growth opportunities and campaign offer" />
               <select id="ragTopKSelect" class="input-field !w-28 text-xs mono">
                 <option value="3">Top-K: 3</option>
                 <option value="5" selected>Top-K: 5</option>
                 <option value="8">Top-K: 8</option>
               </select>
-              <button onclick="runRagSemanticSearch()" class="btn-ink px-4 py-2 text-xs shrink-0">🔍 Retrieve Chunks</button>
+              <button onclick="runRagSemanticSearch()" class="btn-ink px-4 py-2 text-xs shrink-0">🔍 Search Assets</button>
             </div>
             <div id="ragSearchResultsList" class="space-y-2.5 max-h-[360px] overflow-y-auto pr-1"></div>
           </div>
 
           <!-- Col 2: Live Document Chunker -->
           <div class="card-subtle p-4 space-y-3">
-            <h3 class="text-xs font-bold">2. Ingest & Vectorize New Harness Document</h3>
-            <p class="text-[11px] text-[var(--text-soft)]">Splits document with Recursive Character Text Splitter, computes embedding vector, and binds to active project.</p>
+            <h3 class="text-xs font-bold">2. Add Campaign Document or Market Research</h3>
+            <p class="text-[11px] text-[var(--text-soft)]">Add brand guidelines, customer profiles, offer frameworks, or competitive teardowns.</p>
             <div>
-              <label class="block text-[11px] font-medium text-[var(--text-soft)] mb-1">Source Filename</label>
-              <input id="ragNewDocName" class="input-field text-xs mono" placeholder="e.g. valioz_growth_intake.md" value="valioz_growth_intake.md" />
+              <label class="block text-[11px] font-medium text-[var(--text-soft)] mb-1">Document Title</label>
+              <input id="ragNewDocName" class="input-field text-xs mono" placeholder="e.g. Q4_Campaign_Brief.md" value="Q4_Campaign_Brief.md" />
             </div>
             <div>
-              <label class="block text-[11px] font-medium text-[var(--text-soft)] mb-1">Raw Document Content</label>
-              <textarea id="ragNewDocContent" rows="5" class="input-field text-xs mono" placeholder="Paste pricing tables, SOPs, or clinic intelligence...">VALIOZ Health Dental Practice Growth Protocol: $499 one-time custom website setup with 30 days of AI Growth Agent included. Optional $299/month ongoing growth retainer. 100% domain and asset ownership permanently retained by clinic.</textarea>
+              <label class="block text-[11px] font-medium text-[var(--text-soft)] mb-1">Document Content</label>
+              <textarea id="ragNewDocContent" rows="5" class="input-field text-xs mono" placeholder="Paste campaign brief, target audience pain points, brand rules, or pricing guidelines...">Marketing Campaign Brief: High-conversion customer acquisition campaign. Personalized value proposition, transparent pricing, 100% brand asset ownership, zero long-term lock-in.</textarea>
             </div>
-            <button onclick="ingestNewRagDocument()" class="btn-primary w-full py-2 text-xs">⚡ Chunk, Embed & Index into Project RAG</button>
+            <button onclick="ingestNewRagDocument()" class="btn-primary w-full py-2 text-xs">⚡ Save to Campaign Knowledge Base</button>
           </div>
         </div>
       </div>
@@ -738,17 +738,17 @@
       <div class="card-surface p-5 sm:p-6 flex flex-wrap items-center justify-between gap-4">
         <div>
           <div class="flex items-center gap-2">
-            <h2 class="text-base sm:text-lg font-bold">⚙️ Admin Settings & Multi-Provider LLM Routing</h2>
-            <span class="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-700 dark:text-purple-300 font-bold border border-purple-500/30">Local-First Failover</span>
+            <h2 class="text-base sm:text-lg font-bold">⚙️ Platform Engine & Campaign Automation Settings</h2>
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-700 dark:text-purple-300 font-bold border border-purple-500/30">High Availability</span>
           </div>
-          <p class="text-xs text-[var(--text-soft)] mt-1">Configure and live-test Local LLMs (Ollama, LM Studio, vLLM) and Cloud APIs (OpenAI, Anthropic, Gemini). Settings propagate dynamically to n8n and Antigravity agents without server restarts.</p>
+          <p class="text-xs text-[var(--text-soft)] mt-1">Configure and manage campaign generation engines and cloud services. All settings apply immediately to ongoing and future marketing workflows.</p>
         </div>
         <div class="flex items-center gap-2">
           <button onclick="pingAllLlmProviders()" class="btn-outline px-3.5 py-1.5 text-xs font-semibold inline-flex items-center gap-1.5 shadow-sm">
             <span>⚡ Test All Connections</span>
           </button>
           <button onclick="triggerAdminWatchdogScan()" class="btn-primary px-4 py-1.5 text-xs font-bold inline-flex items-center gap-1.5 shadow-sm">
-            <span>🛡️ Run Watchdog Scan</span>
+            <span>🛡️ Check Reliability</span>
           </button>
         </div>
       </div>
@@ -756,7 +756,7 @@
       <!-- Minimalist System Health Status Bar -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3.5">
         <div class="card-surface p-4">
-          <div class="text-[10px] font-bold text-[var(--text-soft)] uppercase tracking-wider">API Gateway</div>
+          <div class="text-[10px] font-bold text-[var(--text-soft)] uppercase tracking-wider">Platform Gateway</div>
           <div class="flex items-center gap-2 mt-1">
             <span id="healthApiPill" class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
             <span id="healthApiStatus" class="font-bold text-sm">Online (200 OK)</span>
@@ -765,7 +765,7 @@
         </div>
 
         <div class="card-surface p-4">
-          <div class="text-[10px] font-bold text-[var(--text-soft)] uppercase tracking-wider">SQLite WAL Foundation</div>
+          <div class="text-[10px] font-bold text-[var(--text-soft)] uppercase tracking-wider">Marketing Database</div>
           <div class="flex items-center gap-2 mt-1">
             <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
             <span class="font-bold text-sm">29 Tables Provisioned</span>
@@ -774,16 +774,16 @@
         </div>
 
         <div class="card-surface p-4">
-          <div class="text-[10px] font-bold text-[var(--text-soft)] uppercase tracking-wider">Self-Healing Watchdog</div>
+          <div class="text-[10px] font-bold text-[var(--text-soft)] uppercase tracking-wider">Campaign Reliability Engine</div>
           <div class="flex items-center gap-2 mt-1">
             <span id="healthWatchdogPill" class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
             <span id="healthWatchdogStatus" class="font-bold text-sm">Active & Guarding</span>
           </div>
-          <div id="healthWatchdogDetails" class="text-[11px] text-[var(--text-soft)] mt-0.5">30s Scan &bull; 300s SLA</div>
+          <div id="healthWatchdogDetails" class="text-[11px] text-[var(--text-soft)] mt-0.5">Automated Quality & Failover Checks</div>
         </div>
 
         <div class="card-surface p-4">
-          <div class="text-[10px] font-bold text-[var(--text-soft)] uppercase tracking-wider">Active Primary Engine</div>
+          <div class="text-[10px] font-bold text-[var(--text-soft)] uppercase tracking-wider">Active Generation Engine</div>
           <div class="flex items-center gap-2 mt-1">
             <span class="text-sm font-bold text-indigo-600 dark:text-indigo-400" id="healthActiveProvider">Ollama (Local)</span>
           </div>
@@ -795,8 +795,8 @@
       <div class="card-surface p-5 space-y-4">
         <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] pb-3">
           <div>
-            <h3 class="text-sm font-bold">Dynamic LLM Provider Registry</h3>
-            <p class="text-xs text-[var(--text-soft)]">Toggle active model routing between offline sovereign hardware and frontier cloud endpoints.</p>
+            <h3 class="text-sm font-bold">Content & Automation Engines</h3>
+            <p class="text-xs text-[var(--text-soft)]">Select and configure active text, copy, and analysis engines for marketing campaigns.</p>
           </div>
           <div class="flex items-center gap-2 text-xs">
             <span class="text-[var(--text-soft)]">Filter:</span>
@@ -816,9 +816,9 @@
         <div class="flex items-center justify-between border-b border-[var(--border)] pb-3">
           <div>
             <h3 class="text-sm font-bold flex items-center gap-2">
-              <span>🛡️ Autonomous Watchdog Execution Telemetry</span>
+              <span>🛡️ Campaign Execution & Reliability Monitor</span>
             </h3>
-            <p class="text-xs text-[var(--text-soft)]">Self-healing monitor detecting hangs past SLA and auto-retrying failed webhooks with exponential backoff.</p>
+            <p class="text-xs text-[var(--text-soft)]">Continuous quality monitor ensuring marketing tasks and campaigns execute smoothly without interruption.</p>
           </div>
           <button onclick="triggerAdminWatchdogScan()" class="btn-outline px-3 py-1.5 text-xs font-semibold">⚡ Scan Now</button>
         </div>
@@ -874,16 +874,16 @@
         </div>
         <div>
           <label class="block text-[11px] font-medium text-[var(--text-soft)] mb-1">Task Title</label>
-          <input id="modalTaskTitle" class="input-field" placeholder="e.g. craft a dual branded email templates for valioz health" />
+          <input id="modalTaskTitle" class="input-field" placeholder="e.g. Launch dual-branded email campaign for target accounts" />
         </div>
         <div>
-          <label class="block text-[11px] font-medium text-[var(--text-soft)] mb-1">Execution Brief for Antigravity Squad</label>
-          <textarea id="modalTaskBrief" rows="3" class="input-field" placeholder="Specify audience, value proposition, and uploaded harness files..."></textarea>
+          <label class="block text-[11px] font-medium text-[var(--text-soft)] mb-1">Campaign Task Brief & Deliverable Instructions</label>
+          <textarea id="modalTaskBrief" rows="3" class="input-field" placeholder="Specify target audience, value proposition, campaign offer, and reference assets..."></textarea>
         </div>
       </div>
       <div class="flex justify-end gap-2 pt-2">
         <button onclick="closeTaskModal()" class="btn-outline px-4 py-2 text-xs">Cancel</button>
-        <button onclick="submitModalTask()" class="btn-primary px-5 py-2 text-xs">Create & Trigger n8n Pipeline</button>
+        <button onclick="submitModalTask()" class="btn-primary px-5 py-2 text-xs">Create & Launch Campaign Task</button>
       </div>
     </div>
   </div>
@@ -977,37 +977,37 @@
         <div class="flex items-center gap-2.5">
           <div id="abAvatar" class="w-9 h-9 rounded-xl text-white font-bold text-xs grid place-items-center">CO</div>
           <div>
-            <h3 id="abTitle" class="text-sm font-bold">@coordinator — Orchestration Lead</h3>
-            <p id="abSubtitle" class="text-[11px] text-[var(--text-soft)] mono">/antigravity/agents/coordinator/</p>
+            <h3 id="abTitle" class="text-sm font-bold">Coordinator — Campaign Lead</h3>
+            <p id="abSubtitle" class="text-[11px] text-[var(--text-soft)] mono">Role Guidelines & Playbook</p>
           </div>
         </div>
         <button onclick="closeAgentModal()" class="text-xs text-[var(--text-faint)] hover:text-[var(--text)]">✕</button>
       </div>
       <div class="flex gap-1.5 border-b border-[var(--border)] pb-2">
-        <button id="abFileTab-AGENT" onclick="switchAgentFileTab('AGENT')" class="px-3 py-1 rounded-full text-xs font-semibold mono">AGENT.md</button>
-        <button id="abFileTab-SKILL" onclick="switchAgentFileTab('SKILL')" class="px-3 py-1 rounded-full text-xs font-semibold mono">SKILL.md</button>
-        <button id="abFileTab-MEMORY" onclick="switchAgentFileTab('MEMORY')" class="px-3 py-1 rounded-full text-xs font-semibold mono">MEMORY.md</button>
+        <button id="abFileTab-AGENT" onclick="switchAgentFileTab('AGENT')" class="px-3 py-1 rounded-full text-xs font-semibold mono">ROLE.md</button>
+        <button id="abFileTab-SKILL" onclick="switchAgentFileTab('SKILL')" class="px-3 py-1 rounded-full text-xs font-semibold mono">PLAYBOOK.md</button>
+        <button id="abFileTab-MEMORY" onclick="switchAgentFileTab('MEMORY')" class="px-3 py-1 rounded-full text-xs font-semibold mono">CONTEXT.md</button>
       </div>
       <textarea id="abFileEditor" rows="10" class="input-field mono text-xs leading-relaxed"></textarea>
       <div class="flex items-center justify-between pt-1">
-        <span class="text-[11px] text-[var(--text-faint)]">Edits persist in local state and sync to Antigravity agent runtime.</span>
+        <span class="text-[11px] text-[var(--text-faint)]">Edits apply automatically to all campaign workflows.</span>
         <div class="flex gap-2">
           <button onclick="closeAgentModal()" class="btn-outline px-4 py-1.5 text-xs">Close</button>
-          <button onclick="saveAgentBlueprint()" class="btn-primary px-4 py-1.5 text-xs">Save Blueprint</button>
+          <button onclick="saveAgentBlueprint()" class="btn-primary px-4 py-1.5 text-xs">Save Guidelines</button>
         </div>
       </div>
     </div>
   </div>
 
   <!-- ======================================================================= -->
-  <!-- MODAL 5: LOCAL N8N + ANTIGRAVITY MCP CONNECTION HUB                     -->
+  <!-- MODAL 5: MARKETING AUTOMATION & ENGINE INTEGRATION HUB                   -->
   <!-- ======================================================================= -->
   <div id="mcpModal" class="hidden fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="card-surface w-full max-w-3xl p-5 space-y-4 max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between">
         <div>
-          <h3 class="text-sm font-bold">Local n8n + Google Antigravity MCP Hub</h3>
-          <p class="text-[11px] text-[var(--text-soft)]">Link your local Docker n8n (:5678) and Antigravity IDE.</p>
+          <h3 class="text-sm font-bold">Marketing Automation Engine Setup</h3>
+          <p class="text-[11px] text-[var(--text-soft)]">Integration settings for local execution and marketing workflows.</p>
         </div>
         <button onclick="closeMcpModal()" class="text-xs text-[var(--text-faint)] hover:text-[var(--text)]">✕</button>
       </div>
@@ -1112,10 +1112,10 @@ agent = Agent(
       <div class="p-4 sm:p-5 border-b border-[var(--border)] flex items-center justify-between bg-[var(--surface)]">
         <div>
           <div class="flex items-center gap-2">
-            <h3 class="text-base font-bold">⚙️ Project Workflow Guidelines & Deliverable SOP</h3>
+            <h3 class="text-base font-bold">⚙️ Brand Guidelines & Campaign Playbook</h3>
             <span class="text-[10px] px-2 py-0.5 rounded bg-indigo-500/15 text-indigo-600 dark:text-indigo-300 mono font-semibold">Admin / Manager Control</span>
           </div>
-          <p class="text-xs text-[var(--text-soft)] mt-0.5">Customize tone, mandatory sections, pricing rules, and compliance standards that govern workforce agent execution.</p>
+          <p class="text-xs text-[var(--text-soft)] mt-0.5">Customize brand tone, campaign rules, key value propositions, and compliance standards for this campaign.</p>
         </div>
         <button onclick="closeGuidelinesModal()" class="text-xs text-[var(--text-soft)] hover:text-[var(--text)] w-8 h-8 grid place-items-center rounded-full bg-[var(--bg-soft)]">✕</button>
       </div>
@@ -1123,38 +1123,38 @@ agent = Agent(
       <div class="p-5 overflow-y-auto space-y-4 flex-1 text-xs">
         <div>
           <div class="flex items-center justify-between mb-1.5">
-            <label class="font-bold">1. Workflow Instructions & Standard Operating Procedure (Markdown)</label>
-            <button onclick="insertTemplateGuidelines()" class="text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold hover:underline">Insert Dental Outreach SOP Template</button>
+            <label class="font-bold">1. Campaign Strategy & Messaging Guidelines (Markdown)</label>
+            <button onclick="insertTemplateGuidelines()" class="text-[11px] text-indigo-600 dark:text-indigo-400 font-semibold hover:underline">Insert B2B Campaign Template</button>
           </div>
-          <p class="text-[11px] text-[var(--text-soft)] mb-2">These instructions are directly injected into every subagent prompt (@coordinator, @browser-researcher, @software-engineer, @master-reporting-agent).</p>
+          <p class="text-[11px] text-[var(--text-soft)] mb-2">These guidelines inform every piece of content, copy, and deliverable produced in this project.</p>
           <textarea id="guidelinesTextarea" rows="9" class="input-field mono text-xs leading-relaxed" placeholder="Write or paste project workflow instructions, branding rules, or compliance standards..."></textarea>
         </div>
 
         <div class="grid sm:grid-cols-2 gap-3">
           <div>
             <label class="block font-bold mb-1">2. Target Audience & Personas</label>
-            <input id="guidelinesTargetAudience" class="input-field" placeholder="e.g. Canadian Dental Clinics & Practice Directors" />
+            <input id="guidelinesTargetAudience" class="input-field" placeholder="e.g. B2B Decision Makers & Practice Directors" />
           </div>
           <div>
             <label class="block font-bold mb-1">3. Tone of Voice & Style</label>
-            <input id="guidelinesTone" class="input-field" placeholder="e.g. Authoritative, Clinical, Consultative, High-ROI" />
+            <input id="guidelinesTone" class="input-field" placeholder="e.g. Authoritative, Consultative, High-ROI, Engaging" />
           </div>
         </div>
 
         <div class="grid sm:grid-cols-2 gap-3">
           <div>
-            <label class="block font-bold mb-1">4. Core Pricing & Asset Ownership Rules</label>
-            <input id="guidelinesPricingRules" class="input-field" placeholder="e.g. $499 setup, 100% domain/code ownership, 0 lock-in" />
+            <label class="block font-bold mb-1">4. Core Offer & Pricing Rules</label>
+            <input id="guidelinesPricingRules" class="input-field" placeholder="e.g. Transparent pricing, 100% asset ownership, 0 lock-in" />
           </div>
           <div>
             <label class="block font-bold mb-1">5. Regulatory & Compliance Standards</label>
-            <input id="guidelinesCompliance" class="input-field" placeholder="e.g. CASL, PIPEDA, Google Healthcare Ads Policy" />
+            <input id="guidelinesCompliance" class="input-field" placeholder="e.g. Privacy standards, advertising compliance" />
           </div>
         </div>
 
         <div>
-          <label class="block font-bold mb-1">6. Custom Squad Prompt Directives (System Override)</label>
-          <input id="guidelinesCustomRules" class="input-field" placeholder="e.g. Always include 5 Canadian cities, cite verified csv clinic ranks, never hallucinate pricing" />
+          <label class="block font-bold mb-1">6. Custom Campaign Directives & Key Talking Points</label>
+          <input id="guidelinesCustomRules" class="input-field" placeholder="e.g. Emphasize clear ROI, cite verified case studies, emphasize zero-friction onboarding" />
         </div>
       </div>
 
@@ -1162,7 +1162,7 @@ agent = Agent(
         <span class="text-[11px] text-[var(--text-faint)]">Saves to project database & applies across all 8 pipelines.</span>
         <div class="flex items-center gap-2">
           <button onclick="closeGuidelinesModal()" class="btn-outline px-4 py-2 text-xs">Cancel</button>
-          <button onclick="saveProjectGuidelines()" class="btn-primary px-5 py-2 text-xs font-bold">Save Guidelines & Update Squad</button>
+          <button onclick="saveProjectGuidelines()" class="btn-primary px-5 py-2 text-xs font-bold">Save Guidelines & Campaign Playbook</button>
         </div>
       </div>
     </div>
@@ -1217,8 +1217,8 @@ agent = Agent(
         <div class="flex items-center gap-2.5">
           <div id="dispatchModalAvatar" class="w-10 h-10 rounded-2xl text-white font-bold text-sm grid place-items-center bg-indigo-600 shadow-sm shrink-0">CO</div>
           <div>
-            <h3 id="dispatchModalTitle" class="text-base font-bold">Dispatch Agent: @coordinator</h3>
-            <p id="dispatchModalSub" class="text-xs text-[var(--text-soft)] mono">Leadership &bull; Orchestration Lead</p>
+            <h3 id="dispatchModalTitle" class="text-base font-bold">Assign Specialist: Coordinator</h3>
+            <p id="dispatchModalSub" class="text-xs text-[var(--text-soft)] mono">Leadership &bull; Campaign Lead</p>
           </div>
         </div>
         <button onclick="closeAgentDispatchModal()" class="text-xs text-[var(--text-soft)] hover:text-[var(--text)] w-8 h-8 grid place-items-center rounded-full bg-[var(--bg-soft)]">✕</button>
@@ -1231,11 +1231,11 @@ agent = Agent(
         </div>
         <div>
           <label class="block font-bold mb-1">Task Title</label>
-          <input id="dispatchModalTaskTitle" class="input-field text-xs" placeholder="e.g. Conduct Canadian Dental Market Moat Analysis" />
+          <input id="dispatchModalTaskTitle" class="input-field text-xs" placeholder="e.g. Conduct Competitor Pricing & Value Proposition Teardown" />
         </div>
         <div>
-          <label class="block font-bold mb-1">Operational Brief & Instructions</label>
-          <textarea id="dispatchModalBrief" rows="4" class="input-field text-xs mono leading-relaxed" placeholder="Specify audience, data harness files to evaluate, and exact deliverable requirements..."></textarea>
+          <label class="block font-bold mb-1">Campaign Brief & Requirements</label>
+          <textarea id="dispatchModalBrief" rows="4" class="input-field text-xs mono leading-relaxed" placeholder="Specify campaign goal, target audience, brand requirements, and expected deliverable..."></textarea>
         </div>
         <div>
           <label class="block font-bold mb-1">Execution Priority</label>
@@ -1247,10 +1247,10 @@ agent = Agent(
       </div>
 
       <div class="p-4 border-t border-[var(--border)] bg-[var(--bg-soft)] flex items-center justify-between">
-        <span class="text-[11px] text-[var(--text-faint)]">Grounded in project harness &bull; Dual-Engine Runner</span>
+        <span class="text-[11px] text-[var(--text-faint)]">Grounded in project assets &bull; High Performance Engine</span>
         <div class="flex items-center gap-2">
           <button onclick="closeAgentDispatchModal()" class="btn-outline px-4 py-2 text-xs">Cancel</button>
-          <button id="dispatchModalSubmitBtn" onclick="submitAgentDispatch()" class="btn-primary px-5 py-2 text-xs font-bold">⚡ Dispatch Agent</button>
+          <button id="dispatchModalSubmitBtn" onclick="submitAgentDispatch()" class="btn-primary px-5 py-2 text-xs font-bold">⚡ Assign Task</button>
         </div>
       </div>
     </div>
