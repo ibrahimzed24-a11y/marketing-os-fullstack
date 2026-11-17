@@ -234,5 +234,6 @@ module.exports = {
   mirrorWrite,
   hydrateFromTurso,
   pushAllToTurso,
-  getStatus
+  getStatus,
+  ensureTursoSchema
 };
