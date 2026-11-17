@@ -1118,14 +1118,14 @@ function toggleNewProjectDrawer() {
 
 function createNewProject() {
   const name = (document.getElementById('npName')?.value || '').trim();
-  const client = (document.getElementById('npClient')?.value || '').trim();
-  if (!name || !client) return showToast('Please enter both Project Name and Client.');
+  const brand = (document.getElementById('npClient')?.value || '').trim() || 'Internal Marketing';
+  if (!name) return showToast('Please enter a Project Name.');
 
   const pipeline = document.getElementById('npPipeline')?.value || 'email-campaign';
   const newProj = {
     id: 'proj-' + Date.now(),
     name: name,
-    client: client,
+    client: brand,
     goal: document.getElementById('npGoal')?.value.trim() || 'Execute grounded marketing pipeline.',
     stage: 'Draft',
     progress: 15,
@@ -1134,8 +1134,8 @@ function createNewProject() {
     squad: PIPELINE_CATALOG[pipeline] ? PIPELINE_CATALOG[pipeline].squad.slice() : ['CO', 'BR', 'SE', 'MR'],
     assigneeId: 'u-member',
     harnessFiles: [
-      { name: 'leads.csv', meta: client + ' Target Accounts • 1.2 MB', rows: '45 contacts', status: 'Injected into reasoning' },
-      { name: 'brief.pdf', meta: client + ' Project Brief • 850 KB', rows: 'Core Value Prop', status: 'Injected into reasoning' }
+      { name: 'leads.csv', meta: brand + ' Target Accounts • 1.2 MB', rows: '45 contacts', status: 'Injected into reasoning' },
+      { name: 'brief.pdf', meta: brand + ' Project Brief • 850 KB', rows: 'Core Value Prop', status: 'Injected into reasoning' }
     ],
     lastReport: {
       verdict: 'Draft Initialized',
@@ -1415,9 +1415,9 @@ async function executePipelineCommand() {
 }
 
 async function approveAndDeliverCurrent() {
-  const isAuthorized = ['super_admin', 'admin', 'manager', 'client'].includes(state.currentUserRole);
+  const isAuthorized = ['super_admin', 'admin', 'manager'].includes(state.currentUserRole);
   if (!isAuthorized) {
-    return showToast('RBAC Restriction: Only Admin, Manager, or Client can sign off deliverables.');
+    return showToast('RBAC Restriction: Only Super Admin, Admin, or Manager can sign off deliverables.');
   }
   const proj = getSelectedProject();
   if (!proj) return;
@@ -1439,11 +1439,11 @@ async function approveAndDeliverCurrent() {
   proj.stage = 'Delivered';
   proj.progress = 100;
   if (!proj.lastReport) proj.lastReport = {};
-  proj.lastReport.verdict = 'Approved & Delivered';
-  state.telemetryLogs.unshift('[' + new Date().toTimeString().slice(0, 8) + '] APPROVED & DELIVERED: "' + proj.name + '" by ' + getCurrentUser().name);
+  proj.lastReport.verdict = 'Approved & Production Ready';
+  state.telemetryLogs.unshift('[' + new Date().toTimeString().slice(0, 8) + '] APPROVED: "' + proj.name + '" by ' + getCurrentUser().name);
   saveState();
   renderAll();
-  showToast(`Approved & Delivered "${proj.name}" to Client Portal!`);
+  showToast(`Approved deliverable for "${proj.name}" — Marked Production Ready!`);
 }
 
 async function requestFixOnCurrent() {
@@ -2027,7 +2027,7 @@ function renderWorkbenchCenterAndRight() {
         '</div>';
     } else {
       approvalContainer.innerHTML =
-        '<button onclick="approveAndDeliverCurrent()" class="w-full py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm transition">✓ Approve & Deliver to Client</button>' +
+        '<button onclick="approveAndDeliverCurrent()" class="w-full py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm transition">✓ Approve & Mark Production Ready</button>' +
         '<div class="grid grid-cols-2 gap-2">' +
           '<button onclick="requestFixOnCurrent()" class="btn-outline py-2 text-xs">↺ Request Fix</button>' +
           '<button onclick="downloadActiveDeliverable()" class="btn-outline py-2 text-xs">⬇ Export (.md/.html)</button>' +

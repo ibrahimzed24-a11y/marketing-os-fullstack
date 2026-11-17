@@ -228,11 +228,11 @@
       <div class="grid sm:grid-cols-4 gap-3">
         <div>
           <label class="block text-[11px] font-medium text-[var(--text-soft)] mb-1">Project Name</label>
-          <input id="npName" class="input-field" placeholder="e.g. VALIOZ Health sales" />
+          <input id="npName" class="input-field" placeholder="e.g. Q4 Lead Generation" />
         </div>
         <div>
-          <label class="block text-[11px] font-medium text-[var(--text-soft)] mb-1">Client / Venture</label>
-          <input id="npClient" class="input-field" placeholder="e.g. Valioz Health" />
+          <label class="block text-[11px] font-medium text-[var(--text-soft)] mb-1">Brand / Campaign Name</label>
+          <input id="npClient" class="input-field" placeholder="e.g. Internal Marketing / Growth" />
         </div>
         <div>
           <label class="block text-[11px] font-medium text-[var(--text-soft)] mb-1">Primary Deliverable</label>
@@ -282,7 +282,7 @@
         <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
           <div>
             <h2 class="text-sm font-bold tracking-tight">Factory Pipeline Stages</h2>
-            <p class="text-[11px] text-[var(--text-soft)]">Idea → Harness Ingestion → Antigravity Squad Execution → Admin Verification → Client Delivery</p>
+            <p class="text-[11px] text-[var(--text-soft)]">Strategy & Harness Ingestion → AI Squad Execution → Manager Verification → Team Production Launch</p>
           </div>
           <div class="flex items-center gap-2">
             <span id="stageFilterIndicator" class="text-[11px] px-2.5 py-1 rounded-full bg-[var(--bg-soft)] border border-[var(--border)] font-medium">Showing: All Stages</span>
@@ -456,7 +456,7 @@
                 <span id="repCheckUsable" class="font-semibold">Yes • Production-ready</span>
               </div>
               <div class="flex justify-between items-center card-subtle px-3 py-2">
-                <span class="text-[var(--text-soft)]">Sellable to client?</span>
+                <span class="text-[var(--text-soft)]">Production Ready?</span>
                 <span id="repCheckSellable" class="font-semibold">Yes • Clear CTA & ROI</span>
               </div>
             </div>
@@ -465,14 +465,14 @@
 
             <!-- Role-Gated Approval Controls -->
             <div id="adminApprovalActions" class="mt-4 space-y-2">
-              <button onclick="approveAndDeliverCurrent()" class="w-full py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm transition">✓ Approve & Deliver to Client</button>
+              <button onclick="approveAndDeliverCurrent()" class="w-full py-2.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-sm transition">✓ Approve & Mark Production Ready</button>
               <div class="grid grid-cols-2 gap-2">
                 <button onclick="requestFixOnCurrent()" class="btn-outline py-2 text-xs">↺ Request Fix</button>
                 <button onclick="downloadActiveDeliverable()" class="btn-outline py-2 text-xs">⬇ Export (.md/.html)</button>
               </div>
             </div>
             <div id="memberApprovalNotice" class="hidden mt-4 card-subtle p-3 text-[11px] text-[var(--text-soft)]">
-              <b class="text-[var(--text)]">RBAC Notice:</b> Only <span class="mono">super_admin</span>, <span class="mono">admin</span>, or <span class="mono">manager</span> roles can approve and deliver to the client. You can run pipelines and submit to <span class="mono">In Review</span>.
+              <b class="text-[var(--text)]">RBAC Notice:</b> Only <span class="mono">super_admin</span>, <span class="mono">admin</span>, or <span class="mono">manager</span> roles can approve deliverables for production deployment. Members can execute pipelines and submit to <span class="mono">In Review</span>.
             </div>
           </div>
 
@@ -546,7 +546,6 @@
               <option value="member">member (Execute Pipelines)</option>
               <option value="manager">manager (Projects & Assign)</option>
               <option value="admin">admin (Approve & Team)</option>
-              <option value="client">client (View Deliverables)</option>
             </select>
             <select id="tmDept" class="input-field">
               <option value="Growth">Growth</option>
@@ -554,7 +553,6 @@
               <option value="Design">Design & Creative</option>
               <option value="Engineering">Engineering</option>
               <option value="Leadership">Leadership</option>
-              <option value="Client">External Client</option>
             </select>
             <button onclick="addNewTeamMember()" class="btn-primary py-2 text-xs">Provision Account</button>
           </div>
