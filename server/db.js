@@ -514,6 +514,27 @@ try {
     FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE
   );
   CREATE INDEX IF NOT EXISTS idx_webhook_retries_status ON webhook_retries(status, next_retry_at);
+
+  -- 30. Approvals (Human-in-the-Loop Governance Queue)
+  CREATE TABLE IF NOT EXISTS approvals (
+    id TEXT PRIMARY KEY,
+    task_id TEXT,
+    project_id TEXT,
+    department TEXT NOT NULL CHECK(department IN ('research','sales','creative')),
+    agent_name TEXT NOT NULL,
+    action_type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    summary TEXT,
+    preview_data TEXT,
+    status TEXT DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected','revision_requested')),
+    reviewer_id TEXT,
+    reviewer_notes TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    reviewed_at DATETIME,
+    FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE SET NULL,
+    FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_approvals_status ON approvals(status, department);
   `);
 
   // Safe runtime migrations for customizable guidelines and multi-format files
@@ -530,6 +551,11 @@ try {
     }
     if (!pragmaProjects.some(c => c.name === 'updated_at')) {
       db.prepare("ALTER TABLE projects ADD COLUMN updated_at DATETIME DEFAULT NULL").run();
+    }
+
+    const pragmaTasks = db.prepare("PRAGMA table_info(tasks)").all();
+    if (!pragmaTasks.some(c => c.name === 'department')) {
+      db.prepare("ALTER TABLE tasks ADD COLUMN department TEXT DEFAULT 'creative'").run();
     }
 
     const pragmaHarness = db.prepare("PRAGMA table_info(harness_files)").all();

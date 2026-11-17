@@ -124,7 +124,7 @@ app.use(express.static(path.join(__dirname, '../public')));
 
 // Helper for Project Membership & Access
 function canAccessProject(user, projectId) {
-  if (['super_admin', 'admin', 'manager'].includes(user.role)) return true;
+  if (['owner', 'super_admin', 'admin', 'manager'].includes(user.role)) return true;
   try {
     const m = db.prepare('SELECT * FROM project_members WHERE project_id=? AND user_id=?').get(projectId, user.id);
     const p = db.prepare('SELECT * FROM projects WHERE id=? AND owner_id=?').get(projectId, user.id);
@@ -1678,6 +1678,184 @@ app.post('/api/admin/clean-slate', authMiddleware, requireRole('super_admin'), a
     db.prepare('DELETE FROM projects').run();
   })();
   res.json({ ok: true, message: 'All demo workspaces, tasks, and data successfully cleared.' });
+}));
+
+// =============================================================================
+// PHASE 1: CORE SIMPLIFIED OPERATIONS API (Approvals, Overview, Security)
+// =============================================================================
+
+// 1. Unified Overview Stats
+app.get('/api/overview/stats', authMiddleware, asyncHandler(async (req, res) => {
+  // Active Clients (distinct client names from active projects or companies)
+  const clientsRow = db.prepare(`
+    SELECT COUNT(DISTINCT client_name) as count FROM projects WHERE client_name IS NOT NULL AND client_name != ''
+  `).get();
+  let companiesCount = 0;
+  try {
+    companiesCount = db.prepare('SELECT COUNT(*) as count FROM companies').get()?.count || 0;
+  } catch (_) {}
+  const activeClients = Math.max(clientsRow?.count || 0, companiesCount);
+
+  // Active Projects
+  const activeProjects = db.prepare(`SELECT COUNT(*) as count FROM projects`).get()?.count || 0;
+
+  // Open Deals (CRM)
+  let openDeals = 0;
+  try {
+    const dealsRow = db.prepare(`SELECT COUNT(*) as count FROM deals WHERE stage NOT IN ('won', 'lost')`).get();
+    openDeals = dealsRow?.count || 0;
+  } catch (_) {}
+
+  // Pending Approvals (Human-in-the-Loop review queue)
+  let pendingApprovals = 0;
+  try {
+    const appRow = db.prepare(`SELECT COUNT(*) as count FROM approvals WHERE status = 'pending'`).get();
+    pendingApprovals = appRow?.count || 0;
+  } catch (_) {}
+
+  // Tasks Due / Active
+  const activeTasks = db.prepare(`
+    SELECT COUNT(*) as count FROM tasks WHERE status IN ('draft', 'queued', 'running', 'in_review', 'needs_attention')
+  `).get()?.count || 0;
+
+  // Recent Approvals
+  let recentApprovals = [];
+  try {
+    recentApprovals = db.prepare(`
+      SELECT a.*, p.name as project_name, p.client_name 
+      FROM approvals a
+      LEFT JOIN projects p ON a.project_id = p.id
+      WHERE a.status = 'pending'
+      ORDER BY a.created_at DESC LIMIT 5
+    `).all();
+  } catch (_) {}
+
+  // Recent Activity
+  const recentActivity = db.prepare(`SELECT * FROM activity ORDER BY created_at DESC LIMIT 10`).all();
+
+  res.json({
+    ok: true,
+    stats: {
+      active_clients: activeClients,
+      active_projects: activeProjects,
+      open_deals: openDeals,
+      pending_approvals: pendingApprovals,
+      active_tasks: activeTasks
+    },
+    pending_approvals: recentApprovals,
+    recent_activity: recentActivity
+  });
+}));
+
+// 2. Approvals List
+app.get('/api/approvals', authMiddleware, asyncHandler(async (req, res) => {
+  const { department, status } = req.query;
+  let sql = `
+    SELECT a.*, p.name as project_name, p.client_name, t.title as task_title
+    FROM approvals a
+    LEFT JOIN projects p ON a.project_id = p.id
+    LEFT JOIN tasks t ON a.task_id = t.id
+    WHERE 1=1
+  `;
+  const params = [];
+  if (status && status !== 'all') {
+    sql += ' AND a.status = ?';
+    params.push(status);
+  }
+  if (department && department !== 'all') {
+    sql += ' AND a.department = ?';
+    params.push(department);
+  }
+  sql += ' ORDER BY a.created_at DESC LIMIT 50';
+
+  const approvals = db.prepare(sql).all(...params);
+  res.json({ ok: true, approvals, total: approvals.length });
+}));
+
+// 3. Approval Decision (Approve / Reject / Request Revision)
+app.post('/api/approvals/:id/decision', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager'), asyncHandler(async (req, res) => {
+  const { decision, notes } = req.body;
+  const approval = db.prepare('SELECT * FROM approvals WHERE id = ?').get(req.params.id);
+  if (!approval) return res.status(404).json({ error: 'Approval request not found' });
+
+  if (!['approve', 'reject', 'revision_requested'].includes(decision)) {
+    return res.status(400).json({ error: 'Invalid decision. Must be approve, reject, or revision_requested' });
+  }
+
+  const newStatus = decision === 'approve' ? 'approved' : (decision === 'reject' ? 'rejected' : 'revision_requested');
+  const now = new Date().toISOString();
+
+  db.transaction(() => {
+    db.prepare(`
+      UPDATE approvals 
+      SET status = ?, reviewer_id = ?, reviewer_notes = ?, reviewed_at = ?
+      WHERE id = ?
+    `).run(newStatus, req.user.id, notes || '', now, approval.id);
+
+    // Update the linked task status if present
+    if (approval.task_id) {
+      let taskStatus = 'delivered';
+      if (decision === 'reject') taskStatus = 'needs_attention';
+      if (decision === 'revision_requested') taskStatus = 'needs_fix';
+      
+      db.prepare(`
+        UPDATE tasks SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
+      `).run(taskStatus, approval.task_id);
+    }
+
+    // Record activity
+    db.prepare(`
+      INSERT INTO activity (id, project_id, task_id, user_id, action, meta)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(
+      uuidv4(),
+      approval.project_id,
+      approval.task_id,
+      req.user.id,
+      `approval_${decision}`,
+      JSON.stringify({ approval_id: approval.id, title: approval.title, notes })
+    );
+  })();
+
+  res.json({ ok: true, approval_id: approval.id, status: newStatus, decision });
+}));
+
+// 4. Create Approval Request
+app.post('/api/approvals', authMiddleware, asyncHandler(async (req, res) => {
+  const { task_id, project_id, department, agent_name, action_type, title, summary, preview_data } = req.body;
+  if (!department || !agent_name || !action_type || !title) {
+    return res.status(400).json({ error: 'department, agent_name, action_type, and title are required' });
+  }
+
+  const id = uuidv4();
+  db.prepare(`
+    INSERT INTO approvals (id, task_id, project_id, department, agent_name, action_type, title, summary, preview_data, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+  `).run(id, task_id || null, project_id || null, department, agent_name, action_type, title, summary || '', typeof preview_data === 'object' ? JSON.stringify(preview_data) : (preview_data || ''));
+
+  res.json({ ok: true, approval: { id, title, department, status: 'pending' } });
+}));
+
+// 5. Change Password (Security Hardening)
+app.post('/api/auth/change-password', authMiddleware, asyncHandler(async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'Current password and new password are required' });
+  }
+  if (newPassword.length < 8) {
+    return res.status(400).json({ error: 'New password must be at least 8 characters long' });
+  }
+
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+
+  const ok = await verifyPassword(currentPassword, user.password_hash);
+  if (!ok) return res.status(401).json({ error: 'Current password is incorrect' });
+
+  const newHash = await hashPassword(newPassword);
+  db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(newHash, user.id);
+
+  res.json({ ok: true, message: 'Password successfully updated' });
 }));
 
 // SPA Fallback

@@ -55,10 +55,23 @@ function authMiddleware(req, res, next) {
 
 function requireRole(...roles) {
   return (req, res, next) => {
-    if (!req.user || !roles.includes(req.user.role)) {
-      return res.status(403).json({ error: 'Forbidden: Requires role ' + roles.join(' or ') });
+    if (!req.user) {
+      return res.status(401).json({ error: 'No user session found' });
     }
-    next();
+    const userRole = req.user.role;
+    // Owner and Super Admin have root access across all endpoints
+    if (userRole === 'owner' || userRole === 'super_admin') {
+      return next();
+    }
+    const effectiveRoles = roles.flatMap(r => {
+      if (r === 'admin') return ['admin', 'super_admin', 'owner'];
+      if (r === 'super_admin') return ['super_admin', 'owner'];
+      return [r];
+    });
+    if (effectiveRoles.includes(userRole)) {
+      return next();
+    }
+    return res.status(403).json({ error: 'Forbidden: Requires role ' + roles.join(' or ') });
   };
 }
 

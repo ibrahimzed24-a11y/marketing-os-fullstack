@@ -173,21 +173,45 @@
       </div>
     </div>
 
-    <!-- Primary View Navigation Tabs (5 Core Functional Domains) -->
+    <!-- Primary View Navigation Tabs (Marketing OS V1 Simplified Architecture) -->
     <div class="max-w-[1600px] mx-auto px-3 sm:px-6 pb-2 flex items-center justify-between gap-2 overflow-x-auto">
-      <div class="flex items-center gap-1.5">
-        <button id="navTab-workbench" onclick="switchMainView('workbench')" class="px-4 py-1.5 rounded-full text-xs font-bold transition">⚡ Workbench</button>
-        <button id="navTab-roleDash" onclick="switchMainView('roleDash')" class="px-4 py-1.5 rounded-full text-xs font-semibold transition">📊 Dashboard</button>
-        <button id="navTab-pipelines" onclick="switchMainView('pipelines')" class="px-4 py-1.5 rounded-full text-xs font-semibold transition">🚀 Campaigns & Team</button>
-        <button id="navTab-seo" onclick="switchMainView('seo')" class="px-4 py-1.5 rounded-full text-xs font-semibold transition">🔍 Market & SEO</button>
-        <button id="navTab-adminSettings" onclick="switchMainView('adminSettings')" class="px-4 py-1.5 rounded-full text-xs font-semibold transition">⚙️ Settings & Logins</button>
+      <div class="flex items-center gap-1.5 flex-nowrap">
+        <button id="navTab-overview" onclick="switchMainView('overview')" class="px-3.5 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5">
+          <span>📊</span> <span>Overview</span>
+        </button>
+        <button id="navTab-research" onclick="switchMainView('research')" class="px-3.5 py-1.5 rounded-full text-xs font-semibold transition flex items-center gap-1.5">
+          <span>🔬</span> <span>Research</span>
+        </button>
+        <button id="navTab-sales" onclick="switchMainView('sales')" class="px-3.5 py-1.5 rounded-full text-xs font-semibold transition flex items-center gap-1.5">
+          <span>💼</span> <span>Sales CRM</span>
+        </button>
+        <button id="navTab-creative" onclick="switchMainView('creative')" class="px-3.5 py-1.5 rounded-full text-xs font-semibold transition flex items-center gap-1.5">
+          <span>🎨</span> <span>Creative Studio</span>
+        </button>
+        <button id="navTab-workbench" onclick="switchMainView('workbench')" class="px-3.5 py-1.5 rounded-full text-xs font-semibold transition flex items-center gap-1.5">
+          <span>📋</span> <span>Projects & Tasks</span>
+        </button>
+        <button id="navTab-approvals" onclick="switchMainView('approvals')" class="px-3.5 py-1.5 rounded-full text-xs font-bold transition flex items-center gap-1.5">
+          <span>🛡️</span> <span>Approvals</span>
+          <span id="navApprovalsCountBadge" class="hidden ml-1 px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-500 text-black">0</span>
+        </button>
+        <button id="navTab-team" onclick="switchMainView('team')" class="px-3.5 py-1.5 rounded-full text-xs font-semibold transition flex items-center gap-1.5">
+          <span>👥</span> <span>Team</span>
+        </button>
+        <button id="navTab-rag" onclick="switchMainView('rag')" class="px-3.5 py-1.5 rounded-full text-xs font-semibold transition flex items-center gap-1.5">
+          <span>📚</span> <span>Knowledge Base</span>
+        </button>
+        <button id="navTab-adminSettings" onclick="switchMainView('adminSettings')" class="px-3.5 py-1.5 rounded-full text-xs font-semibold transition flex items-center gap-1.5">
+          <span>⚙️</span> <span>Settings</span>
+        </button>
       </div>
-      <!-- Hidden compatibility aliases for secondary views -->
+      <!-- Compatibility aliases for secondary views -->
       <div class="hidden">
-        <button id="navTab-team" onclick="switchMainView('team')"></button>
+        <button id="navTab-roleDash" onclick="switchMainView('roleDash')"></button>
+        <button id="navTab-pipelines" onclick="switchMainView('pipelines')"></button>
+        <button id="navTab-seo" onclick="switchMainView('seo')"></button>
         <button id="navTab-logins" onclick="switchMainView('logins')"><span id="navLoginsCountBadge">43</span></button>
         <button id="navTab-agents" onclick="switchMainView('agents')"></button>
-        <button id="navTab-rag" onclick="switchMainView('rag')"></button>
       </div>
       <div class="hidden md:flex items-center gap-2 text-[11px] text-[var(--text-soft)]">
         <button onclick="triggerCleanSlateWipe()" class="text-[11px] text-red-500 hover:text-red-600 font-semibold inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-500/10 border border-red-500/20" title="Wipe all demo projects and tasks to keep platform clean">🧹 Zero-Data Slate</button>
@@ -273,9 +297,387 @@
   <main class="max-w-[1600px] mx-auto px-3 sm:px-6 py-4 space-y-5">
 
     <!-- ===================================================================== -->
-    <!-- VIEW 1: FACTORY WORKBENCH (3-COLUMN MASTER-DETAIL + PIPELINE RIBBON)  -->
+    <!-- VIEW 0: CENTRAL WORKSPACE OVERVIEW (HOME)                             -->
     <!-- ===================================================================== -->
-    <div id="view-workbench" class="space-y-5">
+    <div id="view-overview" class="space-y-6">
+      
+      <!-- Welcome & Agency Operations Health Banner -->
+      <section class="card-surface p-6 rounded-3xl bg-gradient-to-r from-indigo-900/40 via-purple-900/20 to-[var(--surface)] border border-indigo-500/20 shadow-sm">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-2 mb-1.5">
+              <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">Marketing OS V1</span>
+              <span class="text-xs text-[var(--text-soft)]">Central Marketing Operations Platform</span>
+            </div>
+            <h1 class="text-2xl font-extrabold tracking-tight">Agency Operations Command</h1>
+            <p class="text-xs text-[var(--text-soft)] mt-1 max-w-2xl">
+              Internal Team Workspace · 3 Core Departments (Research, Sales, Creative) · Unified Execution with Human-in-the-Loop Governance.
+            </p>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <button onclick="switchMainView('workbench')" class="btn-primary text-xs px-4 py-2 font-bold flex items-center gap-1.5">
+              <span>+</span> <span>New Campaign Task</span>
+            </button>
+            <button onclick="refreshOverviewStats()" class="btn-outline text-xs px-3 py-2 font-semibold" title="Refresh Live Metrics">
+              🔄 Sync
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4 Core Agency Metrics Cards -->
+      <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="card-surface p-4.5 rounded-2xl border border-[var(--border)] hover:border-indigo-500/40 transition">
+          <div class="flex items-center justify-between text-xs text-[var(--text-soft)] mb-1">
+            <span class="font-medium">Active Clients</span>
+            <span>🏢</span>
+          </div>
+          <div id="ovActiveClients" class="text-2xl font-black tracking-tight text-[var(--text)]">0</div>
+          <p class="text-[11px] text-[var(--text-soft)] mt-1">Managed accounts & brands</p>
+        </div>
+
+        <div class="card-surface p-4.5 rounded-2xl border border-[var(--border)] hover:border-indigo-500/40 transition">
+          <div class="flex items-center justify-between text-xs text-[var(--text-soft)] mb-1">
+            <span class="font-medium">Active Projects</span>
+            <span>📁</span>
+          </div>
+          <div id="ovActiveProjects" class="text-2xl font-black tracking-tight text-[var(--text)]">0</div>
+          <p class="text-[11px] text-[var(--text-soft)] mt-1">Cross-department campaigns</p>
+        </div>
+
+        <div class="card-surface p-4.5 rounded-2xl border border-[var(--border)] hover:border-indigo-500/40 transition">
+          <div class="flex items-center justify-between text-xs text-[var(--text-soft)] mb-1">
+            <span class="font-medium">Open CRM Deals</span>
+            <span>💼</span>
+          </div>
+          <div id="ovOpenDeals" class="text-2xl font-black tracking-tight text-emerald-500">0</div>
+          <p class="text-[11px] text-[var(--text-soft)] mt-1">Active sales pipeline stages</p>
+        </div>
+
+        <div id="ovApprovalsMetricCard" class="card-surface p-4.5 rounded-2xl border border-amber-500/30 bg-amber-500/5 hover:border-amber-500/60 transition">
+          <div class="flex items-center justify-between text-xs text-amber-500 font-bold mb-1">
+            <span>Pending Approvals</span>
+            <span>🛡️</span>
+          </div>
+          <div id="ovPendingApprovals" class="text-2xl font-black tracking-tight text-amber-500">0</div>
+          <p class="text-[11px] text-[var(--text-soft)] mt-1">Requires human review before action</p>
+        </div>
+      </section>
+
+      <!-- Action Required: Pending Human Approvals Queue -->
+      <section class="card-surface p-5 rounded-2xl border border-[var(--border)]">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse"></span>
+            <h2 class="text-sm font-bold tracking-tight">Action Required: Governance & Approval Queue</h2>
+          </div>
+          <button onclick="switchMainView('approvals')" class="text-xs text-indigo-500 hover:text-indigo-400 font-semibold hover:underline">
+            View All Approvals →
+          </button>
+        </div>
+        <p class="text-[11px] text-[var(--text-soft)] mb-4">
+          Agents autonomously prepare deliverables, copy, and plans. Human approval is strictly mandatory before email dispatch, social posting, ad launch, website modifications, or budget spend.
+        </p>
+
+        <div id="ovApprovalsList" class="space-y-3">
+          <div class="text-center py-6 text-xs text-[var(--text-soft)]">
+            <span class="text-base block mb-1">🛡️</span>
+            No pending agent actions require approval right now.
+          </div>
+        </div>
+      </section>
+
+      <!-- 3 Core Departments Matrix -->
+      <section class="space-y-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-sm font-bold tracking-tight">The 3 Operating Departments</h2>
+            <p class="text-[11px] text-[var(--text-soft)]">Each department is powered by a dedicated specialized agent executing with shared SOPs and project assets.</p>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <!-- Department 1: Research -->
+          <div class="card-surface p-5 rounded-2xl border border-[var(--border)] hover:border-indigo-500/40 transition flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-500/10 text-blue-400 border border-blue-500/20">Agent 01</span>
+                <span class="text-xs text-[var(--text-soft)]">Market Intel</span>
+              </div>
+              <h3 class="text-base font-bold flex items-center gap-1.5 mb-1">
+                <span>🔬</span> <span>Research Department</span>
+              </h3>
+              <p class="text-xs text-[var(--text-soft)] mb-3">
+                Gathers and analyzes intelligence: Markets, Competitor audits, Lead discovery, SEO keywords, and AI Search (GEO) visibility.
+              </p>
+              <div class="text-[11px] text-[var(--text-soft)] space-y-1 mb-4 bg-[var(--bg-soft)] p-2.5 rounded-xl">
+                <div>• Market & Competitor Reports</div>
+                <div>• Verified Lead Batches</div>
+                <div>• SEO Search Intent Matrices</div>
+              </div>
+            </div>
+            <button onclick="switchMainView('research')" class="btn-outline w-full text-xs py-2 font-bold flex items-center justify-center gap-1.5">
+              <span>Open Research Hub</span> <span>→</span>
+            </button>
+          </div>
+
+          <!-- Department 2: Sales -->
+          <div class="card-surface p-5 rounded-2xl border border-[var(--border)] hover:border-indigo-500/40 transition flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Agent 02</span>
+                <span class="text-xs text-[var(--text-soft)]">Pipeline & CRM</span>
+              </div>
+              <h3 class="text-base font-bold flex items-center gap-1.5 mb-1">
+                <span>💼</span> <span>Sales Department</span>
+              </h3>
+              <p class="text-xs text-[var(--text-soft)] mb-3">
+                Manages complete sales lifecycle: Lead qualification, personalized outreach drafts, follow-up strategies, and deal progression.
+              </p>
+              <div class="text-[11px] text-[var(--text-soft)] space-y-1 mb-4 bg-[var(--bg-soft)] p-2.5 rounded-xl">
+                <div>• Qualified Leads CRM</div>
+                <div>• Cold Outreach Sequences (Drafts)</div>
+                <div>• Deal Stage Progression & Meetings</div>
+              </div>
+            </div>
+            <button onclick="switchMainView('sales')" class="btn-outline w-full text-xs py-2 font-bold flex items-center justify-center gap-1.5">
+              <span>Open Sales CRM</span> <span>→</span>
+            </button>
+          </div>
+
+          <!-- Department 3: Creative -->
+          <div class="card-surface p-5 rounded-2xl border border-[var(--border)] hover:border-indigo-500/40 transition flex flex-col justify-between">
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20">Agent 03</span>
+                <span class="text-xs text-[var(--text-soft)]">Creative Director</span>
+              </div>
+              <h3 class="text-base font-bold flex items-center gap-1.5 mb-1">
+                <span>🎨</span> <span>Creative Studio</span>
+              </h3>
+              <p class="text-xs text-[var(--text-soft)] mb-3">
+                Creative Director & Operations: Deconstructs client briefs into tasks across 7 services, assigns team members, and reviews deliverables.
+              </p>
+              <div class="text-[11px] text-[var(--text-soft)] space-y-1 mb-4 bg-[var(--bg-soft)] p-2.5 rounded-xl">
+                <div>• 7 Service Categories (Social, Ads, SEO, etc.)</div>
+                <div>• Team Task Decomposition & WBS</div>
+                <div>• QA & Brand Guideline Alignment</div>
+              </div>
+            </div>
+            <button onclick="switchMainView('creative')" class="btn-outline w-full text-xs py-2 font-bold flex items-center justify-center gap-1.5">
+              <span>Open Creative Studio</span> <span>→</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Recent Agency Activity Feed -->
+      <section class="card-surface p-5 rounded-2xl border border-[var(--border)]">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-bold tracking-tight">Recent Operations & Activity Stream</h2>
+          <span class="text-[11px] text-[var(--text-soft)]">Real-time audit log</span>
+        </div>
+        <div id="ovActivityList" class="space-y-2 text-xs">
+          <div class="text-center py-4 text-[var(--text-soft)]">No activity recorded yet.</div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- VIEW: DEDICATED APPROVALS QUEUE                                       -->
+    <!-- ===================================================================== -->
+    <div id="view-approvals" class="hidden space-y-5">
+      <section class="card-surface p-5 rounded-2xl border border-[var(--border)]">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">Human-in-the-Loop</span>
+              <h1 class="text-lg font-extrabold tracking-tight">Agent Approvals & Governance</h1>
+            </div>
+            <p class="text-xs text-[var(--text-soft)]">
+              Strict gatekeeper: Review outputs produced by Research, Sales, and Creative agents before any real-world external execution.
+            </p>
+          </div>
+
+          <div class="flex items-center gap-2 flex-wrap">
+            <select id="approvalsDeptFilter" onchange="filterApprovals()" class="px-3 py-1.5 rounded-xl text-xs bg-[var(--bg-soft)] border border-[var(--border)] text-[var(--text)]">
+              <option value="all">All Departments</option>
+              <option value="research">🔬 Research</option>
+              <option value="sales">💼 Sales</option>
+              <option value="creative">🎨 Creative</option>
+            </select>
+            <select id="approvalsStatusFilter" onchange="filterApprovals()" class="px-3 py-1.5 rounded-xl text-xs bg-[var(--bg-soft)] border border-[var(--border)] text-[var(--text)]">
+              <option value="pending">⏳ Pending Review</option>
+              <option value="approved">✅ Approved</option>
+              <option value="rejected">❌ Rejected</option>
+              <option value="all">All Statuses</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <div id="approvalsTableContainer" class="card-surface p-5 rounded-2xl border border-[var(--border)]">
+        <div id="approvalsFullList" class="space-y-3">
+          <div class="text-center py-8 text-xs text-[var(--text-soft)]">
+            Loading approval queue...
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- VIEW: RESEARCH DEPARTMENT                                             -->
+    <!-- ===================================================================== -->
+    <div id="view-research" class="hidden space-y-5">
+      <section class="card-surface p-5 rounded-2xl border border-[var(--border)]">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30">Department 01</span>
+              <h1 class="text-lg font-extrabold tracking-tight">Research & Market Intelligence</h1>
+            </div>
+            <p class="text-xs text-[var(--text-soft)]">
+              Powered by Research Agent (Agent 01). Collects and analyzes market data, competitors, verified leads, and SEO/GEO search matrices.
+            </p>
+          </div>
+          <button onclick="switchMainView('workbench')" class="btn-primary text-xs px-3.5 py-1.5 font-bold flex items-center gap-1.5">
+            <span>+</span> <span>New Research Brief</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Research Skills & Deliverables Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="card-surface p-4 rounded-xl border border-[var(--border)]">
+          <div class="text-xs font-bold mb-1 flex items-center gap-1.5"><span>📊</span> Market Analysis</div>
+          <p class="text-[11px] text-[var(--text-soft)]">Industry size, CAGR, buyer personas, market sizing briefs.</p>
+        </div>
+        <div class="card-surface p-4 rounded-xl border border-[var(--border)]">
+          <div class="text-xs font-bold mb-1 flex items-center gap-1.5"><span>🎯</span> Competitor Audit</div>
+          <p class="text-[11px] text-[var(--text-soft)]">Direct & indirect competitor positioning, pricing, traffic sources.</p>
+        </div>
+        <div class="card-surface p-4 rounded-xl border border-[var(--border)]">
+          <div class="text-xs font-bold mb-1 flex items-center gap-1.5"><span>🔍</span> Lead Discovery</div>
+          <p class="text-[11px] text-[var(--text-soft)]">Discovers verified company and decision-maker contact lists.</p>
+        </div>
+        <div class="card-surface p-4 rounded-xl border border-[var(--border)]">
+          <div class="text-xs font-bold mb-1 flex items-center gap-1.5"><span>🌐</span> SEO & GEO Research</div>
+          <p class="text-[11px] text-[var(--text-soft)]">Search intent, low-difficulty fast wins, and AI entity rankings.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- VIEW: SALES DEPARTMENT (CRM)                                          -->
+    <!-- ===================================================================== -->
+    <div id="view-sales" class="hidden space-y-5">
+      <section class="card-surface p-5 rounded-2xl border border-[var(--border)]">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Department 02</span>
+              <h1 class="text-lg font-extrabold tracking-tight">Sales & CRM Pipeline</h1>
+            </div>
+            <p class="text-xs text-[var(--text-soft)]">
+              Powered by Sales Agent (Agent 02). Converts verified research leads into qualified opportunities, prepares outreach drafts, and tracks deals.
+            </p>
+          </div>
+          <button onclick="switchMainView('workbench')" class="btn-primary text-xs px-3.5 py-1.5 font-bold flex items-center gap-1.5">
+            <span>+</span> <span>New Outreach Campaign</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Deal Stages Pipeline Ribbon -->
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div class="card-surface p-3.5 rounded-xl border border-[var(--border)]">
+          <div class="text-[11px] font-bold text-[var(--text-soft)] uppercase">1. Discovered</div>
+          <div id="salesCountDiscovered" class="text-lg font-black mt-1">0</div>
+        </div>
+        <div class="card-surface p-3.5 rounded-xl border border-[var(--border)]">
+          <div class="text-[11px] font-bold text-blue-400 uppercase">2. Outreach Drafted</div>
+          <div id="salesCountDrafted" class="text-lg font-black mt-1">0</div>
+        </div>
+        <div class="card-surface p-3.5 rounded-xl border border-[var(--border)]">
+          <div class="text-[11px] font-bold text-indigo-400 uppercase">3. Qualified Lead</div>
+          <div id="salesCountQualified" class="text-lg font-black mt-1">0</div>
+        </div>
+        <div class="card-surface p-3.5 rounded-xl border border-[var(--border)]">
+          <div class="text-[11px] font-bold text-amber-400 uppercase">4. Proposal Sent</div>
+          <div id="salesCountProposal" class="text-lg font-black mt-1">0</div>
+        </div>
+        <div class="card-surface p-3.5 rounded-xl border border-[var(--border)]">
+          <div class="text-[11px] font-bold text-emerald-400 uppercase">5. Won / Onboarding</div>
+          <div id="salesCountWon" class="text-lg font-black mt-1">0</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- VIEW: CREATIVE STUDIO (CREATIVE DIRECTOR)                             -->
+    <!-- ===================================================================== -->
+    <div id="view-creative" class="hidden space-y-5">
+      <section class="card-surface p-5 rounded-2xl border border-[var(--border)]">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30">Department 03</span>
+              <h1 class="text-lg font-extrabold tracking-tight">Creative Studio & Delivery</h1>
+            </div>
+            <p class="text-xs text-[var(--text-soft)]">
+              Operated by Creative Director Agent (Agent 03). Orchestrates marketing production across 7 service categories, decomposes briefs into tasks, and aligns with brand guidelines.
+            </p>
+          </div>
+          <button onclick="switchMainView('workbench')" class="btn-primary text-xs px-3.5 py-1.5 font-bold flex items-center gap-1.5">
+            <span>+</span> <span>New Client Deliverable</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- 7 Service Categories -->
+      <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2.5">
+        <div class="card-surface p-3 rounded-xl border border-[var(--border)] text-center">
+          <span class="text-lg block mb-1">📱</span>
+          <div class="text-xs font-bold">Social Media</div>
+          <div class="text-[10px] text-[var(--text-soft)]">Calendar & Copy</div>
+        </div>
+        <div class="card-surface p-3 rounded-xl border border-[var(--border)] text-center">
+          <span class="text-lg block mb-1">📢</span>
+          <div class="text-xs font-bold">Google Ads</div>
+          <div class="text-[10px] text-[var(--text-soft)]">Campaigns & Copy</div>
+        </div>
+        <div class="card-surface p-3 rounded-xl border border-[var(--border)] text-center">
+          <span class="text-lg block mb-1">🔍</span>
+          <div class="text-xs font-bold">SEO Strategy</div>
+          <div class="text-[10px] text-[var(--text-soft)]">Content & On-Page</div>
+        </div>
+        <div class="card-surface p-3 rounded-xl border border-[var(--border)] text-center">
+          <span class="text-lg block mb-1">🤖</span>
+          <div class="text-xs font-bold">GEO / AI Search</div>
+          <div class="text-[10px] text-[var(--text-soft)]">Entity Optimization</div>
+        </div>
+        <div class="card-surface p-3 rounded-xl border border-[var(--border)] text-center">
+          <span class="text-lg block mb-1">🎨</span>
+          <div class="text-xs font-bold">Branding</div>
+          <div class="text-[10px] text-[var(--text-soft)]">Identity & Guidelines</div>
+        </div>
+        <div class="card-surface p-3 rounded-xl border border-[var(--border)] text-center">
+          <span class="text-lg block mb-1">💻</span>
+          <div class="text-xs font-bold">Website Building</div>
+          <div class="text-[10px] text-[var(--text-soft)]">Structure & Landing</div>
+        </div>
+        <div class="card-surface p-3 rounded-xl border border-[var(--border)] text-center">
+          <span class="text-lg block mb-1">📊</span>
+          <div class="text-xs font-bold">Media Buying</div>
+          <div class="text-[10px] text-[var(--text-soft)]">Budget & Reporting</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- VIEW 1: FACTORY WORKBENCH (PROJECTS & TASKS)                          -->
+    <!-- ===================================================================== -->
+    <div id="view-workbench" class="hidden space-y-5">
 
       <!-- 4-Stage Pipeline Ribbon -->
       <section class="card-surface p-4">

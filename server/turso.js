@@ -47,7 +47,8 @@ const SYNC_TABLES = [
   'llm_routes',
   'llm_execution_logs',
   'llm_cost_quotas',
-  'webhook_retries'
+  'webhook_retries',
+  'approvals'
 ];
 
 function isConfigured() {

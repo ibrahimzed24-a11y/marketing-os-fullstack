@@ -691,7 +691,7 @@ function buildDefaultState() {
   return {
     schemaVersion: 2,
     currentUserRole: 'super_admin',
-    mainView: 'workbench',
+    mainView: 'overview',
     stageFilter: 'All',
     selectedProjectId: null,
     selectedPipeline: 'email-campaign',
@@ -1047,7 +1047,11 @@ async function syncFromBackend() {
 
 function switchMainView(view) {
   state.mainView = view;
-  if (view === 'adminSettings') {
+  if (view === 'overview') {
+    fetchOverviewStats();
+  } else if (view === 'approvals') {
+    fetchApprovals();
+  } else if (view === 'adminSettings') {
     fetchAdminSettingsData().then(renderAdminSettingsView);
   }
   saveState();
@@ -1697,14 +1701,18 @@ function renderHeaderAndRoleBanner() {
 
   // Primary 5 Navigation Tabs Mapping
   const primaryTabs = [
+    { id: 'overview', activeFor: ['overview'] },
+    { id: 'research', activeFor: ['research', 'seo'] },
+    { id: 'sales', activeFor: ['sales'] },
+    { id: 'creative', activeFor: ['creative'] },
     { id: 'workbench', activeFor: ['workbench'] },
-    { id: 'roleDash', activeFor: ['roleDash'] },
-    { id: 'pipelines', activeFor: ['pipelines', 'agents'] },
-    { id: 'seo', activeFor: ['seo', 'rag'] },
-    { id: 'adminSettings', activeFor: ['adminSettings', 'team', 'logins'] }
+    { id: 'approvals', activeFor: ['approvals'] },
+    { id: 'team', activeFor: ['team'] },
+    { id: 'rag', activeFor: ['rag'] },
+    { id: 'adminSettings', activeFor: ['adminSettings', 'logins'] }
   ];
 
-  const isAdmin = ['super_admin', 'admin'].includes(role);
+  const isAdmin = ['super_admin', 'owner', 'admin'].includes(role);
 
   primaryTabs.forEach(tab => {
     const el = document.getElementById('navTab-' + tab.id);
@@ -1716,13 +1724,13 @@ function renderHeaderAndRoleBanner() {
       }
       const isActive = tab.activeFor.includes(state.mainView);
       el.className = isActive
-        ? 'px-4 py-1.5 rounded-full text-xs font-bold bg-[var(--text)] text-[var(--surface)] transition flex items-center gap-1.5 shadow-xs'
-        : 'px-4 py-1.5 rounded-full text-xs font-medium text-[var(--text-soft)] hover:text-[var(--text)] transition flex items-center gap-1.5';
+        ? 'px-3.5 py-1.5 rounded-full text-xs font-bold bg-[var(--text)] text-[var(--surface)] transition flex items-center gap-1.5 shadow-xs'
+        : 'px-3.5 py-1.5 rounded-full text-xs font-medium text-[var(--text-soft)] hover:text-[var(--text)] transition flex items-center gap-1.5';
     }
   });
 
   // Toggle view containers
-  const allViews = ['workbench', 'roleDash', 'pipelines', 'team', 'seo', 'logins', 'agents', 'rag', 'adminSettings'];
+  const allViews = ['overview', 'workbench', 'research', 'sales', 'creative', 'approvals', 'roleDash', 'pipelines', 'team', 'seo', 'logins', 'agents', 'rag', 'adminSettings'];
   allViews.forEach(v => {
     const viewEl = document.getElementById('view-' + v);
     if (viewEl) {
@@ -3488,8 +3496,236 @@ function renderAdminSettingsView() {
   }
 }
 
+// =============================================================================
+// PHASE 1: OVERVIEW & HUMAN APPROVALS GOVERNANCE ENGINE
+// =============================================================================
+
+let overviewDataCache = null;
+let approvalsDataCache = [];
+
+async function fetchOverviewStats() {
+  try {
+    const res = await apiFetch('/api/overview/stats');
+    if (res.ok) {
+      overviewDataCache = await res.json();
+      renderOverviewView();
+    }
+  } catch (err) {
+    console.warn('[overview] Error fetching stats:', err.message);
+  }
+}
+
+function refreshOverviewStats() {
+  fetchOverviewStats().then(() => showToast('Overview metrics refreshed.'));
+}
+
+function renderOverviewView() {
+  const container = document.getElementById('view-overview');
+  if (!container || container.classList.contains('hidden')) return;
+
+  if (!overviewDataCache) {
+    fetchOverviewStats();
+    return;
+  }
+
+  const { stats, pending_approvals, recent_activity } = overviewDataCache;
+
+  // 1. Metric numbers
+  const cClients = document.getElementById('ovActiveClients');
+  const cProjects = document.getElementById('ovActiveProjects');
+  const cDeals = document.getElementById('ovOpenDeals');
+  const cApprovals = document.getElementById('ovPendingApprovals');
+  const badgeNav = document.getElementById('navApprovalsCountBadge');
+
+  if (cClients) cClients.textContent = stats?.active_clients ?? state.projects.length;
+  if (cProjects) cProjects.textContent = stats?.active_projects ?? state.projects.length;
+  if (cDeals) cDeals.textContent = stats?.open_deals ?? 0;
+  if (cApprovals) cApprovals.textContent = stats?.pending_approvals ?? 0;
+
+  if (badgeNav) {
+    const count = stats?.pending_approvals || 0;
+    if (count > 0) {
+      badgeNav.textContent = count;
+      badgeNav.classList.remove('hidden');
+    } else {
+      badgeNav.classList.add('hidden');
+    }
+  }
+
+  // 2. Pending Approvals Queue
+  const listEl = document.getElementById('ovApprovalsList');
+  if (listEl) {
+    if (!pending_approvals || pending_approvals.length === 0) {
+      listEl.innerHTML = `
+        <div class="text-center py-6 text-xs text-[var(--text-soft)] bg-[var(--bg-soft)] rounded-xl border border-dashed border-[var(--border)]">
+          <span class="text-lg block mb-1">🛡️</span>
+          All agent actions approved. No pending review requests.
+        </div>
+      `;
+    } else {
+      listEl.innerHTML = pending_approvals.map(app => {
+        const deptBadgeClass = app.department === 'research'
+          ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+          : (app.department === 'sales'
+            ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+            : 'bg-purple-500/10 text-purple-400 border-purple-500/20');
+        
+        return `
+          <div class="p-3.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] hover:border-amber-500/40 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="min-w-0">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase border ${deptBadgeClass}">${app.department}</span>
+                <span class="text-[11px] font-semibold text-[var(--text-soft)]">${escapeHtml(app.agent_name || 'Agent')}</span>
+                <span class="text-[10px] text-[var(--text-faint)]">${new Date(app.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+              </div>
+              <div class="text-xs font-bold text-[var(--text)] truncate">${escapeHtml(app.title)}</div>
+              <div class="text-[11px] text-[var(--text-soft)] mt-0.5">Proposed: <span class="font-medium text-amber-500">${escapeHtml(app.action_type)}</span> ${app.project_name ? '· Project: ' + escapeHtml(app.project_name) : ''}</div>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button onclick="submitApprovalDecision('${app.id}', 'approve')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition flex items-center gap-1">
+                <span>✓</span> <span>Approve</span>
+              </button>
+              <button onclick="submitApprovalDecision('${app.id}', 'revision_requested')" class="btn-outline px-2.5 py-1.5 rounded-lg text-xs font-semibold" title="Request changes from agent">
+                ✏️
+              </button>
+              <button onclick="submitApprovalDecision('${app.id}', 'reject')" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold text-red-500 hover:bg-red-500/10 transition" title="Reject action">
+                ✕
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  // 3. Activity Stream
+  const actListEl = document.getElementById('ovActivityList');
+  if (actListEl) {
+    if (!recent_activity || recent_activity.length === 0) {
+      actListEl.innerHTML = '<div class="text-center py-4 text-[var(--text-soft)] text-xs">No activity recorded yet.</div>';
+    } else {
+      actListEl.innerHTML = recent_activity.slice(0, 6).map(act => {
+        return `
+          <div class="flex items-center justify-between py-2 border-b border-[var(--border)] last:border-b-0 text-xs">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0"></span>
+              <span class="font-semibold text-[var(--text)] truncate">${escapeHtml(act.action.replace('_', ' ').toUpperCase())}</span>
+              <span class="text-[11px] text-[var(--text-soft)] truncate">${escapeHtml(act.user_id || 'System')}</span>
+            </div>
+            <span class="text-[10px] text-[var(--text-faint)] shrink-0">${new Date(act.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+}
+
+async function fetchApprovals() {
+  try {
+    const dept = document.getElementById('approvalsDeptFilter')?.value || 'all';
+    const status = document.getElementById('approvalsStatusFilter')?.value || 'pending';
+    const res = await apiFetch(`/api/approvals?department=${encodeURIComponent(dept)}&status=${encodeURIComponent(status)}`);
+    if (res.ok) {
+      const data = await res.json();
+      approvalsDataCache = data.approvals || [];
+      renderApprovalsView();
+    }
+  } catch (err) {
+    console.warn('[approvals] Fetch error:', err.message);
+  }
+}
+
+function filterApprovals() {
+  fetchApprovals();
+}
+
+function renderApprovalsView() {
+  const container = document.getElementById('view-approvals');
+  if (!container || container.classList.contains('hidden')) return;
+
+  const listEl = document.getElementById('approvalsFullList');
+  if (!listEl) return;
+
+  if (approvalsDataCache.length === 0) {
+    listEl.innerHTML = `
+      <div class="text-center py-10 text-xs text-[var(--text-soft)]">
+        <span class="text-xl block mb-2">🛡️</span>
+        No approvals matching the selected filters.
+      </div>
+    `;
+    return;
+  }
+
+  listEl.innerHTML = approvalsDataCache.map(app => {
+    const isPending = app.status === 'pending';
+    const statusClass = app.status === 'approved' 
+      ? 'text-emerald-500 bg-emerald-500/10 border-emerald-500/30' 
+      : (app.status === 'rejected' ? 'text-red-500 bg-red-500/10 border-red-500/30' : 'text-amber-500 bg-amber-500/10 border-amber-500/30');
+
+    return `
+      <div class="p-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] hover:border-indigo-500/30 transition flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center gap-2 mb-1.5 flex-wrap">
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase border bg-[var(--bg-soft)] text-[var(--text-soft)]">${escapeHtml(app.department)}</span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${statusClass}">${escapeHtml(app.status)}</span>
+            <span class="text-xs font-semibold text-[var(--text-soft)]">${escapeHtml(app.agent_name)}</span>
+            <span class="text-[11px] text-[var(--text-faint)]">${new Date(app.created_at).toLocaleString()}</span>
+          </div>
+          <h3 class="text-sm font-bold text-[var(--text)]">${escapeHtml(app.title)}</h3>
+          <p class="text-xs text-[var(--text-soft)] mt-1">${escapeHtml(app.summary || 'Agent prepared deliverable requiring verification.')}</p>
+          ${app.preview_data ? `<div class="mt-2 p-2.5 rounded-lg bg-[var(--bg-soft)] text-[11px] text-[var(--text-soft)] font-mono max-h-24 overflow-y-auto">${escapeHtml(typeof app.preview_data === 'string' ? app.preview_data.slice(0, 300) : JSON.stringify(app.preview_data).slice(0, 300))}</div>` : ''}
+          ${app.reviewer_notes ? `<div class="mt-2 text-[11px] text-amber-400"><strong>Reviewer Notes:</strong> ${escapeHtml(app.reviewer_notes)}</div>` : ''}
+        </div>
+
+        ${isPending ? `
+          <div class="flex items-center gap-2 shrink-0">
+            <button onclick="submitApprovalDecision('${app.id}', 'approve')" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition flex items-center gap-1.5 shadow-sm">
+              <span>✓</span> <span>Approve</span>
+            </button>
+            <button onclick="submitApprovalDecision('${app.id}', 'revision_requested')" class="btn-outline px-3 py-2 rounded-xl text-xs font-semibold">
+              <span>✏️</span> <span>Request Revision</span>
+            </button>
+            <button onclick="submitApprovalDecision('${app.id}', 'reject')" class="px-3 py-2 rounded-xl text-xs font-semibold text-red-500 hover:bg-red-500/10 transition">
+              <span>✕</span> <span>Reject</span>
+            </button>
+          </div>
+        ` : `
+          <div class="text-[11px] text-[var(--text-faint)] italic shrink-0">
+            Reviewed at ${app.reviewed_at ? new Date(app.reviewed_at).toLocaleDateString() : 'N/A'}
+          </div>
+        `}
+      </div>
+    `;
+  }).join('');
+}
+
+async function submitApprovalDecision(approvalId, decision, notes = '') {
+  if (decision === 'revision_requested' && !notes) {
+    notes = prompt('Please enter revision instructions for the agent:') || '';
+  }
+  try {
+    const res = await apiFetch(`/api/approvals/${approvalId}/decision`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ decision, notes })
+    });
+    if (res.ok) {
+      showToast(`Decision recorded: ${decision.replace('_', ' ').toUpperCase()}`);
+      await fetchOverviewStats();
+      await fetchApprovals();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      showToast(`Error: ${err.error || 'Failed to submit decision'}`);
+    }
+  } catch (err) {
+    showToast(`Network error: ${err.message}`);
+  }
+}
+
 function renderAll() {
   renderHeaderAndRoleBanner();
+  renderOverviewView();
+  renderApprovalsView();
   renderStageRibbonAndProjects();
   renderWorkbenchCenterAndRight();
   renderRoleSpecificDashboard();
