@@ -540,9 +540,14 @@
               Powered by Research Agent (Agent 01). Collects and analyzes market data, competitors, verified leads, and SEO/GEO search matrices.
             </p>
           </div>
-          <button onclick="switchMainView('workbench')" class="btn-primary text-xs px-3.5 py-1.5 font-bold flex items-center gap-1.5">
-            <span>+</span> <span>New Research Brief</span>
-          </button>
+          <div class="flex items-center gap-2">
+            <button onclick="handoffResearchToSales()" class="btn-outline text-xs px-3 py-1.5 font-bold flex items-center gap-1.5 text-blue-400 border-blue-500/30 hover:bg-blue-500/10 transition">
+              <span>📥</span> <span>Handoff Leads to Sales CRM</span>
+            </button>
+            <button onclick="switchMainView('workbench')" class="btn-primary text-xs px-3.5 py-1.5 font-bold flex items-center gap-1.5">
+              <span>+</span> <span>New Research Brief</span>
+            </button>
+          </div>
         </div>
       </section>
 
@@ -582,9 +587,14 @@
               Powered by Sales Agent (Agent 02). Converts verified research leads into qualified opportunities, prepares outreach drafts, and tracks deals.
             </p>
           </div>
-          <button onclick="switchMainView('workbench')" class="btn-primary text-xs px-3.5 py-1.5 font-bold flex items-center gap-1.5">
-            <span>+</span> <span>New Outreach Campaign</span>
-          </button>
+          <div class="flex items-center gap-2">
+            <button onclick="handoffSalesToCreative()" class="btn-outline text-xs px-3 py-1.5 font-bold flex items-center gap-1.5 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10 transition">
+              <span>🚀</span> <span>Onboard Deal to Creative Studio</span>
+            </button>
+            <button onclick="switchMainView('workbench')" class="btn-primary text-xs px-3.5 py-1.5 font-bold flex items-center gap-1.5">
+              <span>+</span> <span>New Outreach Campaign</span>
+            </button>
+          </div>
         </div>
       </section>
 
@@ -1271,6 +1281,74 @@
     </div>
 
   </main>
+
+  <!-- ======================================================================= -->
+  <!-- MODAL: HUMAN APPROVAL & GOVERNANCE REVIEW                               -->
+  <!-- ======================================================================= -->
+  <div id="approvalModal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5">
+    <div class="card-surface w-full max-w-2xl max-h-[90vh] flex flex-col p-6 rounded-2xl border border-[var(--border)] shadow-2xl">
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between pb-3 border-b border-[var(--border)]">
+        <div>
+          <div class="flex items-center gap-2 mb-1">
+            <span id="modalAppDeptBadge" class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">CREATIVE</span>
+            <span id="modalAppAgent" class="text-xs font-semibold text-[var(--text-soft)]">Agent Name</span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-500/20 text-amber-400 border border-amber-500/30">PENDING REVIEW</span>
+          </div>
+          <h2 id="modalAppTitle" class="text-base font-bold text-[var(--text)]">Approval Title</h2>
+        </div>
+        <button onclick="closeApprovalModal()" class="text-sm text-[var(--text-faint)] hover:text-[var(--text)] p-1">✕</button>
+      </div>
+
+      <!-- Modal Body (Scrollable) -->
+      <div class="flex-1 overflow-y-auto py-4 space-y-4 text-xs">
+        <div>
+          <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-soft)] mb-1">Proposed External Action</label>
+          <div id="modalAppAction" class="p-2.5 rounded-xl bg-[var(--bg-soft)] text-amber-500 font-bold border border-amber-500/20">
+            Action Type
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-soft)] mb-1">Agent Deliverable Summary</label>
+          <div id="modalAppSummary" class="text-xs text-[var(--text-soft)] leading-relaxed">
+            Summary description
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-soft)] mb-1">Deliverable Preview & Content</label>
+          <div id="modalAppPreview" class="p-3.5 rounded-xl bg-[var(--bg-soft)] border border-[var(--border)] font-mono text-[11px] whitespace-pre-wrap max-h-60 overflow-y-auto leading-relaxed">
+            Content preview
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-[11px] font-bold uppercase tracking-wider text-[var(--text-soft)] mb-1">Reviewer Feedback / Revision Notes (Optional)</label>
+          <textarea id="modalAppNotes" rows="2" placeholder="Write feedback or specific revision instructions for the agent..." class="w-full px-3 py-2 rounded-xl text-xs bg-[var(--bg-soft)] border border-[var(--border)] text-[var(--text)] focus:border-indigo-500 outline-none"></textarea>
+        </div>
+      </div>
+
+      <!-- Modal Footer (Actions) -->
+      <div class="pt-3 border-t border-[var(--border)] flex flex-wrap items-center justify-between gap-2 shrink-0">
+        <button onclick="closeApprovalModal()" class="btn-outline px-3 py-1.5 text-xs font-semibold">
+          Cancel
+        </button>
+
+        <div class="flex items-center gap-2">
+          <button id="modalBtnReject" onclick="executeModalDecision('reject')" class="px-3 py-1.5 rounded-xl text-xs font-semibold text-red-500 hover:bg-red-500/10 transition">
+            ✕ Reject
+          </button>
+          <button id="modalBtnRevise" onclick="executeModalDecision('revision_requested')" class="btn-outline px-3 py-1.5 rounded-xl text-xs font-semibold text-amber-500 border-amber-500/30 hover:bg-amber-500/10">
+            ✏️ Request Revision
+          </button>
+          <button id="modalBtnApprove" onclick="executeModalDecision('approve')" class="px-4 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition flex items-center gap-1.5 shadow-sm">
+            <span>✓</span> <span>Approve & Execute</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- ======================================================================= -->
   <!-- MODAL 1: DISPATCH NEW PIPELINE TASK                                     -->

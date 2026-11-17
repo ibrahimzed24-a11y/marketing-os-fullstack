@@ -1715,7 +1715,7 @@ app.get('/api/overview/stats', authMiddleware, asyncHandler(async (req, res) => 
   // Open Deals (CRM)
   let openDeals = 0;
   try {
-    const dealsRow = db.prepare(`SELECT COUNT(*) as count FROM deals WHERE stage NOT IN ('won', 'lost')`).get();
+    const dealsRow = db.prepare(`SELECT COUNT(*) as count FROM deals WHERE stage NOT IN ('closed_won', 'closed_lost')`).get();
     openDeals = dealsRow?.count || 0;
   } catch (_) {}
 
@@ -1869,6 +1869,126 @@ app.post('/api/auth/change-password', authMiddleware, asyncHandler(async (req, r
   db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(newHash, user.id);
 
   res.json({ ok: true, message: 'Password successfully updated' });
+}));
+
+// =============================================================================
+// PHASE 3: CROSS-DEPARTMENT HANDOFFS (Seamless Pipeline Transitions)
+// =============================================================================
+
+// 6. Handoff: Research -> Sales (Import Discovered Leads into Sales CRM Pipeline)
+app.post('/api/handoff/research-to-sales', authMiddleware, asyncHandler(async (req, res) => {
+  const { project_id, leads = [], deal_title = 'Q4 Target Outbound Pipeline', estimated_value = 25000 } = req.body;
+  if (!project_id) return res.status(400).json({ error: 'project_id required' });
+
+  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(project_id);
+  if (!project) return res.status(404).json({ error: 'Project not found' });
+
+  let insertedCount = 0;
+  const dealId = uuidv4();
+
+  db.transaction(() => {
+    // 1. Insert leads into leads table
+    const insertLead = db.prepare(`
+      INSERT INTO leads (id, project_id, full_name, email, job_title, icp_score)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+
+    leads.forEach(l => {
+      const leadId = uuidv4();
+      insertLead.run(leadId, project_id, l.name || l.full_name || 'Prospect Lead', l.email || '', l.title || l.job_title || 'Decision Maker', l.icp_score || 85);
+      insertedCount++;
+    });
+
+    // 2. Create high-intent deal opportunity in Sales CRM
+    db.prepare(`
+      INSERT INTO deals (id, project_id, title, stage, value, probability)
+      VALUES (?, ?, ?, 'lead', ?, 30)
+    `).run(dealId, project_id, `${project.client_name || project.name} - ${deal_title}`, estimated_value);
+
+    // 3. Log handoff in activity
+    db.prepare(`
+      INSERT INTO activity (id, project_id, user_id, action, meta)
+      VALUES (?, ?, ?, 'handoff_research_to_sales', ?)
+    `).run(
+      uuidv4(),
+      project_id,
+      req.user.id,
+      JSON.stringify({ imported_leads: insertedCount, deal_id: dealId, target_project: project.name })
+    );
+  })();
+
+  res.json({
+    ok: true,
+    message: `Successfully handed off ${insertedCount} leads to Sales CRM`,
+    imported_leads: insertedCount,
+    deal_id: dealId
+  });
+}));
+
+// 7. Handoff: Sales -> Creative Studio (Client Onboarding to Production)
+app.post('/api/handoff/sales-to-creative', authMiddleware, asyncHandler(async (req, res) => {
+  const { deal_id, client_name, project_name, goal, guidelines, services = ['landing-page', 'social-content', 'ads-creative'] } = req.body;
+  
+  const targetClient = client_name || 'New Onboarded Client';
+  const targetProjectName = project_name || `${targetClient} Growth Campaign`;
+  const targetGoal = goal || 'Produce high-converting multi-channel marketing assets';
+  const newProjectId = uuidv4();
+
+  db.transaction(() => {
+    // 1. If deal exists, mark it as 'closed_won'
+    if (deal_id) {
+      db.prepare(`UPDATE deals SET stage = 'closed_won', probability = 100 WHERE id = ?`).run(deal_id);
+    }
+
+    // 2. Create the Client Workspace Project in Creative Studio
+    db.prepare(`
+      INSERT INTO projects (id, name, client_name, goal, guidelines, owner_id)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(newProjectId, targetProjectName, targetClient, targetGoal, guidelines || '', req.user.id);
+
+    // 3. Attach current user as project manager
+    db.prepare(`
+      INSERT OR IGNORE INTO project_members (id, project_id, user_id, role_in_project)
+      VALUES (?, ?, ?, 'manager')
+    `).run(uuidv4(), newProjectId, req.user.id);
+
+    // 4. Creative Director auto-deconstructs client brief into initial WBS tasks
+    const insertTask = db.prepare(`
+      INSERT INTO tasks (id, project_id, title, pipeline, description, status, priority, created_by)
+      VALUES (?, ?, ?, ?, ?, 'draft', 'high', ?)
+    `);
+
+    services.forEach(srv => {
+      const srvTitle = srv.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
+      insertTask.run(
+        uuidv4(),
+        newProjectId,
+        `${srvTitle} Production Package`,
+        srv,
+        `Creative Studio production package for ${targetClient}: ${targetGoal}`,
+        req.user.id
+      );
+    });
+
+    // 5. Log handoff in activity
+    db.prepare(`
+      INSERT INTO activity (id, project_id, user_id, action, meta)
+      VALUES (?, ?, ?, 'handoff_sales_to_creative', ?)
+    `).run(
+      uuidv4(),
+      newProjectId,
+      req.user.id,
+      JSON.stringify({ client: targetClient, project_id: newProjectId, services_count: services.length })
+    );
+  })();
+
+  res.json({
+    ok: true,
+    message: `Client ${targetClient} successfully onboarded into Creative Studio!`,
+    project_id: newProjectId,
+    project_name: targetProjectName,
+    services_initialized: services.length
+  });
 }));
 
 // SPA Fallback

@@ -39,6 +39,7 @@ SUITES=(
   "test-watchdog.sh:Self-Healing Watchdog & Resilience:300s SLA Stall Detection, Webhook Backoff, Ingress"
   "test-pipeline-schemas.sh:Unified Pipeline Output Schemas:8 Pipelines Deliverable JSON & Report Markdown"
   "test-frontend-ui.sh:Frontend UX & Workbench Integration:DOM Elements, Async API Dispatch, Role Boundaries"
+  "test-handoffs.sh:Cross-Dept Handoffs & Approvals:Research->Sales, Sales->Creative, Human Approval Gate"
 )
 
 TOTAL_START=$(date +%s)
@@ -109,7 +110,7 @@ if [ ${#FAILED_SUITES[@]} -ne 0 ]; then
   echo -e "\n${RED}✗ Master E2E Verification FAILED. Please review logs above.${RESET}"
   exit 1
 else
-  echo -e "\n${GREEN}${BOLD}✓ ALL 6 MASTER E2E INTEGRATION TEST SUITES PASSED (100% OK)${RESET}"
+  echo -e "\n${GREEN}${BOLD}✓ ALL ${TOTAL_COUNT} MASTER E2E INTEGRATION TEST SUITES PASSED (100% OK)${RESET}"
   echo -e "${GREEN}System is fully hardened, deterministic, zero-noise, and production ready.${RESET}\n"
   exit 0
 fi

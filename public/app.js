@@ -3572,16 +3572,19 @@ function renderOverviewView() {
         
         return `
           <div class="p-3.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] hover:border-amber-500/40 transition flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div class="min-w-0">
+            <div class="min-w-0 flex-1 cursor-pointer" onclick="openApprovalModal('${app.id}')" title="Click to inspect deliverable">
               <div class="flex items-center gap-2 mb-1">
                 <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase border ${deptBadgeClass}">${app.department}</span>
                 <span class="text-[11px] font-semibold text-[var(--text-soft)]">${escapeHtml(app.agent_name || 'Agent')}</span>
                 <span class="text-[10px] text-[var(--text-faint)]">${new Date(app.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
               </div>
-              <div class="text-xs font-bold text-[var(--text)] truncate">${escapeHtml(app.title)}</div>
+              <div class="text-xs font-bold text-[var(--text)] truncate hover:text-indigo-400 transition">${escapeHtml(app.title)}</div>
               <div class="text-[11px] text-[var(--text-soft)] mt-0.5">Proposed: <span class="font-medium text-amber-500">${escapeHtml(app.action_type)}</span> ${app.project_name ? '· Project: ' + escapeHtml(app.project_name) : ''}</div>
             </div>
             <div class="flex items-center gap-1.5 shrink-0">
+              <button onclick="openApprovalModal('${app.id}')" class="btn-outline px-2.5 py-1.5 rounded-lg text-xs font-semibold" title="Inspect full deliverable">
+                🔍
+              </button>
               <button onclick="submitApprovalDecision('${app.id}', 'approve')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition flex items-center gap-1">
                 <span>✓</span> <span>Approve</span>
               </button>
@@ -3679,6 +3682,9 @@ function renderApprovalsView() {
 
         ${isPending ? `
           <div class="flex items-center gap-2 shrink-0">
+            <button onclick="openApprovalModal('${app.id}')" class="btn-outline px-3 py-2 rounded-xl text-xs font-semibold" title="Inspect deliverable details">
+              <span>🔍</span> <span>Inspect</span>
+            </button>
             <button onclick="submitApprovalDecision('${app.id}', 'approve')" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition flex items-center gap-1.5 shadow-sm">
               <span>✓</span> <span>Approve</span>
             </button>
@@ -3690,8 +3696,13 @@ function renderApprovalsView() {
             </button>
           </div>
         ` : `
-          <div class="text-[11px] text-[var(--text-faint)] italic shrink-0">
-            Reviewed at ${app.reviewed_at ? new Date(app.reviewed_at).toLocaleDateString() : 'N/A'}
+          <div class="flex items-center gap-2 shrink-0">
+            <button onclick="openApprovalModal('${app.id}')" class="btn-outline px-3 py-1.5 rounded-xl text-xs font-semibold" title="View details">
+              <span>🔍</span> <span>View Deliverable</span>
+            </button>
+            <span class="text-[11px] text-[var(--text-faint)] italic">
+              Reviewed at ${app.reviewed_at ? new Date(app.reviewed_at).toLocaleDateString() : 'N/A'}
+            </span>
           </div>
         `}
       </div>
@@ -3716,6 +3727,128 @@ async function submitApprovalDecision(approvalId, decision, notes = '') {
     } else {
       const err = await res.json().catch(() => ({}));
       showToast(`Error: ${err.error || 'Failed to submit decision'}`);
+    }
+  } catch (err) {
+    showToast(`Network error: ${err.message}`);
+  }
+}
+
+let currentReviewApprovalId = null;
+
+function openApprovalModal(approvalId) {
+  const app = approvalsDataCache.find(a => a.id === approvalId) || 
+    (overviewDataCache?.pending_approvals || []).find(a => a.id === approvalId);
+  
+  if (!app) {
+    showToast('Approval item not found');
+    return;
+  }
+
+  currentReviewApprovalId = approvalId;
+  const modal = document.getElementById('approvalModal');
+  const dBadge = document.getElementById('modalAppDeptBadge');
+  const aName = document.getElementById('modalAppAgent');
+  const aTitle = document.getElementById('modalAppTitle');
+  const aAction = document.getElementById('modalAppAction');
+  const aSummary = document.getElementById('modalAppSummary');
+  const aPreview = document.getElementById('modalAppPreview');
+  const aNotes = document.getElementById('modalAppNotes');
+
+  if (dBadge) dBadge.textContent = (app.department || 'GENERAL').toUpperCase();
+  if (aName) aName.textContent = app.agent_name || 'Operational Agent';
+  if (aTitle) aTitle.textContent = app.title || 'Approval Request';
+  if (aAction) aAction.textContent = app.action_type || 'External Action Execution';
+  if (aSummary) aSummary.textContent = app.summary || 'Deliverable prepared by agent requiring human verification.';
+  
+  if (aPreview) {
+    let previewContent = app.preview_data || 'No preview payload provided.';
+    if (typeof previewContent === 'object') {
+      previewContent = JSON.stringify(previewContent, null, 2);
+    }
+    aPreview.textContent = previewContent;
+  }
+  if (aNotes) aNotes.value = '';
+
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closeApprovalModal() {
+  currentReviewApprovalId = null;
+  const modal = document.getElementById('approvalModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+async function executeModalDecision(decision) {
+  if (!currentReviewApprovalId) return;
+  const notes = document.getElementById('modalAppNotes')?.value || '';
+  closeApprovalModal();
+  await submitApprovalDecision(currentReviewApprovalId, decision, notes);
+}
+
+// Cross-Department Handoffs:
+async function handoffResearchToSales(projectId) {
+  if (!projectId) {
+    projectId = state.selectedProjectId || (state.projects[0] ? state.projects[0].id : null);
+  }
+  if (!projectId) {
+    showToast('Please select an active project first.');
+    return;
+  }
+
+  try {
+    showToast('Initiating Research -> Sales handoff...');
+    const res = await apiFetch('/api/handoff/research-to-sales', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        project_id: projectId,
+        leads: [
+          { name: 'Dr. Michael Vance', email: 'm.vance@dentalcare.ca', title: 'Managing Clinical Director', icp_score: 92 },
+          { name: 'Sarah Jenkins', email: 's.jenkins@apexclinics.com', title: 'VP Growth & Operations', icp_score: 88 }
+        ]
+      })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      showToast(`Handoff complete! ${data.imported_leads} leads added to Sales CRM.`);
+      switchMainView('sales');
+      await syncFromBackend();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      showToast(`Handoff failed: ${err.error || 'Unknown error'}`);
+    }
+  } catch (err) {
+    showToast(`Network error: ${err.message}`);
+  }
+}
+
+async function handoffSalesToCreative(dealId) {
+  const clientName = prompt('Enter the Onboarded Client Name:') || 'Onboarded Enterprise Client';
+  if (!clientName) return;
+
+  try {
+    showToast('Onboarding client into Creative Studio...');
+    const res = await apiFetch('/api/handoff/sales-to-creative', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        deal_id: dealId || null,
+        client_name: clientName,
+        project_name: `${clientName} Q4 Growth Campaign`,
+        goal: 'Produce landing page, high-intent Google ads, and 30-day social calendar',
+        services: ['landing-page', 'ads-creative', 'social-content']
+      })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      showToast(`Client ${clientName} onboarded into Creative Studio!`);
+      await syncFromBackend();
+      switchMainView('creative');
+    } else {
+      const err = await res.json().catch(() => ({}));
+      showToast(`Onboarding failed: ${err.error || 'Unknown error'}`);
     }
   } catch (err) {
     showToast(`Network error: ${err.message}`);
