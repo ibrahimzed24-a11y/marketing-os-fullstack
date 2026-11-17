@@ -20,7 +20,8 @@ function autoSeedIfEmpty(db) {
     const users = [
       ['Super Admin', 'admin@marketingos.local', hash('Admin123!'), 'super_admin', 'Leadership'],
       ['Sara Manager', 'manager@marketingos.local', hash('Manager123!'), 'manager', 'Growth'],
-      ['Omar Member', 'member@marketingos.local', hash('Member123!'), 'member', 'Content']
+      ['Omar Member', 'member@marketingos.local', hash('Member123!'), 'member', 'Content'],
+      ['Test Client (RBAC Gate)', 'client@marketingos.local', hash('Client123!'), 'client', 'Client']
     ];
 
     const userIds = {};
@@ -31,51 +32,10 @@ function autoSeedIfEmpty(db) {
       insertUser.run(id, name, email, passHash, role, dept);
     }
 
-    // Seed default Project
-    const p1 = uuidv4();
-    db.prepare(`
-      INSERT INTO projects (id, name, client_name, goal, type, owner_id, status, progress, guidelines, custom_rules)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      p1,
-      'Nile Supplies - Lead Gen',
-      'Nile Supplies',
-      'Generate 50 qualified B2B leads / week',
-      'lead-research',
-      userIds['admin@marketingos.local'],
-      'in_progress',
-      68,
-      'Brand Spec Brief: Nile Enterprise Supplies verified grounded assets. Target B2B procurement managers.',
-      'Always include lead score and verified email.'
-    );
-
-    // Attach Project Members
-    const insertMember = db.prepare('INSERT INTO project_members (id, project_id, user_id, role_in_project) VALUES (?, ?, ?, ?)');
-    insertMember.run(uuidv4(), p1, userIds['manager@marketingos.local'], 'manager');
-    insertMember.run(uuidv4(), p1, userIds['member@marketingos.local'], 'member');
-
-    // Seed Initial Task
-    const t1 = uuidv4();
-    db.prepare(`
-      INSERT INTO tasks (id, project_id, title, pipeline, description, status, assignee_id, created_by, priority, report_md)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      t1,
-      p1,
-      'Landing Page for Nile Supplies',
-      'landing-page',
-      'Build landing page from catalog + leads with lead capture form.',
-      'in_review',
-      userIds['member@marketingos.local'],
-      userIds['admin@marketingos.local'],
-      'high',
-      '# Admin Report\n\n**Verdict:** Ready to Deliver\n- Grounded in harness: Yes\n- Usable: Yes\n- Sellable: Yes\n\n**What shipped:** Hero, catalog section, lead form.\n**Next:** Approve to deliver to client.'
-    );
-
     // Seed 43-tool saved logins vault
-    seedLogins();
+    seedLogins(db);
 
-    console.log('[autoSeed] Database successfully bootstrapped with default accounts and workspace.');
+    console.log('[autoSeed] Database successfully bootstrapped with default clean accounts.');
   } catch (err) {
     console.warn('[autoSeed] Auto-seeding notice:', err.message);
   }

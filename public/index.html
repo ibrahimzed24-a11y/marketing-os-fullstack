@@ -139,18 +139,21 @@
     <div class="max-w-[1600px] mx-auto px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-2">
       <!-- Brand Identity -->
       <div class="flex items-center gap-2.5 min-w-0">
-        <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-600 text-white flex items-center justify-center font-extrabold text-sm shadow-sm shrink-0">AG</div>
+        <img src="/assets/branding/logo.webp" alt="Marketing OS Logo" class="w-9 h-9 rounded-xl object-cover border border-[#F2E6DB] shadow-xs shrink-0" onerror="this.onerror=null;this.src='';this.className='w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-pink-500 text-white flex items-center justify-center font-extrabold text-sm';" />
         <div class="min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
-            <span class="font-bold text-sm tracking-tight">Marketing OS</span>
-            <span class="text-[11px] px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-300 font-semibold border border-indigo-500/20">Sovereign Factory v2.4</span>
+            <span class="font-extrabold text-sm tracking-tight">Marketing <span class="text-[#FF7A68]">OS</span></span>
+            <span class="text-[11px] px-2 py-0.5 rounded-full bg-[#FFE7E2] dark:bg-indigo-500/15 text-[#E85A48] dark:text-indigo-300 font-bold border border-[#F2E6DB] dark:border-indigo-500/20">Workforce Factory</span>
           </div>
-          <div class="text-[11px] text-[var(--text-faint)] truncate">Local n8n (:5678) • Antigravity MCP (stdio) • Dedicated Logins Vault</div>
+          <div class="text-[11px] text-[var(--text-faint)] truncate">Bright. Kind. Growing. • Internal Marketing Platform</div>
         </div>
       </div>
 
       <!-- Authenticated User Profile & Sign Out (Standard Secure Auth) -->
       <div id="authHeaderControls" class="flex items-center gap-2 shrink-0">
+        <button onclick="toggleNewProjectDrawer()" id="headerNewProjectBtn" class="btn-primary px-3 py-1.5 text-xs inline-flex items-center gap-1.5 font-semibold">
+          <span>+ New Project</span>
+        </button>
         <button onclick="openMcpModal()" class="btn-outline px-3 py-1.5 text-[11px] inline-flex items-center gap-1.5 hidden sm:inline-flex">
           <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
           <span class="mono">n8n: online</span>
@@ -170,31 +173,24 @@
       </div>
     </div>
 
-    <!-- Primary View Navigation Tabs -->
+    <!-- Primary View Navigation Tabs (5 Core Functional Domains) -->
     <div class="max-w-[1600px] mx-auto px-3 sm:px-6 pb-2 flex items-center justify-between gap-2 overflow-x-auto">
       <div class="flex items-center gap-1.5">
-        <button id="navTab-workbench" onclick="switchMainView('workbench')" class="px-3.5 py-1.5 rounded-full text-xs font-semibold transition">Factory Workbench</button>
-        <button id="navTab-roleDash" onclick="switchMainView('roleDash')" class="px-3.5 py-1.5 rounded-full text-xs font-semibold transition">Role Dashboard & Tasks</button>
-        <button id="navTab-pipelines" onclick="switchMainView('pipelines')" class="px-3.5 py-1.5 rounded-full text-xs font-semibold transition">8 Marketing Pipelines</button>
-        <button id="navTab-team" onclick="switchMainView('team')" class="px-3.5 py-1.5 rounded-full text-xs font-semibold transition">Team & RBAC Access</button>
-        <button id="navTab-seo" onclick="switchMainView('seo')" class="px-3.5 py-1.5 rounded-full text-xs font-semibold transition flex items-center gap-1.5">
-          <span>📂 SEO & GEO Engine</span>
-          <span class="px-1.5 py-0.2 rounded-full text-[10px] bg-emerald-500 text-white font-bold">14 Branches</span>
-        </button>
-        <button id="navTab-logins" onclick="switchMainView('logins')" class="px-3.5 py-1.5 rounded-full text-xs font-semibold transition flex items-center gap-1.5">
-          <span>🔑 Saved Logins & Tool Vault</span>
-          <span id="navLoginsCountBadge" class="px-1.5 py-0.2 rounded-full text-[10px] bg-indigo-500 text-white font-bold">43</span>
-        </button>
-        <button id="navTab-agents" onclick="switchMainView('agents')" class="px-3.5 py-1.5 rounded-full text-xs font-semibold transition">32 Sovereign Agents</button>
-        <button id="navTab-rag" onclick="switchMainView('rag')" class="px-3.5 py-1.5 rounded-full text-xs font-semibold transition">🧠 RAG Vector Engine</button>
-        <button id="navTab-adminSettings" onclick="switchMainView('adminSettings')" class="px-3.5 py-1.5 rounded-full text-xs font-semibold transition flex items-center gap-1.5">
-          <span>⚙️ Admin & LLM Routing</span>
-          <span class="px-1.5 py-0.2 rounded-full text-[10px] bg-purple-600 text-white font-bold">Live</span>
-        </button>
+        <button id="navTab-workbench" onclick="switchMainView('workbench')" class="px-4 py-1.5 rounded-full text-xs font-bold transition">⚡ Workbench</button>
+        <button id="navTab-roleDash" onclick="switchMainView('roleDash')" class="px-4 py-1.5 rounded-full text-xs font-semibold transition">📊 Dashboard</button>
+        <button id="navTab-pipelines" onclick="switchMainView('pipelines')" class="px-4 py-1.5 rounded-full text-xs font-semibold transition">🚀 Pipelines & Agents</button>
+        <button id="navTab-seo" onclick="switchMainView('seo')" class="px-4 py-1.5 rounded-full text-xs font-semibold transition">🔍 Intelligence</button>
+        <button id="navTab-adminSettings" onclick="switchMainView('adminSettings')" class="px-4 py-1.5 rounded-full text-xs font-semibold transition">⚙️ Settings & Vault</button>
+      </div>
+      <!-- Hidden compatibility aliases for secondary views -->
+      <div class="hidden">
+        <button id="navTab-team" onclick="switchMainView('team')"></button>
+        <button id="navTab-logins" onclick="switchMainView('logins')"><span id="navLoginsCountBadge">43</span></button>
+        <button id="navTab-agents" onclick="switchMainView('agents')"></button>
+        <button id="navTab-rag" onclick="switchMainView('rag')"></button>
       </div>
       <div class="hidden md:flex items-center gap-2 text-[11px] text-[var(--text-soft)]">
-        <span class="px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20 font-medium" id="headerDeliveredBadge">1 Delivered Today</span>
-        <button onclick="resetDemoState()" class="text-[11px] text-[var(--text-faint)] hover:text-[var(--text)] underline">Reset Seed DB</button>
+        <button onclick="triggerCleanSlateWipe()" class="text-[11px] text-red-500 hover:text-red-600 font-semibold inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-500/10 border border-red-500/20" title="Wipe all demo projects and tasks to keep platform clean">🧹 Zero-Data Slate</button>
       </div>
     </div>
   </header>
@@ -210,27 +206,20 @@
     </div>
   </div>
 
-  <!-- ROLE CONTEXT BANNER -->
-  <section class="max-w-[1600px] mx-auto px-3 sm:px-6 pt-3">
-    <div class="card-surface p-3.5 sm:p-4 flex flex-wrap items-center justify-between gap-3">
-      <div class="flex items-center gap-3 min-w-0">
-        <div id="roleBannerAvatar" class="w-10 h-10 rounded-2xl bg-indigo-600 text-white font-bold text-sm grid place-items-center shrink-0">IZ</div>
-        <div class="min-w-0">
-          <div class="flex items-center gap-2 flex-wrap">
-            <h1 id="roleBannerTitle" class="text-sm sm:text-base font-bold tracking-tight">Super Admin Factory Control</h1>
-            <span id="roleBannerPermBadge" class="text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-medium border border-emerald-500/20">Full Write + Approval + Vault</span>
-          </div>
-          <p id="roleBannerDesc" class="text-xs text-[var(--text-soft)] mt-0.5">Logged in as Ibrahim Zid (admin@marketingos.local) • Manage all projects, approve agent deliverables, and configure n8n + Antigravity MCP.</p>
-        </div>
-      </div>
-      <div class="flex items-center gap-2 flex-wrap">
-        <button id="newProjectTopBtn" onclick="toggleNewProjectDrawer()" class="btn-ink px-3.5 py-2 text-xs inline-flex items-center gap-1.5">+ New Project</button>
-        <button onclick="openAddLoginModal()" id="newLoginTopBtn" class="btn-outline px-3.5 py-2 text-xs inline-flex items-center gap-1.5">🔑 + Add Saved Login</button>
-        <button onclick="openTaskModal()" id="newTaskTopBtn" class="btn-primary px-3.5 py-2 text-xs inline-flex items-center gap-1.5">⚡ Dispatch Pipeline Task</button>
-      </div>
-    </div>
+  <!-- HIDDEN ROLE BANNER FOR DOM BACKWARD COMPATIBILITY -->
+  <section id="roleContextBanner" class="hidden">
+    <div id="roleBannerAvatar">IZ</div>
+    <div id="roleBannerTitle">Super Admin Factory Control</div>
+    <div id="roleBannerPermBadge">Full Write</div>
+    <div id="roleBannerDesc">Logged in</div>
+    <button id="newProjectTopBtn" onclick="toggleNewProjectDrawer()">+ New Project</button>
+    <button id="newLoginTopBtn" onclick="openAddLoginModal()">+ Add Login</button>
+    <button id="newTaskTopBtn" onclick="openTaskModal()">Dispatch Task</button>
+    <span id="headerDeliveredBadge">0</span>
+  </section>
 
-    <!-- Collapsible Create Project Drawer -->
+  <!-- Collapsible Create Project Drawer -->
+  <div class="max-w-[1600px] mx-auto px-3 sm:px-6">
     <div id="newProjectDrawer" class="hidden card-surface p-4 mt-3">
       <div class="flex items-center justify-between mb-3">
         <h3 class="text-sm font-bold">Create Factory Project</h3>

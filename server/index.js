@@ -1648,6 +1648,22 @@ app.post('/api/admin/watchdog/scan', authMiddleware, requireRole('super_admin', 
   res.json({ ok: true, scan_result: scanResult, watchdog: status });
 }));
 
+// Clean slate: Wipe all demo data (projects, tasks, harness files, reports) on demand
+app.post('/api/admin/clean-slate', authMiddleware, requireRole('super_admin'), asyncHandler(async (req, res) => {
+  db.transaction(() => {
+    db.prepare('DELETE FROM tasks').run();
+    db.prepare('DELETE FROM harness_files').run();
+    db.prepare('DELETE FROM reports').run();
+    db.prepare('DELETE FROM rag_chunks').run();
+    db.prepare('DELETE FROM activity').run();
+    db.prepare('DELETE FROM webhook_retries').run();
+    db.prepare('DELETE FROM error_log').run();
+    db.prepare('DELETE FROM project_members').run();
+    db.prepare('DELETE FROM projects').run();
+  })();
+  res.json({ ok: true, message: 'All demo workspaces, tasks, and data successfully cleared.' });
+}));
+
 // SPA Fallback
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, '../public/index.html')));
 

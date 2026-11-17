@@ -689,10 +689,11 @@ const INITIAL_SAVED_LOGINS = [
 
 function buildDefaultState() {
   return {
+    schemaVersion: 2,
     currentUserRole: 'super_admin',
     mainView: 'workbench',
     stageFilter: 'All',
-    selectedProjectId: '019f11bf-10b0-4667-8a2a-6637d902c044',
+    selectedProjectId: null,
     selectedPipeline: 'email-campaign',
     outputTab: 'Preview',
     agentDeptFilter: 'All',
@@ -700,92 +701,18 @@ function buildDefaultState() {
     loginsRevealed: false,
     activePreset: 'Factory Squad',
     executing: false,
-    execStep: 4,
-    execProgress: 100,
-    savedLogins: INITIAL_SAVED_LOGINS.slice(),
+    execStep: 0,
+    execProgress: 0,
+    savedLogins: [],
     users: [
       { id: 'u-super', name: 'Ibrahim Zid', email: 'admin@marketingos.local', role: 'super_admin', dept: 'Leadership', status: 'active', initials: 'IZ' },
       { id: 'u-admin', name: 'Nadia Hassan', email: 'ops@marketingos.local', role: 'admin', dept: 'Ops', status: 'active', initials: 'NH' },
       { id: 'u-manager', name: 'Sara Manager', email: 'manager@marketingos.local', role: 'manager', dept: 'Growth', status: 'active', initials: 'SM' },
-      { id: 'u-member', name: 'Omar Member', email: 'member@marketingos.local', role: 'member', dept: 'Content', status: 'active', initials: 'OM' },
-      { id: 'u-client', name: 'Valioz Client', email: 'client@marketingos.local', role: 'client', dept: 'Client', status: 'active', initials: 'VC' }
+      { id: 'u-member', name: 'Omar Member', email: 'member@marketingos.local', role: 'member', dept: 'Content', status: 'active', initials: 'OM' }
     ],
-    projects: [
-      {
-        id: '019f11bf-10b0-4667-8a2a-6637d902c044',
-        name: 'Valioz Health sales',
-        client: 'Valioz Health',
-        goal: 'Draft dual-branded outreach email campaigns, schedule consultations, and send via Hostinger SMTP.',
-        stage: 'In Review',
-        progress: 95,
-        deliverable: 'Dual-Branded Email Sequence',
-        pipeline: 'email-campaign',
-        squad: ['CO', 'BR', 'SE', 'MR'],
-        assigneeId: 'u-manager',
-        harnessFiles: [
-          { name: 'Priority_A_Outreach_Email_Merge_Fields.csv', meta: '22 Canadian Dental Clinics • 8.2 KB', rows: '22 verified clinic leads', status: 'Injected into reasoning' },
-          { name: 'Clinic Intelligence (138 leads, scored and verified).csv', meta: 'Master Scored Intelligence • 48 KB', rows: '138 enriched clinic accounts', status: 'Injected into reasoning' },
-          { name: 'index.html', meta: 'Valioz Responsive Email Template • 10.4 KB', rows: 'Dual-branded HTML base', status: 'Injected into reasoning' },
-          { name: 'valioz-health-logo.png', meta: 'Official High-Res Logo • 92 KB', rows: 'Base64 embedded brand asset', status: 'Injected into reasoning' },
-          { name: 'Research_Gaps.csv', meta: 'Patient Search Gaps • 2.4 KB', rows: '10 audit gap records', status: 'Injected into reasoning' },
-          { name: 'Keyword Opportunities.csv', meta: 'Treatment Keyword Volumes • 8.2 KB', rows: 'Canada-wide dental queries', status: 'Injected into reasoning' }
-        ],
-        lastReport: {
-          verdict: 'Ready to Deliver',
-          grounded: 'Yes • 6 harness files evaluated (Priority_A_Outreach_Email_Merge_Fields.csv, index.html, logo, etc.)',
-          usable: 'Yes • Dual-branded HTML with 22-clinic selector + live merge tags',
-          sellable: 'Yes • $499 launch offer + 30 days growth service',
-          summary: 'Generated 5-step dual-branded nurture sequence personalized across 22 Canadian dental practices. Gate G2 human consent enforced with 20 staged leads.',
-          shipped: 'Responsive Dual-Branded HTML + 5-Step Sequence + Interactive Clinic Selector.',
-          blocked: 'None — All emails staged in staging state awaiting operator approval.',
-          nextSteps: 'Click "Approve & Deliver" to release deliverable to Client Portal.'
-        }
-      },
-      {
-        id: 'proj-nile',
-        name: 'Nile Supplies - Lead Gen System',
-        client: 'Nile Supplies',
-        goal: 'Turn 128 researched Maldivian resort leads into booked meetings with a live page + outreach pack.',
-        stage: 'In Progress',
-        progress: 68,
-        deliverable: 'Lead Pack',
-        pipeline: 'lead-research',
-        squad: ['CO', 'BR', 'SE', 'MR'],
-        assigneeId: 'u-member',
-        harnessFiles: [
-          { name: 'catalog.pdf', meta: '2026 Export Produce Catalog • 4.1 MB', rows: '42 SKUs', status: 'Injected into reasoning' },
-          { name: 'leads.csv', meta: '128 Maldivian Resort F&B Leads • 2.4 MB', rows: '128 verified contacts', status: 'Injected into reasoning' }
-        ],
-        lastReport: {
-          verdict: 'Ready to Deliver',
-          grounded: 'Yes • 2 files injected',
-          usable: 'Yes • Outreach pack ready',
-          sellable: 'Yes • 28% landed cost advantage shown',
-          summary: 'Segmented 128 Maldivian resort accounts by weekly volume.',
-          shipped: '50 Priority Resort Lead Pack + 4-Step Sequence.',
-          blocked: 'None.',
-          nextSteps: 'Operator approves outreach schedule.'
-        }
-      }
-    ],
-    tasks: [
-      {
-        id: '3504c56b-ec9f-4dff-869f-0bb629629459',
-        projectId: '019f11bf-10b0-4667-8a2a-6637d902c044',
-        title: 'craft a dual branded email templates for valioz health',
-        pipeline: 'email-campaign',
-        assigneeId: 'u-manager',
-        status: 'in_review',
-        priority: 'urgent',
-        updated: 'Just now'
-      }
-    ],
-    telemetryLogs: [
-      '[04:29:31] @coordinator parsed 6 harness files for Valioz Health sales',
-      '[04:29:32] @browser-researcher validated 22 Priority A Canadian dental clinic accounts',
-      '[04:29:33] @software-engineer compiled dual-branded HTML email template + 22 clinic merge tags',
-      '[04:29:34] @master-reporting-agent verified Gate G2 staging: 20 ready, 2 held -> Verdict: Ready to Deliver'
-    ]
+    projects: [],
+    tasks: [],
+    telemetryLogs: []
   };
 }
 
@@ -799,10 +726,17 @@ function loadState() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (parsed && Array.isArray(parsed.projects)) return parsed;
+      if (parsed && Array.isArray(parsed.projects)) {
+        const hasLegacyDemo = parsed.projects.some(p => p.id === '019f11bf-10b0-4667-8a2a-6637d902c044' || p.name === 'Valioz Health sales');
+        if (!hasLegacyDemo && parsed.schemaVersion === 2) {
+          return parsed;
+        }
+      }
     }
   } catch (e) {}
-  return buildDefaultState();
+  const fresh = buildDefaultState();
+  fresh.schemaVersion = 2;
+  return fresh;
 }
 
 function saveState() {
@@ -811,11 +745,33 @@ function saveState() {
   } catch (e) {}
 }
 
+async function triggerCleanSlateWipe() {
+  if (state.currentUserRole !== 'super_admin') {
+    showToast('RBAC Restriction: Only Super Admin can wipe demo data.');
+    return;
+  }
+  const confirmWipe = confirm('Are you sure you want to wipe all demo projects, tasks, harness files, and reports to start completely clean?');
+  if (!confirmWipe) return;
+
+  try {
+    const res = await apiFetch('/api/admin/clean-slate', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to wipe data');
+
+    localStorage.removeItem(STORAGE_KEY);
+    state = buildDefaultState();
+    state.schemaVersion = 2;
+    await syncFromBackend();
+    saveState();
+    renderAll();
+    showToast('✨ Marketing OS successfully cleared! Zero demo data.');
+  } catch (err) {
+    showToast('Error wiping demo data: ' + err.message);
+  }
+}
+
 function resetDemoState() {
-  state = buildDefaultState();
-  saveState();
-  syncFromBackend().then(() => renderAll());
-  showToast('Reset local database. Synchronized with live backend.');
+  triggerCleanSlateWipe();
 }
 
 function showToast(msg) {
@@ -1000,7 +956,8 @@ async function initAuthSession() {
 }
 
 function getSelectedProject() {
-  return state.projects.find(p => p.id === state.selectedProjectId) || state.projects[0];
+  if (!state.projects || state.projects.length === 0) return null;
+  return state.projects.find(p => p.id === state.selectedProjectId) || state.projects[0] || null;
 }
 
 // --- Live Backend Sync ---
@@ -1010,7 +967,7 @@ async function syncFromBackend() {
     const resProjects = await apiFetch('/api/projects');
     if (resProjects.ok) {
       const data = await resProjects.json();
-      if (data.projects && data.projects.length > 0) {
+      if (Array.isArray(data.projects)) {
         state.projects = data.projects.map(p => {
           const existing = state.projects.find(ep => ep.id === p.id);
           return {
@@ -1034,7 +991,9 @@ async function syncFromBackend() {
             }
           };
         });
-        if (!state.projects.some(p => p.id === state.selectedProjectId)) {
+        if (state.projects.length === 0) {
+          state.selectedProjectId = null;
+        } else if (!state.projects.some(p => p.id === state.selectedProjectId)) {
           state.selectedProjectId = state.projects[0].id;
         }
       }
@@ -1736,29 +1695,38 @@ function renderHeaderAndRoleBanner() {
   const user = getCurrentUser();
   const role = user.role || state.currentUserRole;
 
-  const navTabs = ['workbench', 'roleDash', 'pipelines', 'team', 'seo', 'logins', 'agents', 'rag', 'adminSettings'];
-  const isAdmin = ['super_admin', 'admin'].includes(role);
-  const isManager = role === 'manager';
-  const isMember = role === 'member';
+  // Primary 5 Navigation Tabs Mapping
+  const primaryTabs = [
+    { id: 'workbench', activeFor: ['workbench'] },
+    { id: 'roleDash', activeFor: ['roleDash'] },
+    { id: 'pipelines', activeFor: ['pipelines', 'agents'] },
+    { id: 'seo', activeFor: ['seo', 'rag'] },
+    { id: 'adminSettings', activeFor: ['adminSettings', 'team', 'logins'] }
+  ];
 
-  navTabs.forEach(t => {
-    const el = document.getElementById('navTab-' + t);
+  const isAdmin = ['super_admin', 'admin'].includes(role);
+
+  primaryTabs.forEach(tab => {
+    const el = document.getElementById('navTab-' + tab.id);
     if (el) {
-      if (t === 'adminSettings') {
+      if (tab.id === 'adminSettings') {
         el.style.display = isAdmin ? 'inline-flex' : 'none';
-      } else if (t === 'team') {
-        el.style.display = (isAdmin || isManager) ? 'inline-flex' : 'none';
       } else {
         el.style.display = 'inline-flex';
       }
-
-      el.className = (t === state.mainView)
-        ? 'px-3.5 py-1.5 rounded-full text-xs font-bold bg-[var(--text)] text-[var(--surface)] transition flex items-center gap-1.5'
-        : 'px-3.5 py-1.5 rounded-full text-xs font-medium text-[var(--text-soft)] hover:text-[var(--text)] transition flex items-center gap-1.5';
+      const isActive = tab.activeFor.includes(state.mainView);
+      el.className = isActive
+        ? 'px-4 py-1.5 rounded-full text-xs font-bold bg-[var(--text)] text-[var(--surface)] transition flex items-center gap-1.5 shadow-xs'
+        : 'px-4 py-1.5 rounded-full text-xs font-medium text-[var(--text-soft)] hover:text-[var(--text)] transition flex items-center gap-1.5';
     }
-    const viewEl = document.getElementById('view-' + t);
+  });
+
+  // Toggle view containers
+  const allViews = ['workbench', 'roleDash', 'pipelines', 'team', 'seo', 'logins', 'agents', 'rag', 'adminSettings'];
+  allViews.forEach(v => {
+    const viewEl = document.getElementById('view-' + v);
     if (viewEl) {
-      if (t === state.mainView) viewEl.classList.remove('hidden');
+      if (v === state.mainView) viewEl.classList.remove('hidden');
       else viewEl.classList.add('hidden');
     }
   });
@@ -1816,6 +1784,7 @@ function renderHeaderAndRoleBanner() {
   if (rp) rp.textContent = roleMeta.perm;
   if (rd) rd.textContent = roleMeta.desc;
 
+  const isMember = role === 'member';
   const npBtn = document.getElementById('newProjectTopBtn');
   const nlBtn = document.getElementById('newLoginTopBtn');
   const ntBtn = document.getElementById('newTaskTopBtn');
@@ -1829,10 +1798,14 @@ function renderStageRibbonAndProjects() {
   const counts = { 'Draft': 0, 'In Progress': 0, 'In Review': 0, 'Delivered': 0 };
   state.projects.forEach(p => { counts[p.stage] = (counts[p.stage] || 0) + 1; });
 
+  const pCount = document.getElementById('projectCountBadge');
+  if (pCount) pCount.textContent = String(state.projects.length);
+
   const grid = document.getElementById('stageRibbonGrid');
   if (grid) {
     grid.innerHTML = stages.map((s, idx) => {
       const active = state.stageFilter === s;
+      const pct = state.projects.length ? Math.round((counts[s] / state.projects.length) * 100) : 0;
       return '<button onclick="setStageFilter(\'' + s + '\')" class="text-left rounded-2xl border p-3.5 transition ' +
         (active ? 'bg-[var(--text)] text-[var(--surface)] border-[var(--text)]' : 'bg-[var(--bg-soft)] border-[var(--border)] hover:border-indigo-500/50') + '">' +
         '<div class="flex items-center justify-between">' +
@@ -1840,7 +1813,7 @@ function renderStageRibbonAndProjects() {
           '<span class="text-lg font-extrabold mono">' + counts[s] + '</span>' +
         '</div>' +
         '<div class="mt-2.5 h-1.5 rounded-full bg-black/10 dark:bg-white/10 overflow-hidden">' +
-          '<div class="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500" style="width:' + Math.round((counts[s]/state.projects.length)*100) + '%"></div>' +
+          '<div class="h-full rounded-full bg-gradient-to-r from-indigo-500 to-violet-500" style="width:' + pct + '%"></div>' +
         '</div>' +
       '</button>';
     }).join('');
@@ -1852,30 +1825,36 @@ function renderStageRibbonAndProjects() {
 
   const listEl = document.getElementById('projectCardsList');
   if (listEl) {
-    listEl.innerHTML = filtered.map(p => {
-      const isSel = p.id === state.selectedProjectId;
-      return '<div class="rounded-2xl border p-3.5 transition ' +
-        (isSel ? 'bg-[var(--primary-soft)] border-indigo-500/50 shadow-sm' : 'bg-[var(--surface)] border-[var(--border)]') + '">' +
-        '<div class="flex items-start justify-between gap-2">' +
-          '<button onclick="selectProject(\'' + p.id + '\')" class="text-left font-bold text-xs hover:text-indigo-600 leading-snug">' + p.name + '</button>' +
-          '<span class="text-[10px] px-2 py-0.5 rounded-full border font-semibold shrink-0 bg-indigo-500/15 text-indigo-700 dark:text-indigo-300">' + p.stage + '</span>' +
-        '</div>' +
-        '<p class="text-[11px] text-[var(--text-soft)] mt-1 line-clamp-2">' + p.client + ' • ' + p.goal + '</p>' +
-        '<div class="mt-2.5 flex items-center justify-between text-[11px]">' +
-          '<span class="text-emerald-600 dark:text-emerald-400 font-medium">● ' + p.harnessFiles.length + ' harness files</span>' +
-          '<span class="mono text-[10px] text-[var(--text-faint)]">' + p.pipeline + '</span>' +
-        '</div>' +
-        '<div class="mt-3 flex items-center gap-1.5">' +
-          '<button onclick="selectProject(\'' + p.id + '\')" class="btn-ink flex-1 py-1.5 text-[11px]">Open Workbench</button>' +
-        '</div>' +
-      '</div>';
-    }).join('');
+    if (filtered.length === 0) {
+      listEl.innerHTML = '<div class="text-xs text-[var(--text-soft)] p-4 text-center rounded-xl card-subtle">No projects yet. Click "+ New Project" to create your first workspace.</div>';
+    } else {
+      listEl.innerHTML = filtered.map(p => {
+        const isSel = p.id === state.selectedProjectId;
+        return '<div class="rounded-2xl border p-3.5 transition ' +
+          (isSel ? 'bg-[var(--primary-soft)] border-indigo-500/50 shadow-sm' : 'bg-[var(--surface)] border-[var(--border)]') + '">' +
+          '<div class="flex items-start justify-between gap-2">' +
+            '<button onclick="selectProject(\'' + p.id + '\')" class="text-left font-bold text-xs hover:text-indigo-600 leading-snug">' + p.name + '</button>' +
+            '<span class="text-[10px] px-2 py-0.5 rounded-full border font-semibold shrink-0 bg-indigo-500/15 text-indigo-700 dark:text-indigo-300">' + p.stage + '</span>' +
+          '</div>' +
+          '<p class="text-[11px] text-[var(--text-soft)] mt-1 line-clamp-2">' + p.client + ' • ' + p.goal + '</p>' +
+          '<div class="mt-2.5 flex items-center justify-between text-[11px]">' +
+            '<span class="text-emerald-600 dark:text-emerald-400 font-medium">● ' + (p.harnessFiles ? p.harnessFiles.length : 0) + ' harness files</span>' +
+            '<span class="mono text-[10px] text-[var(--text-faint)]">' + p.pipeline + '</span>' +
+          '</div>' +
+          '<div class="mt-3 flex items-center gap-1.5">' +
+            '<button onclick="selectProject(\'' + p.id + '\')" class="btn-ink flex-1 py-1.5 text-[11px]">Open Workbench</button>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+    }
   }
 
   const sel = getSelectedProject();
   const hList = document.getElementById('harnessFilesList');
-  if (hList && sel) {
-    if (!sel.harnessFiles || sel.harnessFiles.length === 0) {
+  if (hList) {
+    if (!sel) {
+      hList.innerHTML = '<div class="text-center py-4 text-xs text-[var(--text-faint)]">Select or create a project to attach harness files.</div>';
+    } else if (!sel.harnessFiles || sel.harnessFiles.length === 0) {
       hList.innerHTML = '<div class="text-center py-4 text-xs text-[var(--text-faint)]">No harness files uploaded yet. Drag & drop files above.</div>';
     } else {
       const categoryBadges = {
@@ -1950,8 +1929,48 @@ function renderExecutionStepper() {
 
 function renderWorkbenchCenterAndRight() {
   const proj = getSelectedProject();
-  if (!proj) return;
   const pipe = PIPELINE_CATALOG[state.selectedPipeline] || PIPELINE_CATALOG['content-seo'];
+
+  if (!proj) {
+    const clientTag = document.getElementById('wbClientTag');
+    const pipeTag = document.getElementById('wbPipelineTag');
+    const projTitle = document.getElementById('wbProjectTitle');
+    const projGoal = document.getElementById('wbProjectGoal');
+    const squadLabel = document.getElementById('activeSquadLabel');
+    const stageBadge = document.getElementById('wbStageBadge');
+    if (clientTag) clientTag.textContent = 'Workspace Clean';
+    if (pipeTag) pipeTag.textContent = 'ready';
+    if (projTitle) projTitle.textContent = 'No Active Project Selected';
+    if (projGoal) projGoal.textContent = 'Marketing OS is clean and ready. Click "+ New Project" above to create a workspace and begin running tasks.';
+    if (squadLabel) squadLabel.textContent = 'Squad: Standby';
+    if (stageBadge) stageBadge.textContent = 'Clean Slate • Ready';
+
+    const pipeGrid = document.getElementById('wbPipelineSelector');
+    if (pipeGrid) {
+      pipeGrid.innerHTML = Object.values(PIPELINE_CATALOG).map(p => {
+        const active = p.id === state.selectedPipeline;
+        return '<button onclick="selectPipeline(\'' + p.id + '\')" class="text-left rounded-xl border p-2.5 transition ' +
+          (active ? 'bg-[var(--primary-soft)] border-indigo-500 shadow-sm' : 'bg-[var(--surface)] border-[var(--border)] hover:border-indigo-400') + '">' +
+          '<div class="flex items-center justify-between">' +
+            '<span class="text-[10px] mono font-bold px-1.5 py-0.5 rounded bg-[var(--text)] text-[var(--surface)]">' + p.code + '</span>' +
+          '</div>' +
+          '<div class="text-xs font-bold mt-1.5 truncate">' + p.name + '</div>' +
+          '<div class="text-[10px] text-[var(--text-soft)] truncate">' + p.badge + '</div>' +
+        '</button>';
+      }).join('');
+    }
+
+    const vp = document.getElementById('wbOutputViewport');
+    if (vp) {
+      vp.innerHTML = '<div class="p-12 text-center space-y-3">' +
+        '<div class="w-14 h-14 rounded-2xl bg-indigo-500/10 text-indigo-600 mx-auto flex items-center justify-center text-2xl font-bold">✨</div>' +
+        '<h3 class="text-base font-bold">Marketing OS is Clean & Ready</h3>' +
+        '<p class="text-xs text-[var(--text-soft)] max-w-md mx-auto">Zero demo data. Your internal marketing squad is standing by to execute grounded campaigns. Create your first project to get started.</p>' +
+        '<button onclick="toggleNewProjectDrawer()" class="btn-primary px-4 py-2 text-xs font-semibold inline-flex items-center gap-1.5">+ Create First Project</button>' +
+      '</div>';
+    }
+    return;
+  }
 
   document.getElementById('wbClientTag').textContent = proj.client;
   document.getElementById('wbPipelineTag').textContent = pipe.id;

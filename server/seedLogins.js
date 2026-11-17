@@ -1,6 +1,10 @@
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
-const db = require('./db');
+let _db = null;
+function getDb() {
+  if (!_db) _db = require('./db');
+  return _db;
+}
 
 const SEEDED_LOGINS = [
   // 1. Email & Outbound
@@ -680,8 +684,9 @@ const SEEDED_LOGINS = [
   }
 ];
 
-function seedLogins() {
-  const insertStmt = db.prepare(`
+function seedLogins(customDb) {
+  const activeDb = customDb || getDb();
+  const insertStmt = activeDb.prepare(`
     INSERT INTO saved_logins (
       id, name, slug, category, website_url, username, password, api_key, notes, status, is_active, metadata, last_tested, updated_at
     ) VALUES (
