@@ -566,4 +566,27 @@ try {
   throw schemaErr;
 }
 
+// Wrap db.prepare to mirror write queries to Turso Cloud (if configured)
+try {
+  const turso = require('./turso');
+  if (turso.isConfigured()) {
+    const origPrepare = db.prepare.bind(db);
+    db.prepare = function(sql) {
+      const stmt = origPrepare(sql);
+      const origRun = stmt.run.bind(stmt);
+      stmt.run = function(...args) {
+        const res = origRun(...args);
+        if (/^\s*(INSERT|UPDATE|DELETE|REPLACE)\b/i.test(sql)) {
+          turso.mirrorWrite(sql, args);
+        }
+        return res;
+      };
+      return stmt;
+    };
+    console.log('[Turso] Cloud write-through mirroring active.');
+  }
+} catch (wrapErr) {
+  console.warn(`[Turso] Wrapper note: ${wrapErr.message}`);
+}
+
 module.exports = db;

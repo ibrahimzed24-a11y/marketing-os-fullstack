@@ -3247,6 +3247,51 @@ async function pingLlmProvider(provider) {
   }
 }
 
+async function fetchTursoStatus() {
+  try {
+    const res = await apiFetch('/api/admin/turso/status');
+    if (res.ok) {
+      const data = await res.json();
+      const t = data.turso || {};
+      const badge = document.getElementById('tursoStatusBadge');
+      const engine = document.getElementById('tursoEngineLabel');
+      const endpoint = document.getElementById('tursoEndpointLabel');
+      const syncLabel = document.getElementById('tursoLastSyncLabel');
+
+      if (badge) {
+        if (t.configured) {
+          badge.className = 'text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30';
+          badge.textContent = 'Cloud Connected';
+        } else {
+          badge.className = 'text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30';
+          badge.textContent = 'Standalone SQLite';
+        }
+      }
+      if (engine) engine.textContent = t.engine || 'Turso LibSQL / Local WAL';
+      if (endpoint) endpoint.textContent = t.url || (t.configured ? 'Connected' : 'Standalone Local Storage');
+      if (syncLabel) syncLabel.textContent = t.last_sync ? new Date(t.last_sync).toLocaleTimeString() : (t.configured ? 'Active' : 'Local Only');
+    }
+  } catch (_) {}
+}
+
+async function triggerTursoSync() {
+  showToast('Connecting to Turso Cloud Database...');
+  try {
+    const res = await apiFetch('/api/admin/turso/sync', { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      showToast('✓ Turso Cloud Database synchronized successfully!');
+    } else {
+      showToast(data.result?.reason === 'not_configured' 
+        ? 'Turso URL not configured in environment. Using local SQLite.' 
+        : `Turso notice: ${data.result?.error || 'Standalone mode'}`);
+    }
+    await fetchTursoStatus();
+  } catch (err) {
+    showToast(`Sync note: ${err.message}`);
+  }
+}
+
 async function pingAllLlmProviders() {
   showToast('Testing all 6 generation engine connections...');
   for (const p of adminLlmProviders) {
@@ -3349,6 +3394,8 @@ async function triggerAdminWatchdogScan() {
 function renderAdminSettingsView() {
   const container = document.getElementById('view-adminSettings');
   if (!container || container.classList.contains('hidden')) return;
+
+  fetchTursoStatus();
 
   // 1. Health Status Bar Elements
   const activeProv = adminLlmActiveConfig?.provider || 'ollama';

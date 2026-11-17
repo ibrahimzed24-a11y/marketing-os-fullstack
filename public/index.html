@@ -791,6 +791,41 @@
         </div>
       </div>
 
+      <!-- Turso Cloud Database Persistence Hub -->
+      <div class="card-surface p-4 sm:p-5 space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] pb-3">
+          <div class="flex items-center gap-2.5">
+            <span class="text-xl">🗄️</span>
+            <div>
+              <div class="flex items-center gap-2">
+                <h3 class="text-sm font-bold">Turso Cloud Database (Permanent Storage)</h3>
+                <span id="tursoStatusBadge" class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">Ready</span>
+              </div>
+              <p class="text-xs text-[var(--text-soft)] mt-0.5">Permanent cloud SQLite storage for Vercel. Keeps all projects, tasks, and team data synced across instances.</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="triggerTursoSync()" id="tursoSyncBtn" class="btn-primary px-3.5 py-1.5 text-xs font-semibold inline-flex items-center gap-1.5 shadow-sm">
+              <span>⚡ Sync Cloud Database</span>
+            </button>
+          </div>
+        </div>
+        <div class="grid sm:grid-cols-3 gap-3 text-xs">
+          <div class="card-subtle p-3 rounded-xl">
+            <div class="text-[10px] font-bold text-[var(--text-soft)] uppercase">Storage Engine</div>
+            <div id="tursoEngineLabel" class="font-bold text-xs mt-1 text-indigo-600 dark:text-indigo-400">Turso LibSQL / Local WAL</div>
+          </div>
+          <div class="card-subtle p-3 rounded-xl">
+            <div class="text-[10px] font-bold text-[var(--text-soft)] uppercase">Cloud Endpoint</div>
+            <div id="tursoEndpointLabel" class="font-mono text-[11px] mt-1 text-[var(--text-soft)] truncate">Set in Vercel Environment</div>
+          </div>
+          <div class="card-subtle p-3 rounded-xl">
+            <div class="text-[10px] font-bold text-[var(--text-soft)] uppercase">Last Cloud Sync</div>
+            <div id="tursoLastSyncLabel" class="font-mono text-[11px] mt-1 text-emerald-600">Active & Ready</div>
+          </div>
+        </div>
+      </div>
+
       <!-- LLM Provider Configuration Grid -->
       <div class="card-surface p-5 space-y-4">
         <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] pb-3">

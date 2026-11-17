@@ -1648,6 +1648,22 @@ app.post('/api/admin/watchdog/scan', authMiddleware, requireRole('super_admin', 
   res.json({ ok: true, scan_result: scanResult, watchdog: status });
 }));
 
+// =============================================================================
+// TURSO (LIBSQL) CLOUD PERSISTENCE & SYNCHRONIZATION
+// =============================================================================
+const turso = require('./turso');
+
+// Turso Cloud Persistence Status
+app.get('/api/admin/turso/status', authMiddleware, requireRole('super_admin', 'admin'), asyncHandler(async (req, res) => {
+  res.json({ ok: true, turso: turso.getStatus() });
+}));
+
+// Manual Turso Cloud Hydration / Sync
+app.post('/api/admin/turso/sync', authMiddleware, requireRole('super_admin', 'admin'), asyncHandler(async (req, res) => {
+  const result = await turso.hydrateFromTurso(db);
+  res.json({ ok: result.ok, result, turso: turso.getStatus() });
+}));
+
 // Clean slate: Wipe all demo data (projects, tasks, harness files, reports) on demand
 app.post('/api/admin/clean-slate', authMiddleware, requireRole('super_admin'), asyncHandler(async (req, res) => {
   db.transaction(() => {
@@ -1669,6 +1685,13 @@ app.get('*', (req, res) => res.sendFile(path.join(__dirname, '../public/index.ht
 
 // Global Centralized Error Handling Middleware
 app.use(errorHandler);
+
+// Initialize Turso Cloud sync on startup (if configured)
+if (turso.isConfigured()) {
+  turso.hydrateFromTurso(db).catch(err => {
+    console.warn(`[Turso] Startup sync note: ${err.message}`);
+  });
+}
 
 // Start Server (standalone mode)
 if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
