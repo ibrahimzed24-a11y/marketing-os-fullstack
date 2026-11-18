@@ -16,6 +16,16 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# Offline local test harness only (blocked automatically in production/Vercel)
+export ALLOW_SIMULATED_FALLBACK=true
+export TURSO_DATABASE_URL=""
+export TURSO_AUTH_TOKEN=""
+export LIBSQL_URL=""
+export LIBSQL_AUTH_TOKEN=""
+export DATABASE_PATH="/tmp/marketing-os-e2e-suite.db"
+export DB_PATH="/tmp/marketing-os-e2e-suite.db"
+rm -f /tmp/marketing-os-e2e-suite.db*
+
 # ANSI Colors
 BOLD="\033[1m"
 GREEN="\033[0;32m"

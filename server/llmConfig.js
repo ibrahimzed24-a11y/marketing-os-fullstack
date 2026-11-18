@@ -330,12 +330,12 @@ function initLLMDatabase(db) {
   if (providerCount === 0) {
     db.exec(`
       INSERT OR IGNORE INTO llm_providers (id, name, slug, provider_type, base_url, health_status) VALUES
-      ('prov-ollama', 'Ollama Local Daemon', 'ollama-local', 'local', 'http://127.0.0.1:11434/v1', 'online'),
-      ('prov-lmstudio', 'LM Studio Local Server', 'lmstudio-local', 'local', 'http://127.0.0.1:1234/v1', 'online'),
-      ('prov-vllm', 'vLLM Accelerated Engine', 'vllm-local', 'local', 'http://127.0.0.1:8000/v1', 'online'),
-      ('prov-openai', 'OpenAI Cloud API', 'openai-cloud', 'cloud', 'https://api.openai.com/v1', 'online'),
-      ('prov-anthropic', 'Anthropic Claude API', 'anthropic-cloud', 'cloud', 'https://api.anthropic.com/v1', 'online'),
-      ('prov-gemini', 'Google Gemini Studio', 'gemini-cloud', 'cloud', 'https://generativelanguage.googleapis.com/v1beta', 'online');
+      ('prov-ollama', 'Ollama Local Daemon', 'ollama-local', 'local', 'http://127.0.0.1:11434/v1', 'offline'),
+      ('prov-lmstudio', 'LM Studio Local Server', 'lmstudio-local', 'local', 'http://127.0.0.1:1234/v1', 'offline'),
+      ('prov-vllm', 'vLLM Accelerated Engine', 'vllm-local', 'local', 'http://127.0.0.1:8000/v1', 'offline'),
+      ('prov-openai', 'OpenAI Cloud API', 'openai-cloud', 'cloud', 'https://api.openai.com/v1', 'offline'),
+      ('prov-anthropic', 'Anthropic Claude API', 'anthropic-cloud', 'cloud', 'https://api.anthropic.com/v1', 'offline'),
+      ('prov-gemini', 'Google Gemini Studio', 'gemini-cloud', 'cloud', 'https://generativelanguage.googleapis.com/v1beta', 'offline');
 
       INSERT OR IGNORE INTO llm_models (id, provider_id, model_id, display_name, model_type, context_window, cost_per_million_input, cost_per_million_output) VALUES
       ('mod-qwen-coder', 'prov-ollama', 'qwen2.5-coder:32b', 'Qwen 2.5 Coder (32B Local)', 'chat', 32768, 0.0, 0.0),

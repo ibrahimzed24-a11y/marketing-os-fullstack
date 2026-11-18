@@ -71,6 +71,7 @@ function startIsolatedServer() {
   env.PORT = String(PORT);
   delete env.NODE_ENV;
   delete env.VERCEL;
+  env.ALLOW_SIMULATED_FALLBACK = 'true';
 
   const child = spawn(process.execPath, ['server/index.js'], {
     cwd: ROOT_DIR,
@@ -961,12 +962,13 @@ async function runSuite() {
       `overflows=${overflowIssues.length ? overflowIssues.join('; ') : 'none'}, modalWidth=${modalBox ? Math.round(modalBox.width) : 'n/a'}`
     );
 
-    // Check header "Engine: Online" button (openMcpModal) at desktop width
+    // Check header AI Engine status button (honestly shows Not Connected when offline) & opens #mcpModal
     currentStepTag = 'ui:header-mcp-button';
     await page.setViewportSize({ width: 1440, height: 900 });
     await waitShort(page, 200);
     snap = snapshotErrors();
-    const mcpBtn = page.locator('header button:has-text("Engine: Online")');
+    const mcpBtn = page.locator('#headerEngineStatusBtn');
+    const engineLabelText = (await mcpBtn.isVisible()) ? (await mcpBtn.innerText()).trim() : '';
     if (await mcpBtn.isVisible()) {
       await mcpBtn.click();
       await waitShort(page, 250);
@@ -975,9 +977,9 @@ async function runSuite() {
     const mcpModalOpen = await page.locator('#mcpModal').isVisible();
     record(
       'UI-Modals',
-      'Header "Engine: Online" button opens #mcpModal without ReferenceError',
-      mcpModalOpen && errDiff.pageErrors.length === 0,
-      `mcpModalOpen=${mcpModalOpen}, pageErrors=${JSON.stringify(errDiff.pageErrors)}`
+      'Header AI Engine button honestly shows Not Connected & opens #mcpModal cleanly',
+      mcpModalOpen && engineLabelText.includes('Not Connected') && errDiff.pageErrors.length === 0,
+      `label="${engineLabelText}", mcpModalOpen=${mcpModalOpen}, pageErrors=${JSON.stringify(errDiff.pageErrors)}`
     );
 
     await context.close();

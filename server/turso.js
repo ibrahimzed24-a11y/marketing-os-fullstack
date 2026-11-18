@@ -56,7 +56,9 @@ const SYNC_TABLES = [
   'llm_cost_quotas',
   'webhook_retries',
   'approvals',
-  'agent_runs'
+  'agent_runs',
+  'external_integrations',
+  'agent_blueprints'
 ];
 
 const CRITICAL_TABLES = new Set([
@@ -281,8 +283,12 @@ async function hydrateFromTurso(db) {
             .get(tableName);
           if (!localTableExists) continue;
 
+          // Keep locally seeded config catalogs if cloud table was just created empty
+          const keepIfCloudEmpty = tableName === 'admin_llm_configs' || tableName === 'external_integrations';
+          if (rows.length === 0 && keepIfCloudEmpty) continue;
+
+          db.prepare(`DELETE FROM ${tableName}`).run();
           if (rows.length > 0) {
-            db.prepare(`DELETE FROM ${tableName}`).run();
             const cols = Object.keys(rows[0]);
             const placeholders = cols.map(() => '?').join(', ');
             const insertStmt = db.prepare(

@@ -502,190 +502,7 @@ const AGENTS_32 = [
   }
 ];
 
-const INITIAL_SAVED_LOGINS = [
-  {
-    id: 'log-1',
-    name: 'Hostinger Webmail & Cold SMTP',
-    slug: 'hostinger-mail',
-    category: 'Email & Outreach',
-    website_url: 'https://mail.hostinger.com',
-    username: 'outreach@valioz.com',
-    password: 'Hostinger#Secure2026!',
-    api_key: 'smtp_auth_token_465_ssl',
-    notes: 'Used in Module 08 email sequence dispatch & cold outbound outreach. Host: smtp.hostinger.com (Port 465 SSL), IMAP: imap.hostinger.com (Port 993).',
-    status: 'connected',
-    metadata: { host: 'smtp.hostinger.com', port: 465, ssl: true, quota: 500 }
-  },
-  {
-    id: 'log-2',
-    name: 'Gmail & Google Workspace API',
-    slug: 'gmail-workspace',
-    category: 'Google Workspace',
-    website_url: 'https://mail.google.com',
-    username: 'ibrahim.zed24@gmail.com',
-    password: 'GSuite#IbrahimPass2026',
-    api_key: 'google_oauth2_app_token_placeholder',
-    notes: 'Primary operator communication, client inbound alert forwarding, and OAuth2 token delivery for Google Workspace integrations.',
-    status: 'connected',
-    metadata: { oauth2: true, type: 'Business Standard' }
-  },
-  {
-    id: 'log-3',
-    name: 'Google Search Console',
-    slug: 'google-search-console',
-    category: 'SEO & Search',
-    website_url: 'https://search.google.com/search-console',
-    username: 'ibrahim.zed24@gmail.com',
-    password: 'SearchConsole#Auth2026',
-    api_key: 'gsc_api_read_write_v3',
-    notes: 'Organic search performance monitoring, index coverage audits, click-through analysis, and sitemap crawling for client domains (Module 03 SEO & GEO).',
-    status: 'connected',
-    metadata: { properties: ['https://health.valioz.com', 'https://nilesupplies.com'] }
-  },
-  {
-    id: 'log-4',
-    name: 'Google Ads Keyword Planner',
-    slug: 'google-keyword-planner',
-    category: 'SEO & Search',
-    website_url: 'https://ads.google.com/aw/keywordplanner',
-    username: 'ibrahim.zed24@gmail.com',
-    password: 'GoogleAds#Planner2026!',
-    api_key: 'gads_dev_token_8892',
-    notes: 'Authoritative monthly search volume estimates (e.g. 1K-10K Canadian dentist searches), CPC bids, and high-yield treatment keyword extraction.',
-    status: 'connected',
-    metadata: { customer_id: '492-819-2041', geo: 'Canada' }
-  },
-  {
-    id: 'log-5',
-    name: 'Google Calendar API',
-    slug: 'google-calendar',
-    category: 'Google Workspace',
-    website_url: 'https://calendar.google.com',
-    username: 'ibrahim.zed24@gmail.com',
-    password: 'Calendar#SyncSecure2026',
-    api_key: 'gcal_oauth_refresh_token_v4',
-    notes: 'Automated consultation scheduling for qualified clinic leads who reply YES to email campaigns. Embeds meeting links via n8n webhook.',
-    status: 'connected',
-    metadata: { calendar_id: 'primary', booking_mins: 20 }
-  },
-  {
-    id: 'log-6',
-    name: 'Google Sheets CRM & Lead Sync',
-    slug: 'google-sheets',
-    category: 'Google Workspace',
-    website_url: 'https://docs.google.com/spreadsheets',
-    username: 'ibrahim.zed24@gmail.com',
-    password: 'Sheets#SyncKey2026',
-    api_key: 'gsheet_service_acc_key_json',
-    notes: 'Bidirectional sync for raw lead datasets (Priority_A_Outreach_Email_Merge_Fields.csv, Clinic Intelligence) and executive reporting sheets.',
-    status: 'connected',
-    metadata: { service_acc: 'marketing-os-sync@appspot.gserviceaccount.com' }
-  },
-  {
-    id: 'log-7',
-    name: 'Google Analytics 4 (GA4)',
-    slug: 'google-analytics-4',
-    category: 'Analytics & Measurement',
-    website_url: 'https://analytics.google.com',
-    username: 'ibrahim.zed24@gmail.com',
-    password: 'GA4#AnalyticsToken2026',
-    api_key: 'G-MEASUREMENT_ID_9901',
-    notes: 'Conversion tracking, visitor event telemetry, landing page bounce rate analysis, and UTM attribution across campaigns.',
-    status: 'connected',
-    metadata: { property_id: 'properties/384910291' }
-  },
-  {
-    id: 'log-8',
-    name: 'Google Business Profile Manager',
-    slug: 'google-business-profile',
-    category: 'SEO & Search',
-    website_url: 'https://business.google.com',
-    username: 'ibrahim.zed24@gmail.com',
-    password: 'GBP#VerifiedAdmin2026',
-    api_key: 'gbp_mybusiness_api_v4',
-    notes: 'Local 3-Pack Maps rankings, review management, geo-tagged photo uploads, and clinic address verification.',
-    status: 'connected',
-    metadata: { auto_reply_reviews: true }
-  },
-  {
-    id: 'log-9',
-    name: 'Meta Ads Manager (Facebook & Instagram)',
-    slug: 'meta-ads-manager',
-    category: 'Advertising',
-    website_url: 'https://adsmanager.facebook.com',
-    username: 'ibrahim.zed24@gmail.com',
-    password: 'Meta#AdsManagerSecure2026',
-    api_key: 'EAABwz..._meta_graph_token',
-    notes: 'B2B lead generation ads, local radius retargeting, and carousel creatives (Module 04 Ads Creative).',
-    status: 'connected',
-    metadata: { business_id: '204918204910291' }
-  },
-  {
-    id: 'log-10',
-    name: 'LinkedIn Campaign Manager',
-    slug: 'linkedin-campaign-manager',
-    category: 'Advertising',
-    website_url: 'https://www.linkedin.com/campaignmanager',
-    username: 'ibrahim.zed24@gmail.com',
-    password: 'LinkedIn#AdsAccount2026!',
-    api_key: 'li_oauth_marketing_dev_v2',
-    notes: 'Account-Based Marketing (ABM) targeting clinic directors, practice principals, and healthcare procurement leaders.',
-    status: 'connected',
-    metadata: { ad_account_id: '509281920' }
-  },
-  {
-    id: 'log-11',
-    name: 'n8n Autonomous Workflow Engine',
-    slug: 'n8n-automation-engine',
-    category: 'Automation & AI',
-    website_url: 'http://localhost:5678',
-    username: 'admin',
-    password: 'n8n#LocalMasterPassword2026',
-    api_key: 'mos_live_98a7bc65d4e3f210',
-    notes: 'Local autonomous pipeline execution engine (:5678), webhook dispatch, and multi-agent coordination.',
-    status: 'connected',
-    metadata: { port: 5678, mode: 'webhook + stdio MCP' }
-  },
-  {
-    id: 'log-12',
-    name: 'Supabase Cloud (PostgreSQL & Storage)',
-    slug: 'supabase-cloud',
-    category: 'Hosting & Infrastructure',
-    website_url: 'https://app.supabase.com',
-    username: 'ibrahim.zed24@gmail.com',
-    password: 'Supabase#CloudDBPass2026',
-    api_key: 'supabase_personal_token_placeholder',
-    notes: 'Primary cloud database for Workforce OS documents, project vectors, and agent handovers.',
-    status: 'connected',
-    metadata: { project_ref: 'jzyqmzjfmaceoltlqukh' }
-  },
-  {
-    id: 'log-13',
-    name: 'Vercel Cloud Platform',
-    slug: 'vercel-cloud',
-    category: 'Hosting & Infrastructure',
-    website_url: 'https://vercel.com',
-    username: 'ibrahim.zed24@gmail.com',
-    password: 'Vercel#DeployToken2026',
-    api_key: 'vercel_cli_deploy_tok_8991',
-    notes: 'Production deployment host for Sovereign Workforce OS (personal-ai-workforce-os-pi.vercel.app).',
-    status: 'connected',
-    metadata: { project_id: 'prj_RStZNth77dQxR9EQaZfbEAyo0Ud8' }
-  },
-  {
-    id: 'log-14',
-    name: 'Cloudflare / DNS & Edge Security',
-    slug: 'cloudflare-dns',
-    category: 'Hosting & Infrastructure',
-    website_url: 'https://dash.cloudflare.com',
-    username: 'ibrahim.zed24@gmail.com',
-    password: 'Cloudflare#EdgePass2026',
-    api_key: 'cf_global_api_token_valioz',
-    notes: 'DNS records, SSL/TLS certificates, SPF/DKIM TXT records for Hostinger webmail, and DDoS edge protection.',
-    status: 'connected',
-    metadata: { ssl: 'Full (Strict)', zones: ['valioz.com'] }
-  }
-];
+const INITIAL_SAVED_LOGINS = [];
 
 function buildDefaultState() {
   return {
@@ -968,6 +785,8 @@ async function syncFromBackend() {
   const role = currentUser?.role || state.currentUserRole || 'guest';
   const isClient = role === 'client';
   const isAdmin = ['super_admin', 'owner', 'admin'].includes(role);
+
+  fetchSystemStatus();
 
   try {
     // 1. Fetch live projects from backend SQLite
@@ -1462,7 +1281,10 @@ async function executePipelineCommand() {
       }
     });
 
-    if (!runRes.ok) throw new Error(`Task execution failed: HTTP ${runRes.status}`);
+    if (!runRes.ok) {
+      const errBody = await runRes.json().catch(() => ({}));
+      throw new Error(errBody.error || `Task execution failed: HTTP ${runRes.status}`);
+    }
     const runData = await runRes.json();
     const task = runData.task || {};
 
@@ -2179,16 +2001,21 @@ function renderWorkbenchCenterAndRight() {
   // Vault Connections Quick-Hub
   const vList = document.getElementById('vaultConnectionsList');
   if (vList) {
-    const topLogins = state.savedLogins.slice(0, 4);
-    vList.innerHTML = topLogins.map(l =>
-      '<div class="flex items-center justify-between card-subtle px-3 py-2 text-xs">' +
-        '<div class="min-w-0">' +
-          '<div class="font-semibold truncate">' + escapeHtml(l.name) + '</div>' +
-          '<div class="text-[10px] text-[var(--text-soft)] truncate">' + escapeHtml(l.username || '') + '</div>' +
-        '</div>' +
-        '<span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/15 text-emerald-700">Connected</span>' +
-      '</div>'
-    ).join('');
+    const topLogins = (state.savedLogins || []).slice(0, 4);
+    if (topLogins.length === 0) {
+      vList.innerHTML = '<div class="text-xs text-[var(--text-soft)] p-3 rounded-xl border border-dashed border-[var(--border)]">No external tool credentials connected yet. Configure real APIs in Settings → External Integrations.</div>';
+    } else {
+      vList.innerHTML = topLogins.map(l => {
+        const isConn = l.status === 'connected' || l.status === 'online';
+        return '<div class="flex items-center justify-between card-subtle px-3 py-2 text-xs">' +
+          '<div class="min-w-0">' +
+            '<div class="font-semibold truncate">' + escapeHtml(l.name) + '</div>' +
+            '<div class="text-[10px] text-[var(--text-soft)] truncate">' + escapeHtml(l.username || '') + '</div>' +
+          '</div>' +
+          '<span class="text-[10px] px-2 py-0.5 rounded-full font-bold ' + (isConn ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-amber-500/15 text-amber-600 dark:text-amber-400') + '">' + escapeHtml(l.status || 'not_configured') + '</span>' +
+        '</div>';
+      }).join('');
+    }
   }
 }
 
@@ -3389,15 +3216,47 @@ function viewToolDetail(slug) {
 let adminLlmProviders = [];
 let adminLlmActiveConfig = null;
 let adminWatchdogTelemetry = null;
+let adminExternalIntegrations = [];
+let systemStatusCache = null;
 let adminLlmFilter = 'all';
+
+function renderHeaderEngineStatus() {
+  const dot = document.getElementById('headerEngineDot');
+  const label = document.getElementById('headerEngineLabel');
+  if (!dot || !label) return;
+
+  const llm = systemStatusCache?.llm;
+  if (llm && llm.connected) {
+    dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
+    label.textContent = 'AI Engine: ' + (llm.display_name || llm.provider);
+  } else {
+    dot.className = 'w-2 h-2 rounded-full bg-amber-500';
+    label.textContent = 'AI Engine: Not Connected';
+  }
+}
+
+async function fetchSystemStatus() {
+  if (!authToken) return;
+  try {
+    const res = await apiFetch('/api/system/status');
+    if (res.ok) {
+      systemStatusCache = await res.json();
+      renderHeaderEngineStatus();
+    }
+  } catch (err) {
+    console.warn('[System Status] Fetch warning:', err.message);
+  }
+}
 
 async function fetchAdminSettingsData() {
   const role = currentUser?.role || state.currentUserRole || 'guest';
   if (!authToken || !['super_admin', 'owner', 'admin'].includes(role)) return;
   try {
-    const [llmRes, wdRes] = await Promise.all([
-      apiFetch('/api/admin/llm-config', {  }),
-      apiFetch('/api/admin/watchdog/status', {  })
+    const [llmRes, wdRes, intRes, sysRes] = await Promise.all([
+      apiFetch('/api/admin/llm-config', {}),
+      apiFetch('/api/admin/watchdog/status', {}),
+      apiFetch('/api/admin/integrations', {}),
+      apiFetch('/api/system/status', {})
     ]);
 
     if (llmRes.ok) {
@@ -3410,9 +3269,111 @@ async function fetchAdminSettingsData() {
       const wdData = await wdRes.json();
       adminWatchdogTelemetry = wdData.watchdog || null;
     }
+
+    if (intRes.ok) {
+      const intData = await intRes.json();
+      adminExternalIntegrations = intData.integrations || [];
+    }
+
+    if (sysRes.ok) {
+      systemStatusCache = await sysRes.json();
+      renderHeaderEngineStatus();
+    }
   } catch (err) {
     console.warn('[Admin Settings] Fetch warning:', err.message);
   }
+}
+
+async function saveExternalIntegration(slug) {
+  const provEl = document.getElementById(`ext-prov-${slug}`);
+  const urlEl = document.getElementById(`ext-url-${slug}`);
+  const keyEl = document.getElementById(`ext-key-${slug}`);
+  const payload = {
+    slug,
+    provider: provEl?.value?.trim(),
+    endpoint_url: urlEl?.value?.trim(),
+    ...(keyEl?.value ? { api_key: keyEl.value.trim() } : {})
+  };
+  showToast(`Saving integration (${slug})...`);
+  try {
+    const res = await apiFetch('/api/admin/integrations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      showToast(`✓ ${data.message || 'Saved integration settings.'}`);
+      await fetchAdminSettingsData();
+      renderAdminSettingsView();
+    } else {
+      showToast(`Save failed: ${data.error || 'Bad request'}`);
+    }
+  } catch (err) {
+    showToast(`Network error: ${err.message}`);
+  }
+}
+
+async function testExternalIntegration(slug) {
+  showToast(`Testing live connection for ${slug}...`);
+  try {
+    const res = await apiFetch(`/api/admin/integrations/${slug}/test`, { method: 'POST' });
+    const data = await res.json().catch(() => ({}));
+    showToast(data.ok ? `✓ ${slug} connected!` : `⚠ ${slug}: ${data.error || data.status}`);
+    await fetchAdminSettingsData();
+    renderAdminSettingsView();
+  } catch (err) {
+    showToast(`Connection test failed: ${err.message}`);
+  }
+}
+
+function renderExternalIntegrations() {
+  const container = document.getElementById('externalIntegrationsContainer');
+  if (!container) return;
+  if (!adminExternalIntegrations || adminExternalIntegrations.length === 0) {
+    container.innerHTML = '<div class="text-xs text-[var(--text-soft)]">No integration slots found.</div>';
+    return;
+  }
+  container.innerHTML = adminExternalIntegrations.map((item) => {
+    const isConn = item.status === 'connected';
+    const badge = isConn
+      ? '<span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500 text-white">Connected</span>'
+      : (item.status === 'error'
+          ? '<span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-rose-500/15 text-rose-500 border border-rose-500/30">Error</span>'
+          : '<span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">Not Connected</span>');
+    return '<div class="card-subtle p-4 rounded-2xl border border-[var(--border)] flex flex-col justify-between space-y-3">' +
+      '<div>' +
+        '<div class="flex items-start justify-between gap-2">' +
+          '<div>' +
+            '<div class="font-bold text-xs">' + escapeHtml(item.display_name) + '</div>' +
+            '<div class="text-[10px] uppercase font-semibold text-[var(--text-soft)] mt-0.5">' + escapeHtml(item.category) + '</div>' +
+          '</div>' +
+          badge +
+        '</div>' +
+        '<div class="space-y-2 mt-3 text-xs">' +
+          '<div>' +
+            '<label class="block text-[10px] font-semibold text-[var(--text-soft)] uppercase mb-1">Provider</label>' +
+            '<input id="ext-prov-' + item.slug + '" type="text" value="' + escapeHtml(item.provider || '') + '" class="input-field text-xs mono py-1 px-2.5" />' +
+          '</div>' +
+          '<div>' +
+            '<label class="block text-[10px] font-semibold text-[var(--text-soft)] uppercase mb-1">Endpoint / Webhook URL</label>' +
+            '<input id="ext-url-' + item.slug + '" type="text" value="' + escapeHtml(item.endpoint_url || '') + '" placeholder="https://..." class="input-field text-xs mono py-1 px-2.5" />' +
+          '</div>' +
+          '<div>' +
+            '<label class="block text-[10px] font-semibold text-[var(--text-soft)] uppercase mb-1">API Key (Encrypted Vault)</label>' +
+            '<input id="ext-key-' + item.slug + '" type="text" placeholder="' + escapeHtml(item.api_key || 'Enter API key...') + '" class="input-field text-xs mono py-1 px-2.5" />' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="pt-2 border-t border-[var(--border)] space-y-2">' +
+        (item.last_error && !isConn ? '<div class="text-[10px] text-rose-500 break-words">⚠ ' + escapeHtml(item.last_error) + '</div>' : '') +
+        '<div class="grid grid-cols-2 gap-2">' +
+          '<button onclick="saveExternalIntegration(\'' + item.slug + '\')" class="btn-outline py-1.5 text-[11px] font-semibold">Save</button>' +
+          '<button onclick="testExternalIntegration(\'' + item.slug + '\')" class="btn-primary py-1.5 text-[11px] font-bold">⚡ Test</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
 }
 
 function filterLlmProviders(filter) {
@@ -3668,8 +3629,9 @@ function renderAdminSettingsView() {
   const activeProv = adminLlmActiveConfig?.provider || 'ollama';
   const provObj = adminLlmProviders.find(p => p.provider === activeProv);
   const activeModel = adminLlmActiveConfig?.default_model || adminLlmActiveConfig?.model || provObj?.default_model || 'Not configured';
-  const activeIsOnline = (provObj?.status || adminLlmActiveConfig?.status) === 'online';
-  const activeStatusLabel = activeIsOnline ? 'ONLINE' : ((provObj?.status || 'NOT CONNECTED').toUpperCase());
+  const rawActiveStatus = provObj?.status || adminLlmActiveConfig?.status || 'untested';
+  const activeIsOnline = rawActiveStatus === 'connected' || rawActiveStatus === 'online';
+  const activeStatusLabel = activeIsOnline ? 'CONNECTED' : (rawActiveStatus === 'untested' ? 'NOT CONNECTED' : rawActiveStatus.toUpperCase());
 
   const activeProvEl = document.getElementById('healthActiveProvider');
   if (activeProvEl) {
@@ -3686,9 +3648,36 @@ function renderAdminSettingsView() {
       : 'Model: ' + activeModel + ' (Configure a Cloud API key or live endpoint)';
   }
 
+  // Real Database Status Card
+  const dbPill = document.getElementById('healthDbPill');
+  const dbStatus = document.getElementById('healthDbStatus');
+  const dbDetails = document.getElementById('healthDbDetails');
+  if (dbStatus && systemStatusCache?.database) {
+    const d = systemStatusCache.database;
+    if (dbPill) dbPill.className = 'w-2.5 h-2.5 rounded-full bg-emerald-500';
+    dbStatus.textContent = `${d.tables_count} Tables Active`;
+    if (dbDetails) dbDetails.textContent = d.turso_configured ? `Turso Cloud (${d.turso_status}) • FK ON` : 'Local SQLite (WAL) • FK ON';
+  }
+
+  // Real Watchdog Status Card (Honest on Vercel Serverless vs Standalone!)
+  const wdPill = document.getElementById('healthWatchdogPill');
+  const wdStatus = document.getElementById('healthWatchdogStatus');
   const wdDetailsEl = document.getElementById('healthWatchdogDetails');
-  if (wdDetailsEl && adminWatchdogTelemetry) {
-    wdDetailsEl.textContent = `${adminWatchdogTelemetry.scan_interval_ms/1000}s Scan • ${adminWatchdogTelemetry.sla_timeout_seconds}s SLA • Recovered: ${adminWatchdogTelemetry.metrics?.stuck_tasks_recovered_total || 0}`;
+  if (adminWatchdogTelemetry) {
+    const running = Boolean(adminWatchdogTelemetry.is_running);
+    if (wdPill) {
+      wdPill.className = running
+        ? 'w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse'
+        : 'w-2.5 h-2.5 rounded-full bg-amber-500';
+    }
+    if (wdStatus) {
+      wdStatus.textContent = running ? 'Active & Guarding' : 'Manual Scan Only (Serverless)';
+    }
+    if (wdDetailsEl) {
+      wdDetailsEl.textContent = running
+        ? `${adminWatchdogTelemetry.scan_interval_ms / 1000}s Scan • ${adminWatchdogTelemetry.sla_timeout_seconds}s SLA • Recovered: ${adminWatchdogTelemetry.metrics?.stuck_tasks_recovered_total || 0}`
+        : `Background timer disabled on Serverless • Use "Scan Now" • SLA ${adminWatchdogTelemetry.sla_timeout_seconds}s`;
+    }
   }
 
   // 2. Watchdog Metrics Cards
@@ -3721,7 +3710,7 @@ function renderAdminSettingsView() {
     provContainer.innerHTML = filtered.map(p => {
       const isPrimary = p.is_default || p.provider === activeProv;
       const isCloud = p.provider_type === 'cloud_api' || p.provider_type === 'cloud';
-      const isOnline = p.status === 'online';
+      const isOnline = p.status === 'connected' || p.status === 'online';
       const statusText = p.status || 'untested';
       const statusColorClass = isOnline
         ? 'text-emerald-600 dark:text-emerald-400'
@@ -3786,6 +3775,8 @@ function renderAdminSettingsView() {
       '</div>';
     }).join('');
   }
+
+  renderExternalIntegrations();
 }
 
 // =============================================================================
@@ -4432,15 +4423,25 @@ function switchAgentFileTab(tab) {
   }
 }
 
-function saveAgentBlueprint() {
+async function saveAgentBlueprint() {
   const editor = document.getElementById('abFileEditor');
   if (!editor) return;
-  const key = `mos_agent_bp_${activeBlueprintAgentSlug}_${activeBlueprintTab}`;
   try {
-    localStorage.setItem(key, editor.value);
-  } catch (_) {}
-  closeAgentModal();
-  showToast(`Saved ${activeBlueprintTab} guidelines for @${activeBlueprintAgentSlug}.`);
+    const res = await apiFetch(`/api/agent-blueprints/${encodeURIComponent(activeBlueprintAgentSlug)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tab_name: activeBlueprintTab, content: editor.value })
+    });
+    if (res.ok) {
+      closeAgentModal();
+      showToast(`✓ Saved ${activeBlueprintTab} blueprint for @${activeBlueprintAgentSlug} to database.`);
+    } else {
+      const err = await res.json().catch(() => ({}));
+      showToast(`Save failed: ${err.error || 'Unauthorized'}`);
+    }
+  } catch (err) {
+    showToast(`Network error: ${err.message}`);
+  }
 }
 
 function renderAll() {

@@ -82,23 +82,40 @@ const { executeAgentTask } = require('./server/agentFramework');
     }
     console.log('  ✓ Live LLM execution succeeded after transient 503 retry (data_source=live_llm, attempts=2)');
 
-    // 1B. Honest Simulated Fallback + Real Leads Table Persistence
+    // 1B-REAL. Honest Production No-Fake-Output Guard: MUST reject when no live LLM is connected (0 fake leads!)
+    const prevAllowSim = process.env.ALLOW_SIMULATED_FALLBACK;
+    delete process.env.ALLOW_SIMULATED_FALLBACK;
     const leadTaskId = uuidv4();
     db.prepare('INSERT INTO tasks (id, project_id, title, pipeline, description, created_by) VALUES (?, ?, ?, ?, ?, ?)').run(
-      leadTaskId, projId, 'Lead Discovery Fallback Test', 'lead-research', 'Find verified leads', owner.id
+      leadTaskId, projId, 'Lead Discovery Guard Test', 'lead-research', 'Find verified leads', owner.id
     );
     const leadTask = db.prepare('SELECT * FROM tasks WHERE id = ?').get(leadTaskId);
-    const simRes = await executeAgentTask(leadTask, proj, [], { skipLiveLLM: true });
+    let blockedFake = false;
+    try {
+      await executeAgentTask(leadTask, proj, [], { skipLiveLLM: true });
+    } catch (guardErr) {
+      if (guardErr.code === 'LLM_NOT_CONFIGURED') blockedFake = true;
+    }
+    const fakeLeadsAfterGuard = db.prepare('SELECT COUNT(*) as c FROM leads WHERE project_id = ?').get(projId).c;
+    if (!blockedFake || fakeLeadsAfterGuard !== 0) {
+      console.error('FAILED 1B-REAL: Agent generated fake output or fake leads when LLM was offline!', { blockedFake, fakeLeadsAfterGuard });
+      process.exit(1);
+    }
+    console.log('  ✓ Production no-fake-output guard verified: refused fake leads when no live LLM connected (0 fake leads)');
+    if (prevAllowSim) process.env.ALLOW_SIMULATED_FALLBACK = prevAllowSim;
+
+    // 1B-SIM. Opt-in Test Fixture Fallback + Real Leads Table Persistence
+    const simRes = await executeAgentTask(leadTask, proj, [], { skipLiveLLM: true, allowSimulatedFallback: true });
     if (simRes.dataSource !== 'simulated_fallback' || simRes.isSimulated !== true || simRes.persistedLeadsCount < 1) {
-      console.error('FAILED 1B: Expected simulated_fallback with persisted leads, got:', simRes);
+      console.error('FAILED 1B-SIM: Expected simulated_fallback with persisted leads, got:', simRes);
       process.exit(1);
     }
     const leadsCount = db.prepare('SELECT COUNT(*) as c FROM leads WHERE project_id = ?').get(projId).c;
     if (leadsCount < 1) {
-      console.error('FAILED 1B: Leads were not persisted to leads table!');
+      console.error('FAILED 1B-SIM: Leads were not persisted to leads table!');
       process.exit(1);
     }
-    console.log('  ✓ Simulated fallback honestly tagged (is_simulated=true) & ' + leadsCount + ' leads persisted to DB');
+    console.log('  ✓ Opt-in test fixture honestly tagged (is_simulated=true) & ' + leadsCount + ' leads persisted to DB');
 
     // 1C. Strict DB Failure Guard: Agent MUST fail if DB write fails (invalid FK project_id)
     let failedAsExpected = false;
@@ -107,7 +124,7 @@ const { executeAgentTask } = require('./server/agentFramework');
         { id: null, project_id: 'non-existent-project-fk', title: 'Broken FK Lead Test', pipeline: 'lead-research' },
         { id: 'non-existent-project-fk', client_name: 'Ghost' },
         [],
-        { skipLiveLLM: true }
+        { skipLiveLLM: true, allowSimulatedFallback: true }
       );
     } catch (expectedErr) {
       failedAsExpected = true;

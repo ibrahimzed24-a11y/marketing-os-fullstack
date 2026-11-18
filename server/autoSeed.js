@@ -1,6 +1,5 @@
 const bcrypt = require('bcryptjs');
 const { v4: uuidv4 } = require('uuid');
-const { seedLogins } = require('./seedLogins');
 
 function autoSeedIfEmpty(db) {
   try {
@@ -40,10 +39,7 @@ function autoSeedIfEmpty(db) {
       insertUser.run(uuidv4(), name, email, passHash, role, dept);
     }
 
-    // Seed sample tool catalog entries only in non-production environments (without plaintext secrets)
-    seedLogins(db);
-
-    console.log('[autoSeed] Local development/test accounts initialized.');
+    console.log('[autoSeed] Local development/test accounts initialized (zero fake tool logins seeded).');
   } catch (err) {
     console.error('[autoSeed] Auto-seeding error:', err.message);
   }

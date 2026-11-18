@@ -737,7 +737,7 @@ app.get('/api/seo/tree', authMiddleware, asyncHandler(async (req, res) => {
     ...cat,
     subcategories: cat.subcategories.map(sub => ({
       ...sub,
-      tools_detail: (sub.tools || []).map(slug => toolMap[slug] || { slug, name: slug, status: 'connected', website_url: '#' })
+      tools_detail: (sub.tools || []).map(slug => toolMap[slug] || { slug, name: slug, status: 'not_configured', website_url: '#' })
     }))
   }));
 
@@ -929,16 +929,19 @@ app.post('/api/tasks/:id/run', authMiddleware, asyncHandler(async (req, res) => 
     })();
   } catch (agentErr) {
     console.error(`[task-runner ERROR] Agent execution or DB persistence failed for task ${task.id}: ${agentErr.message}`);
+    const isLlmNotConfigured = agentErr.code === 'LLM_NOT_CONFIGURED';
+    const nextStatus = isLlmNotConfigured ? 'draft' : 'needs_attention';
     try {
-      db.prepare("UPDATE tasks SET status='needs_attention', updated_at=CURRENT_TIMESTAMP WHERE id=?").run(task.id);
+      db.prepare('UPDATE tasks SET status=?, updated_at=CURRENT_TIMESTAMP WHERE id=?').run(nextStatus, task.id);
     } catch (updErr) {
-      console.error(`[task-runner ERROR] Failed marking task needs_attention: ${updErr.message}`);
+      console.error(`[task-runner ERROR] Failed updating task status: ${updErr.message}`);
     }
-    return res.status(500).json({
+    return res.status(agentErr.statusCode || 500).json({
       ok: false,
-      error: `Agent execution failed: ${agentErr.message}`,
+      code: agentErr.code || 'AGENT_EXECUTION_FAILED',
+      error: isLlmNotConfigured ? agentErr.message : `Agent execution failed: ${agentErr.message}`,
       task_id: task.id,
-      status: 'needs_attention'
+      status: nextStatus
     });
   }
 
@@ -2414,6 +2417,176 @@ app.get('/api/agent-runs', authMiddleware, requireRole('owner', 'super_admin', '
 
   const runs = db.prepare(sql).all(...params);
   res.json({ ok: true, runs, total: runs.length });
+}));
+
+// 9. Honest Live System Status (used by Header & Settings — NEVER hardcodes fake "Online")
+app.get('/api/system/status', authMiddleware, asyncHandler(async (req, res) => {
+  const activeLlm = db.prepare('SELECT provider, display_name, default_model, status, last_tested FROM admin_llm_configs WHERE is_default = 1 LIMIT 1').get()
+    || db.prepare('SELECT provider, display_name, default_model, status, last_tested FROM admin_llm_configs LIMIT 1').get();
+  const tableCount = db.prepare("SELECT COUNT(*) as c FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").get()?.c || 0;
+  const wd = getWatchdogStatus();
+  const tursoStatus = turso.getStatus();
+  const connectedIntegrations = db.prepare("SELECT COUNT(*) as c FROM external_integrations WHERE status = 'connected'").get()?.c || 0;
+
+  res.json({
+    ok: true,
+    llm: {
+      provider: activeLlm?.provider || null,
+      display_name: activeLlm?.display_name || 'Not Configured',
+      model: activeLlm?.default_model || null,
+      status: activeLlm?.status || 'untested',
+      connected: activeLlm?.status === 'connected' || activeLlm?.status === 'online'
+    },
+    watchdog: {
+      is_running: Boolean(wd.is_running),
+      serverless: process.env.VERCEL === '1',
+      mode: wd.is_running ? 'background_interval' : 'manual_only'
+    },
+    database: {
+      tables_count: tableCount,
+      turso_configured: tursoStatus.configured,
+      turso_status: tursoStatus.status
+    },
+    integrations_connected: connectedIntegrations
+  });
+}));
+
+// 10. Admin External Integrations (Live Web Search, Lead Discovery, Email, Ads, Social/Web)
+app.get('/api/admin/integrations', authMiddleware, requireRole('super_admin', 'admin'), asyncHandler(async (req, res) => {
+  const rows = db.prepare('SELECT * FROM external_integrations ORDER BY category ASC, slug ASC').all();
+  const sanitized = rows.map((r) => {
+    let plainKey = null;
+    if (r.api_key) {
+      try { plainKey = decryptSecret(r.api_key); } catch (_) { plainKey = null; }
+    }
+    return {
+      slug: r.slug,
+      display_name: r.display_name,
+      category: r.category,
+      provider: r.provider,
+      endpoint_url: r.endpoint_url || '',
+      api_key: maskApiKey(plainKey),
+      has_api_key: Boolean(plainKey && plainKey.trim().length > 0),
+      status: r.status || 'not_configured',
+      last_tested: r.last_tested,
+      last_error: r.last_error,
+      updated_at: r.updated_at
+    };
+  });
+  res.json({ ok: true, integrations: sanitized });
+}));
+
+app.post('/api/admin/integrations', authMiddleware, requireRole('super_admin', 'admin'), asyncHandler(async (req, res) => {
+  const { slug, provider, endpoint_url, api_key } = req.body;
+  if (!slug) return res.status(400).json({ error: 'slug is required' });
+  const existing = db.prepare('SELECT * FROM external_integrations WHERE slug = ?').get(slug);
+  if (!existing) return res.status(404).json({ error: `Integration '${slug}' not found` });
+
+  let finalKey = existing.api_key;
+  if (api_key !== undefined) {
+    if (api_key === null || api_key === '') {
+      finalKey = null;
+    } else if (!isMaskedKey(api_key)) {
+      finalKey = encryptSecret(String(api_key).trim());
+    }
+  }
+
+  const nextUrl = endpoint_url !== undefined ? String(endpoint_url).trim() : existing.endpoint_url;
+  const nextProvider = provider !== undefined ? String(provider).trim() : existing.provider;
+  const nextStatus = (!finalKey && !nextUrl) ? 'not_configured' : (existing.status === 'connected' ? 'connected' : 'not_configured');
+
+  db.prepare(`
+    UPDATE external_integrations
+    SET provider = ?, endpoint_url = ?, api_key = ?, status = ?, last_error = NULL, updated_at = CURRENT_TIMESTAMP
+    WHERE slug = ?
+  `).run(nextProvider, nextUrl, finalKey, nextStatus, slug);
+
+  res.json({ ok: true, message: `Saved configuration for ${existing.display_name}. Run Test Connection to verify.` });
+}));
+
+app.post('/api/admin/integrations/:slug/test', authMiddleware, requireRole('super_admin', 'admin'), asyncHandler(async (req, res) => {
+  const row = db.prepare('SELECT * FROM external_integrations WHERE slug = ?').get(req.params.slug);
+  if (!row) return res.status(404).json({ error: 'Integration not found' });
+
+  const plainKey = row.api_key ? decryptSecret(row.api_key) : null;
+  const endpoint = (row.endpoint_url || '').trim();
+
+  if (!endpoint) {
+    db.prepare("UPDATE external_integrations SET status = 'not_configured', last_error = 'Endpoint URL is required', last_tested = CURRENT_TIMESTAMP WHERE slug = ?").run(row.slug);
+    return res.json({ ok: false, status: 'not_configured', error: 'Endpoint URL is required' });
+  }
+
+  const needsKey = ['web_search', 'lead_enrichment'].includes(row.slug) || row.provider === 'resend' || endpoint.includes('api.resend.com');
+  if (needsKey && !plainKey) {
+    db.prepare("UPDATE external_integrations SET status = 'error', last_error = 'API key is required before testing connection', last_tested = CURRENT_TIMESTAMP WHERE slug = ?").run(row.slug);
+    return res.json({ ok: false, status: 'error', error: 'API key is required before testing connection' });
+  }
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 7000);
+  try {
+    let testRes;
+    if (row.slug === 'web_search' && (row.provider === 'tavily' || endpoint.includes('tavily.com'))) {
+      testRes = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ api_key: plainKey, query: 'marketing', max_results: 1 }),
+        signal: controller.signal
+      });
+    } else if (row.slug === 'web_search' && (row.provider === 'serper' || endpoint.includes('serper.dev'))) {
+      testRes = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-API-KEY': plainKey },
+        body: JSON.stringify({ q: 'marketing', num: 1 }),
+        signal: controller.signal
+      });
+    } else if (row.slug === 'email_dispatch' && (row.provider === 'resend' || endpoint.includes('resend.com'))) {
+      testRes = await fetch('https://api.resend.com/domains', {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${plainKey}` },
+        signal: controller.signal
+      });
+    } else {
+      testRes = await fetch(endpoint, {
+        method: 'HEAD',
+        headers: plainKey ? { Authorization: `Bearer ${plainKey}` } : {},
+        signal: controller.signal
+      });
+    }
+    clearTimeout(timer);
+
+    const ok = testRes.ok || (testRes.status >= 200 && testRes.status < 400);
+    const nextStatus = ok ? 'connected' : 'error';
+    const errMsg = ok ? null : `Endpoint returned HTTP ${testRes.status}`;
+    db.prepare('UPDATE external_integrations SET status = ?, last_error = ?, last_tested = CURRENT_TIMESTAMP WHERE slug = ?')
+      .run(nextStatus, errMsg, row.slug);
+    return res.json({ ok, status: nextStatus, http_status: testRes.status, error: errMsg });
+  } catch (err) {
+    clearTimeout(timer);
+    const errMsg = err.name === 'AbortError' ? 'Connection timed out (7s)' : err.message;
+    db.prepare("UPDATE external_integrations SET status = 'error', last_error = ?, last_tested = CURRENT_TIMESTAMP WHERE slug = ?")
+      .run(errMsg, row.slug);
+    return res.json({ ok: false, status: 'error', error: errMsg });
+  }
+}));
+
+// 11. Persistent Agent Blueprints (Real DB storage injected into Agent prompts)
+app.get('/api/agent-blueprints/:slug', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager', 'member'), asyncHandler(async (req, res) => {
+  const rows = db.prepare('SELECT tab_name, content, updated_at FROM agent_blueprints WHERE agent_slug = ?').all(req.params.slug);
+  const tabs = {};
+  for (const r of rows) tabs[r.tab_name] = r.content;
+  res.json({ ok: true, agent_slug: req.params.slug, tabs });
+}));
+
+app.put('/api/agent-blueprints/:slug', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager'), asyncHandler(async (req, res) => {
+  const { tab_name, content = '' } = req.body;
+  if (!tab_name) return res.status(400).json({ error: 'tab_name is required' });
+  db.prepare(`
+    INSERT INTO agent_blueprints (agent_slug, tab_name, content, updated_at)
+    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+    ON CONFLICT(agent_slug, tab_name) DO UPDATE SET content = excluded.content, updated_at = CURRENT_TIMESTAMP
+  `).run(req.params.slug, String(tab_name).trim(), String(content));
+  res.json({ ok: true, agent_slug: req.params.slug, tab_name });
 }));
 
 // SPA Fallback

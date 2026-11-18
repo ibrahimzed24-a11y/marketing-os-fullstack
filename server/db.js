@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 
 const isVercel = Boolean(process.env.VERCEL);
-const dbPath = process.env.DATABASE_PATH || (isVercel ? '/tmp/marketing-os.db' : path.join(__dirname, '..', 'data', 'marketing-os.db'));
+const dbPath = process.env.DATABASE_PATH || process.env.DB_PATH || (isVercel ? '/tmp/marketing-os.db' : path.join(__dirname, '..', 'data', 'marketing-os.db'));
 
 try {
   fs.mkdirSync(path.dirname(dbPath), { recursive: true });
@@ -564,6 +564,37 @@ try {
   );
   CREATE INDEX IF NOT EXISTS idx_agent_runs_task ON agent_runs(task_id, created_at DESC);
   CREATE INDEX IF NOT EXISTS idx_agent_runs_agent ON agent_runs(agent_id, status, created_at DESC);
+
+  -- 32. External Integrations (Admin-Managed Real APIs: Web Search, Lead Discovery, Email, Ads, Social/Web)
+  CREATE TABLE IF NOT EXISTS external_integrations (
+    slug TEXT PRIMARY KEY,
+    display_name TEXT NOT NULL,
+    category TEXT NOT NULL,
+    provider TEXT DEFAULT '',
+    endpoint_url TEXT DEFAULT '',
+    api_key TEXT,
+    config_json TEXT DEFAULT '{}',
+    status TEXT DEFAULT 'not_configured' CHECK(status IN ('not_configured','connected','error')),
+    last_tested DATETIME,
+    last_error TEXT,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  INSERT OR IGNORE INTO external_integrations (slug, display_name, category, provider, endpoint_url, status) VALUES
+    ('web_search', 'Live Web Search (Tavily / Serper)', 'research', 'tavily', 'https://api.tavily.com/search', 'not_configured'),
+    ('lead_enrichment', 'Lead Discovery & Enrichment (Apollo / Hunter)', 'research', 'apollo', 'https://api.apollo.io/v1/mixed_people/search', 'not_configured'),
+    ('email_dispatch', 'Email Delivery (Resend / SMTP Webhook)', 'sales', 'resend', 'https://api.resend.com/emails', 'not_configured'),
+    ('ads_publish', 'Paid Ads Connector (Google / Meta Ads Webhook)', 'creative', 'webhook', '', 'not_configured'),
+    ('social_publish', 'Social & Website Publish Webhook', 'creative', 'webhook', '', 'not_configured');
+
+  -- 33. Agent Blueprints (Persistent Admin-Editable SOP & System Guidelines Injected Into Agents)
+  CREATE TABLE IF NOT EXISTS agent_blueprints (
+    agent_slug TEXT NOT NULL,
+    tab_name TEXT NOT NULL,
+    content TEXT DEFAULT '',
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY(agent_slug, tab_name)
+  );
   `);
 
   // Safe runtime migrations for customizable guidelines and multi-format files

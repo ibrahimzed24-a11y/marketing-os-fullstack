@@ -42,37 +42,64 @@ function evaluatePolicy(actionOrPipeline = '') {
   };
 }
 
+const { decryptSecret } = require('./cryptoVault');
+
 /**
- * Resolve configured external connector URL (if any) for an approved action.
+ * Resolve configured external connector (from Admin External Integrations DB or env vars).
  * Returns null if no real external integration is configured (so we never fake execution!).
  */
-function resolveExternalConnector(approval) {
+function resolveExternalConnector(approval, customDb = null) {
   const text = `${approval.action_type || ''} ${approval.title || ''} ${approval.department || ''}`.toLowerCase();
+  let slug = 'social_publish';
+  let envUrl = process.env.EXTERNAL_EXECUTION_WEBHOOK_URL || null;
+
   if (text.includes('email') || text.includes('outreach')) {
-    return process.env.EXTERNAL_EMAIL_WEBHOOK_URL || null;
+    slug = 'email_dispatch';
+    envUrl = process.env.EXTERNAL_EMAIL_WEBHOOK_URL || null;
+  } else if (text.includes('ad') || text.includes('budget') || text.includes('campaign')) {
+    slug = 'ads_publish';
+    envUrl = process.env.EXTERNAL_ADS_WEBHOOK_URL || null;
+  } else if (text.includes('social') || text.includes('publish') || text.includes('landing') || text.includes('website')) {
+    slug = 'social_publish';
+    envUrl = process.env.EXTERNAL_SOCIAL_WEBHOOK_URL || process.env.EXTERNAL_WEBSITE_DEPLOY_HOOK || null;
   }
-  if (text.includes('ad') || text.includes('budget') || text.includes('campaign')) {
-    return process.env.EXTERNAL_ADS_WEBHOOK_URL || null;
+
+  try {
+    const targetDb = customDb || require('./db');
+    const row = targetDb.prepare('SELECT * FROM external_integrations WHERE slug = ?').get(slug);
+    if (row && row.endpoint_url && row.endpoint_url.trim()) {
+      const decryptedKey = row.api_key ? decryptSecret(row.api_key) : null;
+      const isResend = row.provider === 'resend' || row.endpoint_url.includes('api.resend.com');
+      // Only treat as configured when an API key is provided for API providers, or a custom webhook URL is explicitly set
+      if (isResend && decryptedKey) {
+        return { url: row.endpoint_url.trim(), apiKey: decryptedKey, provider: 'resend', slug };
+      }
+      if (!isResend && row.status === 'connected') {
+        return { url: row.endpoint_url.trim(), apiKey: decryptedKey, provider: row.provider || 'webhook', slug };
+      }
+    }
+  } catch (err) {
+    console.warn(`[approvalPolicy] Integration lookup note: ${err.message}`);
   }
-  if (text.includes('social') || text.includes('publish')) {
-    return process.env.EXTERNAL_SOCIAL_WEBHOOK_URL || null;
+
+  if (envUrl) {
+    return { url: envUrl, apiKey: null, provider: 'webhook', slug };
   }
-  if (text.includes('landing') || text.includes('website')) {
-    return process.env.EXTERNAL_WEBSITE_DEPLOY_HOOK || null;
-  }
-  return process.env.EXTERNAL_EXECUTION_WEBHOOK_URL || null;
+  return null;
 }
 
 /**
  * Execute an already-approved action via a real external connector with idempotency key.
- * If no external connector is configured, keeps execution_status as 'staged' and
- * explicitly reports externally_executed: false (ZERO hallucinated/fake dispatches).
+ * If no external connector is configured by the Admin, keeps execution_status as 'staged'
+ * and explicitly reports externally_executed: false (ZERO hallucinated/fake dispatches).
  */
-async function dispatchExternalAction(approval, { idempotencyKey, connectorUrlOverride = null } = {}) {
-  const connectorUrl = connectorUrlOverride || resolveExternalConnector(approval);
+async function dispatchExternalAction(approval, { idempotencyKey, connectorUrlOverride = null, db: customDb = null } = {}) {
+  const resolved = connectorUrlOverride
+    ? { url: connectorUrlOverride, apiKey: null, provider: 'webhook', slug: 'override' }
+    : resolveExternalConnector(approval, customDb);
   const now = new Date().toISOString();
 
-  if (!connectorUrl) {
+  if (!resolved || !resolved.url) {
     return {
       ok: true,
       externally_executed: false,
@@ -82,20 +109,26 @@ async function dispatchExternalAction(approval, { idempotencyKey, connectorUrlOv
         externally_executed: false,
         idempotency_key: idempotencyKey,
         timestamp: now,
-        note: 'Human approval verified and action staged. No live external connector is configured; no external side effect was triggered.'
+        note: 'Human approval verified and action staged. No external integration is configured by Admin in Settings → External Integrations; no external side effect was triggered.'
       }
     };
   }
 
+  const connectorUrl = resolved.url;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 10000);
   try {
+    const headers = {
+      'Content-Type': 'application/json',
+      'Idempotency-Key': idempotencyKey
+    };
+    if (resolved.apiKey) {
+      headers['Authorization'] = `Bearer ${resolved.apiKey}`;
+    }
+
     const res = await fetch(connectorUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Idempotency-Key': idempotencyKey
-      },
+      headers,
       body: JSON.stringify({
         approval_id: approval.id,
         task_id: approval.task_id,

@@ -16,6 +16,7 @@ const { v4: uuidv4 } = require('uuid');
 const db = require('./db');
 const { getActiveLLMConfig } = require('./llmConfig');
 const { invokeLLM } = require('./llmClient');
+const { decryptSecret } = require('./cryptoVault');
 let rag = null;
 try {
   rag = require('./rag');
@@ -567,9 +568,65 @@ const creativeDirectorAgent = new CreativeDirectorAgent();
 // =============================================================================
 
 /**
- * Build grounded prompt for live LLM execution using project context, harness files, and RAG snippets.
+ * Optional Live Web Search Integration (only runs when Admin configures a real API key in Settings -> External Integrations).
  */
-function buildAgentPrompts(targetAgent, skill, task, project, harnessFiles, ragContext, inputData) {
+async function fetchLiveWebSearch(targetDb, query) {
+  try {
+    const row = targetDb.prepare("SELECT * FROM external_integrations WHERE slug = 'web_search'").get();
+    if (!row || !row.api_key || !row.endpoint_url) {
+      return { configured: false, results: [] };
+    }
+    const apiKey = decryptSecret(row.api_key);
+    if (!apiKey) return { configured: false, results: [] };
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    try {
+      const isSerper = row.provider === 'serper' || row.endpoint_url.includes('serper.dev');
+      const res = await fetch(row.endpoint_url, {
+        method: 'POST',
+        headers: isSerper
+          ? { 'Content-Type': 'application/json', 'X-API-KEY': apiKey }
+          : { 'Content-Type': 'application/json' },
+        body: JSON.stringify(isSerper ? { q: query, num: 6 } : { api_key: apiKey, query, max_results: 6 }),
+        signal: controller.signal
+      });
+      clearTimeout(timer);
+      if (!res.ok) return { configured: true, error: `HTTP ${res.status}`, results: [] };
+      const data = await res.json();
+      const rawItems = data.results || data.organic || [];
+      const results = rawItems.slice(0, 6).map((item) => ({
+        title: item.title || '',
+        url: item.url || item.link || '',
+        snippet: String(item.content || item.snippet || '').slice(0, 320)
+      }));
+      return { configured: true, provider: row.provider, results };
+    } catch (err) {
+      clearTimeout(timer);
+      return { configured: true, error: err.message, results: [] };
+    }
+  } catch (_) {
+    return { configured: false, results: [] };
+  }
+}
+
+/**
+ * Load persistent Admin-configured Agent Blueprints from DB (`agent_blueprints`).
+ */
+function loadAgentBlueprints(targetDb, agentSlug) {
+  try {
+    const rows = targetDb.prepare('SELECT tab_name, content FROM agent_blueprints WHERE agent_slug = ?').all(agentSlug);
+    return rows.filter((r) => r.content && r.content.trim()).map((r) => `[${r.tab_name}]\n${r.content.trim()}`).join('\n\n');
+  } catch (_) {
+    return '';
+  }
+}
+
+/**
+ * Build grounded prompt for live LLM execution using project context, harness files,
+ * keyword/BM25 retrieved snippets, live web search (if configured by Admin), real team roster, and saved blueprints.
+ */
+function buildAgentPrompts(targetAgent, skill, task, project, harnessFiles, ragContext, inputData, { webSearch, teamRoster, blueprints } = {}) {
   const client = project?.client_name || project?.name || 'Client';
   const harnessSummary = (harnessFiles || [])
     .slice(0, 8)
@@ -579,14 +636,26 @@ function buildAgentPrompts(targetAgent, skill, task, project, harnessFiles, ragC
   const ragSummary = (ragContext || [])
     .slice(0, 5)
     .map((c, i) => `[Snippet ${i + 1}] ${String(c.content || '').slice(0, 350)}`)
-    .join('\n') || 'No vector context indexed yet.';
+    .join('\n') || 'No knowledge base snippets indexed for this project.';
+
+  const webSummary = webSearch?.configured && webSearch.results.length > 0
+    ? webSearch.results.map((r, i) => `[Web ${i + 1}] ${r.title} (${r.url}): ${r.snippet}`).join('\n')
+    : 'NOT CONNECTED (Admin has not configured a Live Web Search API in Settings → External Integrations. Do NOT invent unverified contact emails, phone numbers, or live web metrics.)';
+
+  const rosterSummary = (teamRoster || []).length > 0
+    ? teamRoster.map((u) => `- ${u.name} (${u.role}${u.department ? ', ' + u.department : ''})`).join('\n')
+    : 'No internal team members provisioned beyond owner; mark unassigned tasks as "Unassigned".';
 
   const systemPrompt = [
     `You are ${targetAgent.name} (${targetAgent.roleTitle}) in the ${targetAgent.department.toUpperCase()} department of Marketing OS.`,
     targetAgent.systemDirective,
-    'RULES: Ground all outputs strictly in provided client info, harness files, and RAG snippets. Never invent fake prices or unverified claims.',
-    'Respond with a valid JSON object containing at minimum: {"title": "...", "summary": "...", "deliverable": {...}, "report_md": "... (ending with **Verdict:** Ready to Deliver)"}.'
-  ].join('\n');
+    blueprints ? `Custom Admin Blueprints:\n${blueprints}` : '',
+    'STRICT HONESTY RULES:',
+    '1. Ground outputs strictly in provided client info, harness files, retrieved knowledge base snippets, and live web search results (if connected).',
+    '2. NEVER fabricate unverified contact emails, phone numbers, fake competitor prices, or invented market stats.',
+    '3. Only assign WBS tasks to real team members listed in the Team Roster, or mark them "Unassigned".',
+    '4. Respond with a valid JSON object containing at minimum: {"title": "...", "summary": "...", "deliverable": {...}, "report_md": "... (ending with **Verdict:** Ready to Deliver)"}.'
+  ].filter(Boolean).join('\n');
 
   const userPrompt = [
     `Skill SOP: ${skill.name}`,
@@ -597,8 +666,10 @@ function buildAgentPrompts(targetAgent, skill, task, project, harnessFiles, ragC
     `Campaign Goal: ${project?.goal || 'N/A'}`,
     `Brand Guidelines: ${project?.guidelines || 'Standard agency quality'}`,
     `Input JSON: ${JSON.stringify(inputData || {})}`,
+    `Real Workspace Team Roster:\n${rosterSummary}`,
     `Harness Files:\n${harnessSummary}`,
-    `RAG Context:\n${ragSummary}`
+    `Knowledge Base Snippets:\n${ragSummary}`,
+    `Live Web Search Results:\n${webSummary}`
   ].join('\n');
 
   return { systemPrompt, userPrompt };
@@ -608,7 +679,7 @@ function buildAgentPrompts(targetAgent, skill, task, project, harnessFiles, ragC
  * Executes a task using the unified 3-Agent framework.
  * - Logs run lifecycle in `agent_runs`
  * - Invokes live configured LLM provider via `llmClient` with retries/failover
- * - Explicitly distinguishes `live_llm` vs `simulated_fallback`
+ * - NEVER fakes output or inserts fake leads in Production when no live LLM is connected
  * - Enforces strict DB integrity: NEVER reports success if a required DB write fails
  */
 async function executeAgentTask(task, project, harnessFiles = [], options = {}) {
@@ -616,6 +687,8 @@ async function executeAgentTask(task, project, harnessFiles = [], options = {}) 
   const startTime = Date.now();
   const runId = uuidv4();
   const pipeline = (task.pipeline || 'creative').toLowerCase();
+  const isProd = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
+  const allowSimulatedFallback = !isProd && (process.env.ALLOW_SIMULATED_FALLBACK === 'true' || options.allowSimulatedFallback === true);
 
   let inputData = {};
   try {
@@ -647,7 +720,7 @@ async function executeAgentTask(task, project, harnessFiles = [], options = {}) 
     INSERT INTO agent_runs (
       id, task_id, project_id, agent_id, agent_name, department, skill_slug,
       provider, model, status, data_source, attempt_count, duration_ms
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'running', 'simulated_fallback', 0, 0)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'running', 'live_llm', 0, 0)
   `).run(
     runId,
     task.id || null,
@@ -656,12 +729,12 @@ async function executeAgentTask(task, project, harnessFiles = [], options = {}) 
     targetAgent.name,
     targetAgent.department,
     sopSlug,
-    activeCfg?.provider || 'ollama',
-    activeCfg?.default_model || 'llama3.2'
+    activeCfg?.provider || 'unconfigured',
+    activeCfg?.default_model || 'unconfigured'
   );
 
   try {
-    // 3. Load RAG context if available
+    // 3. Load Keyword/BM25 Knowledge Base context, real Team Roster, saved Blueprints, and optional Live Web Search
     let ragContext = [];
     if (rag && typeof rag.searchChunks === 'function' && project?.id) {
       try {
@@ -671,6 +744,16 @@ async function executeAgentTask(task, project, harnessFiles = [], options = {}) 
       }
     }
 
+    let teamRoster = [];
+    try {
+      teamRoster = targetDb.prepare("SELECT name, role, department FROM users WHERE role != 'client'").all();
+    } catch (_) {}
+
+    const blueprints = loadAgentBlueprints(targetDb, targetAgent.department);
+    const webSearch = targetAgent.department === 'research'
+      ? await fetchLiveWebSearch(targetDb, `${project?.client_name || ''} ${task.title} ${project?.goal || ''}`.trim())
+      : { configured: false, results: [] };
+
     // 4. Attempt Real LLM Execution via llmClient (with timeout, backoff retries & failover)
     const { systemPrompt, userPrompt } = buildAgentPrompts(
       targetAgent,
@@ -679,11 +762,12 @@ async function executeAgentTask(task, project, harnessFiles = [], options = {}) 
       project,
       harnessFiles,
       ragContext,
-      inputData
+      inputData,
+      { webSearch, teamRoster, blueprints }
     );
 
     const llmRes = options.skipLiveLLM
-      ? { ok: false, data_source: 'simulated_fallback', attempts: 0, error: 'Live LLM skipped by options' }
+      ? { ok: false, data_source: 'simulated_fallback', attempts: 0, error: 'Live LLM skipped by test options' }
       : await invokeLLM(targetDb, {
           systemPrompt,
           userPrompt,
@@ -694,11 +778,11 @@ async function executeAgentTask(task, project, harnessFiles = [], options = {}) 
 
     let outputJson;
     let reportMd;
-    let dataSource = 'simulated_fallback';
-    let isSimulated = true;
+    let dataSource = 'live_llm';
+    let isSimulated = false;
     let fallbackReason = null;
-    let usedProvider = activeCfg?.provider || 'ollama';
-    let usedModel = activeCfg?.default_model || 'llama3.2';
+    let usedProvider = activeCfg?.provider || 'unconfigured';
+    let usedModel = activeCfg?.default_model || 'unconfigured';
 
     if (llmRes.ok) {
       dataSource = 'live_llm';
@@ -706,25 +790,25 @@ async function executeAgentTask(task, project, harnessFiles = [], options = {}) 
       usedProvider = llmRes.provider || usedProvider;
       usedModel = llmRes.model || usedModel;
 
-      // Build base template shape so pipeline schema guarantees remain intact, then overlay real LLM output
-      const baseTemplate = skill.execute(task, project, harnessFiles, inputData);
+      // Pure live LLM output — ZERO hardcoded template contamination!
       const parsed = llmRes.parsedJson && typeof llmRes.parsedJson === 'object' ? llmRes.parsedJson : null;
-
       outputJson = {
-        ...baseTemplate.outputJson,
         ...(parsed || {}),
-        summary: parsed?.summary || llmRes.content.slice(0, 400),
-        title: parsed?.title || task.title || baseTemplate.outputJson.title || 'Marketing Campaign Deliverable',
+        title: parsed?.title || task.title || 'Marketing Deliverable',
+        summary: parsed?.summary || llmRes.content.slice(0, 500),
+        deliverable: parsed?.deliverable || { content: llmRes.content },
         llm_raw_output: llmRes.content,
+        web_search_used: Boolean(webSearch.configured && webSearch.results.length > 0),
         data_source: 'live_llm',
         is_simulated: false
       };
 
-      reportMd = parsed?.report_md || `### 🤖 ${targetAgent.name} — Live LLM Deliverable\n**Provider:** ${usedProvider} (${usedModel})\n**Data Source:** \`live_llm\`\n\n${llmRes.content}\n\n**Verdict:** Ready to Deliver\n`;
+      reportMd = parsed?.report_md || `### 🤖 ${targetAgent.name} — Live AI Deliverable\n**Provider:** ${usedProvider} (${usedModel})\n**Web Search:** ${webSearch.configured ? `Connected (${webSearch.results.length} sources)` : 'Not configured (LLM + Project Knowledge Base only)'}\n\n${llmRes.content}\n\n**Verdict:** Ready to Deliver\n`;
       if (!reportMd.includes('**Verdict:** Ready to Deliver')) {
         reportMd += '\n\n**Verdict:** Ready to Deliver\n';
       }
-    } else {
+    } else if (allowSimulatedFallback) {
+      // ONLY allowed in explicitly opted-in offline automated tests — NEVER in Production or normal user runs!
       dataSource = 'simulated_fallback';
       isSimulated = true;
       fallbackReason = llmRes.error || 'No reachable LLM provider configured';
@@ -736,12 +820,20 @@ async function executeAgentTask(task, project, harnessFiles = [], options = {}) 
         is_simulated: true,
         fallback_reason: fallbackReason
       };
-      reportMd = `> ⚠️ **Data Source:** \`simulated_fallback\` *(Live LLM unavailable: ${fallbackReason})*\n\n${fallback.reportMd}`;
+      reportMd = `> ⚠️ **Data Source:** \`simulated_fallback\` *(Test-only offline fixture — Live LLM unavailable: ${fallbackReason})*\n\n${fallback.reportMd}`;
+    } else {
+      // HONEST PRODUCTION BEHAVIOR: Refuse to fabricate fake data or fake leads when no live LLM is connected!
+      const err = new Error(
+        `No live LLM provider is connected (${llmRes.error || 'unconfigured'}). Go to Settings → LLM Providers, configure an OpenAI, Anthropic, or Gemini API key (or live endpoint), click Save & Test Ping, and set it as Primary before running agents.`
+      );
+      err.code = 'LLM_NOT_CONFIGURED';
+      err.statusCode = 503;
+      throw err;
     }
 
     // Guarantee deliverable title is set
     if (!outputJson.title) {
-      outputJson.title = task.title || 'Marketing Campaign Deliverable';
+      outputJson.title = task.title || 'Marketing Deliverable';
     }
 
     // 5. Attach Standardized Execution Metadata
@@ -754,6 +846,7 @@ async function executeAgentTask(task, project, harnessFiles = [], options = {}) 
       department: targetAgent.department,
       data_source: dataSource,
       is_simulated: isSimulated,
+      web_search_connected: Boolean(webSearch.configured),
       run_id: runId,
       attempts: llmRes.attempts || 0,
       executed_at: new Date().toISOString()
@@ -872,15 +965,15 @@ async function executeAgentTask(task, project, harnessFiles = [], options = {}) 
       `).run(durationMs, err.message, runId);
 
       targetDb.prepare(`
-        INSERT INTO error_log (id, correlation_id, source, category, code, message, task_id, project_id, stack)
-        VALUES (?, ?, 'agent_framework', 'AGENT_EXECUTION_ERROR', 'AGENT_RUN_FAILED', ?, ?, ?, ?)
+        INSERT INTO error_log (id, correlation_id, category, code, message, stack_trace, context_json, severity)
+        VALUES (?, ?, 'AGENT_EXECUTION_ERROR', ?, ?, ?, ?, 'ERROR')
       `).run(
         uuidv4(),
         runId,
+        err.code || 'AGENT_RUN_FAILED',
         err.message,
-        task.id || null,
-        project?.id || task.project_id || null,
-        (err.stack || '').slice(0, 1500)
+        (err.stack || '').slice(0, 1500),
+        JSON.stringify({ source: 'agent_framework', task_id: task.id || null, project_id: project?.id || task.project_id || null })
       );
     } catch (logErr) {
       console.error(`[agentFramework] Secondary error while logging failure: ${logErr.message}`);
