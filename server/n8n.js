@@ -1,7 +1,8 @@
 let getActiveLLMConfig;
 try {
   ({ getActiveLLMConfig } = require('./llmConfig'));
-} catch (_) {
+} catch (err) {
+  console.warn(`[n8n-client] llmConfig unavailable: ${err.message}`);
   getActiveLLMConfig = () => null;
 }
 
@@ -36,11 +37,15 @@ async function triggerN8n(task, project, harness) {
     } else {
       try {
         parsedInput = JSON.parse(task.input_json);
-      } catch (_) {
+      } catch (err) {
+        console.warn(`[n8n-client] Invalid task.input_json for task ${task.id}: ${err.message}`);
         parsedInput = {};
       }
     }
   }
+
+  const isProd = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
+  const webhookApiKey = (process.env.OS_API_KEY || '').trim() || (isProd ? '' : 'local-dev-key-change-me');
 
   const payload = {
     task_id: task.id,
@@ -67,12 +72,13 @@ async function triggerN8n(task, project, harness) {
           temperature: active.temperature || 0.7,
           max_tokens: active.max_tokens || 4096
         };
-      } catch (_) {
+      } catch (err) {
+        console.warn(`[n8n-client] Failed resolving active LLM config: ${err.message}`);
         return null;
       }
     })(),
     callback_url: callbackUrl,
-    api_key: process.env.OS_API_KEY || 'local-dev-key-change-me',
+    api_key: webhookApiKey,
     timestamp: new Date().toISOString()
   };
 

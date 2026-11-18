@@ -65,6 +65,30 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(correlationMiddleware);
 
+// Serverless Durability Guard: On Vercel (or when TURSO_AWAIT_WRITES=true),
+// await all in-flight Turso cloud writes BEFORE finalizing mutating HTTP responses
+// so Serverless execution freeze never drops writes.
+app.use((req, res, next) => {
+  const shouldFlush = (process.env.VERCEL === '1' || process.env.TURSO_AWAIT_WRITES === 'true')
+    && turso.isConfigured()
+    && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method);
+  if (!shouldFlush) return next();
+
+  const origJson = res.json.bind(res);
+  res.json = function(body) {
+    turso.flushPendingWrites(4000)
+      .then((flushRes) => {
+        if (!flushRes.ok) {
+          console.error('[Turso Flush WARN] Incomplete cloud mirror flush before HTTP response:', flushRes);
+        }
+      })
+      .catch((err) => console.error('[Turso Flush ERROR]:', err.message))
+      .finally(() => origJson(body));
+    return res;
+  };
+  next();
+});
+
 // Uploads configuration
 const uploadDir = process.env.UPLOAD_DIR || (process.env.VERCEL ? '/tmp/uploads' : path.join(__dirname, '..', 'uploads'));
 try {
@@ -921,8 +945,10 @@ app.get('/api/tasks/:id', authMiddleware, asyncHandler(async (req, res) => {
 }));
 
 app.post('/api/webhooks/n8n', asyncHandler(async (req, res) => {
+  const isProd = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
+  const expectedKey = (process.env.OS_API_KEY || '').trim() || (isProd ? '' : 'local-dev-key-change-me');
   const apiKey = req.headers['x-os-api-key'] || req.body.api_key;
-  if (apiKey !== (process.env.OS_API_KEY || 'local-dev-key-change-me')) {
+  if (!expectedKey || apiKey !== expectedKey) {
     return res.status(401).json({ error: 'Bad API key' });
   }
 
