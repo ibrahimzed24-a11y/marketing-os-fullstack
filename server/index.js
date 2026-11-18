@@ -1379,7 +1379,7 @@ app.delete('/api/saved-logins/:id', authMiddleware, requireRole('super_admin', '
   res.json({ ok: true, message: 'Saved login removed' });
 }));
 
-app.post('/api/saved-logins/:id/test', authMiddleware, asyncHandler(async (req, res) => {
+app.post('/api/saved-logins/:id/test', authMiddleware, requireRole('super_admin', 'admin', 'manager', 'member'), asyncHandler(async (req, res) => {
   const row = db.prepare('SELECT id, website_url FROM saved_logins WHERE id = ?').get(req.params.id);
   if (!row) return res.status(404).json({ error: 'Tool login not found' });
 
@@ -1723,7 +1723,7 @@ app.post('/api/admin/clean-slate', authMiddleware, requireRole('super_admin'), a
 // =============================================================================
 
 // 1. Unified Overview Stats
-app.get('/api/overview/stats', authMiddleware, asyncHandler(async (req, res) => {
+app.get('/api/overview/stats', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager', 'member'), asyncHandler(async (req, res) => {
   // Active Clients (distinct client names from active projects or companies)
   const clientsRow = db.prepare(`
     SELECT COUNT(DISTINCT client_name) as count FROM projects WHERE client_name IS NOT NULL AND client_name != ''
@@ -1786,7 +1786,7 @@ app.get('/api/overview/stats', authMiddleware, asyncHandler(async (req, res) => 
 }));
 
 // 2. Approvals List
-app.get('/api/approvals', authMiddleware, asyncHandler(async (req, res) => {
+app.get('/api/approvals', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager', 'member'), asyncHandler(async (req, res) => {
   const { department, status } = req.query;
   let sql = `
     SELECT a.*, p.name as project_name, p.client_name, t.title as task_title
@@ -1859,7 +1859,7 @@ app.post('/api/approvals/:id/decision', authMiddleware, requireRole('owner', 'su
 }));
 
 // 4. Create Approval Request
-app.post('/api/approvals', authMiddleware, asyncHandler(async (req, res) => {
+app.post('/api/approvals', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager', 'member'), asyncHandler(async (req, res) => {
   const { task_id, project_id, department, agent_name, action_type, title, summary, preview_data } = req.body;
   if (!department || !agent_name || !action_type || !title) {
     return res.status(400).json({ error: 'department, agent_name, action_type, and title are required' });
@@ -1901,7 +1901,7 @@ app.post('/api/auth/change-password', authMiddleware, asyncHandler(async (req, r
 // =============================================================================
 
 // 6. Handoff: Research -> Sales (Import Discovered Leads into Sales CRM Pipeline)
-app.post('/api/handoff/research-to-sales', authMiddleware, asyncHandler(async (req, res) => {
+app.post('/api/handoff/research-to-sales', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager'), asyncHandler(async (req, res) => {
   const { project_id, leads = [], deal_title = 'Q4 Target Outbound Pipeline', estimated_value = 25000 } = req.body;
   if (!project_id) return res.status(400).json({ error: 'project_id required' });
 
@@ -1951,7 +1951,7 @@ app.post('/api/handoff/research-to-sales', authMiddleware, asyncHandler(async (r
 }));
 
 // 7. Handoff: Sales -> Creative Studio (Client Onboarding to Production)
-app.post('/api/handoff/sales-to-creative', authMiddleware, asyncHandler(async (req, res) => {
+app.post('/api/handoff/sales-to-creative', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager'), asyncHandler(async (req, res) => {
   const { deal_id, client_name, project_name, goal, guidelines, services = ['landing-page', 'social-content', 'ads-creative'] } = req.body;
   
   const targetClient = client_name || 'New Onboarded Client';
