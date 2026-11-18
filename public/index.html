@@ -570,6 +570,20 @@
           <p class="text-[11px] text-[var(--text-soft)]">Search intent, low-difficulty fast wins, and AI entity rankings.</p>
         </div>
       </div>
+
+      <!-- Live Discovered Leads Panel -->
+      <section class="card-surface p-5 rounded-2xl border border-[var(--border)] space-y-3">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-sm font-extrabold">Discovered Leads & Market Contacts</h2>
+            <p class="text-[11px] text-[var(--text-soft)]">Real database records persisted by Research Agent (Agent 01) ready for Sales CRM promotion.</p>
+          </div>
+          <button onclick="fetchSalesCrmData()" class="btn-outline text-[11px] px-2.5 py-1">↻ Refresh</button>
+        </div>
+        <div id="researchLeadsContainer" class="space-y-2 text-xs text-[var(--text-soft)]">
+          Loading discovered leads...
+        </div>
+      </section>
     </div>
 
     <!-- ===================================================================== -->
@@ -620,6 +634,24 @@
           <div class="text-[11px] font-bold text-emerald-400 uppercase">5. Won / Onboarding</div>
           <div id="salesCountWon" class="text-lg font-black mt-1">0</div>
         </div>
+      </div>
+
+      <!-- Live Sales CRM Deals & Qualified Leads -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <section class="card-surface p-5 rounded-2xl border border-[var(--border)] space-y-3">
+          <div class="flex items-center justify-between">
+            <h2 class="text-sm font-extrabold">Active CRM Deals</h2>
+            <button onclick="fetchSalesCrmData()" class="btn-outline text-[11px] px-2.5 py-1">↻ Refresh</button>
+          </div>
+          <div id="salesDealsContainer" class="space-y-2 text-xs text-[var(--text-soft)]">Loading CRM deals...</div>
+        </section>
+        <section class="card-surface p-5 rounded-2xl border border-[var(--border)] space-y-3">
+          <div class="flex items-center justify-between">
+            <h2 class="text-sm font-extrabold">CRM Leads Pipeline</h2>
+            <span class="text-[11px] text-[var(--text-faint)]">Live SQLite/Turso Records</span>
+          </div>
+          <div id="salesLeadsContainer" class="space-y-2 text-xs text-[var(--text-soft)]">Loading CRM leads...</div>
+        </section>
       </div>
     </div>
 

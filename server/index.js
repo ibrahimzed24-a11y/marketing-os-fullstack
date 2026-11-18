@@ -1151,16 +1151,98 @@ app.post('/api/projects/:id/deals', authMiddleware, asyncHandler(async (req, res
   res.json({ id, title, stage, value });
 }));
 
-app.patch('/api/deals/:id', authMiddleware, asyncHandler(async (req, res) => {
-  const { stage, value, probability } = req.body;
+app.patch('/api/deals/:id', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager', 'member'), asyncHandler(async (req, res) => {
+  const existing = db.prepare('SELECT * FROM deals WHERE id=?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Deal not found' });
+  if (!canAccessProject(req.user, existing.project_id)) return res.status(403).json({ error: 'No access' });
+
+  const { title, stage, value, probability, expected_close } = req.body;
   db.prepare(`
-    UPDATE deals SET 
+    UPDATE deals SET
+      title=COALESCE(?, title),
       stage=COALESCE(?, stage),
       value=COALESCE(?, value),
-      probability=COALESCE(?, probability)
+      probability=COALESCE(?, probability),
+      expected_close=COALESCE(?, expected_close)
     WHERE id=?
-  `).run(stage, value, probability, req.params.id);
+  `).run(title ?? null, stage ?? null, value ?? null, probability ?? null, expected_close ?? null, req.params.id);
+
+  const updated = db.prepare('SELECT * FROM deals WHERE id=?').get(req.params.id);
+  res.json({ ok: true, deal: updated });
+}));
+
+app.delete('/api/deals/:id', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager'), asyncHandler(async (req, res) => {
+  const existing = db.prepare('SELECT * FROM deals WHERE id=?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Deal not found' });
+  if (!canAccessProject(req.user, existing.project_id)) return res.status(403).json({ error: 'No access' });
+  db.prepare('DELETE FROM deals WHERE id=?').run(req.params.id);
   res.json({ ok: true });
+}));
+
+app.patch('/api/leads/:id', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager', 'member'), asyncHandler(async (req, res) => {
+  const existing = db.prepare('SELECT * FROM leads WHERE id=?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Lead not found' });
+  if (!canAccessProject(req.user, existing.project_id)) return res.status(403).json({ error: 'No access' });
+
+  const { full_name, email, phone, job_title, icp_score, status } = req.body;
+  db.prepare(`
+    UPDATE leads SET
+      full_name=COALESCE(?, full_name),
+      email=COALESCE(?, email),
+      phone=COALESCE(?, phone),
+      job_title=COALESCE(?, job_title),
+      icp_score=COALESCE(?, icp_score),
+      status=COALESCE(?, status)
+    WHERE id=?
+  `).run(full_name ?? null, email ?? null, phone ?? null, job_title ?? null, icp_score ?? null, status ?? null, req.params.id);
+
+  const updated = db.prepare('SELECT * FROM leads WHERE id=?').get(req.params.id);
+  res.json({ ok: true, lead: updated });
+}));
+
+app.delete('/api/leads/:id', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager'), asyncHandler(async (req, res) => {
+  const existing = db.prepare('SELECT * FROM leads WHERE id=?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Lead not found' });
+  if (!canAccessProject(req.user, existing.project_id)) return res.status(403).json({ error: 'No access' });
+  db.prepare('DELETE FROM leads WHERE id=?').run(req.params.id);
+  res.json({ ok: true });
+}));
+
+// Global Sales CRM Pipeline Overview (Phase 2/3 real backend hydration)
+app.get('/api/crm/pipeline', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager', 'member'), asyncHandler(async (req, res) => {
+  const { project_id } = req.query;
+  const whereClause = project_id ? 'WHERE l.project_id = ?' : '';
+  const dealWhere = project_id ? 'WHERE d.project_id = ?' : '';
+  const params = project_id ? [project_id] : [];
+
+  const leads = db.prepare(`
+    SELECT l.*, p.name as project_name, p.client_name
+    FROM leads l
+    LEFT JOIN projects p ON p.id = l.project_id
+    ${whereClause}
+    ORDER BY l.icp_score DESC, l.created_at DESC
+    LIMIT 100
+  `).all(...params);
+
+  const deals = db.prepare(`
+    SELECT d.*, p.name as project_name, p.client_name, l.full_name as lead_name
+    FROM deals d
+    LEFT JOIN projects p ON p.id = d.project_id
+    LEFT JOIN leads l ON l.id = d.lead_id
+    ${dealWhere}
+    ORDER BY d.created_at DESC
+    LIMIT 100
+  `).all(...params);
+
+  const stageCounts = {
+    discovered: leads.filter(l => l.status === 'new' || l.status === 'enriched').length,
+    outreach_drafted: leads.filter(l => l.status === 'contacted').length + deals.filter(d => d.stage === 'lead' || d.stage === 'discovery').length,
+    qualified: leads.filter(l => l.status === 'qualified').length + deals.filter(d => d.stage === 'demo').length,
+    proposal: deals.filter(d => d.stage === 'proposal' || d.stage === 'negotiation').length,
+    won: deals.filter(d => d.stage === 'closed_won').length
+  };
+
+  res.json({ ok: true, leads, deals, stage_counts: stageCounts });
 }));
 
 // =============================================================================
@@ -1956,52 +2038,126 @@ app.post('/api/auth/change-password', authMiddleware, asyncHandler(async (req, r
 // PHASE 3: CROSS-DEPARTMENT HANDOFFS (Seamless Pipeline Transitions)
 // =============================================================================
 
-// 6. Handoff: Research -> Sales (Import Discovered Leads into Sales CRM Pipeline)
+// 6. Handoff: Research -> Sales (Promote Verified Research Leads into Sales CRM Pipeline)
 app.post('/api/handoff/research-to-sales', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager'), asyncHandler(async (req, res) => {
-  const { project_id, leads = [], deal_title = 'Q4 Target Outbound Pipeline', estimated_value = 25000 } = req.body;
+  const {
+    project_id,
+    lead_ids = [],
+    leads = [],
+    origin_research_task_id = null,
+    deal_title = 'Target Outbound Pipeline',
+    estimated_value = 25000
+  } = req.body;
   if (!project_id) return res.status(400).json({ error: 'project_id required' });
 
   const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(project_id);
   if (!project) return res.status(404).json({ error: 'Project not found' });
 
+  let promotedCount = 0;
   let insertedCount = 0;
+  let primaryLeadId = null;
+  const handedOffLeadIds = [];
   const dealId = uuidv4();
 
   db.transaction(() => {
-    // 1. Insert leads into leads table
-    const insertLead = db.prepare(`
-      INSERT INTO leads (id, project_id, full_name, email, job_title, icp_score)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
+    // 1a. Promote existing discovered leads (no duplication!)
+    if (Array.isArray(lead_ids) && lead_ids.length > 0) {
+      const promoteStmt = db.prepare(`
+        UPDATE leads SET status = 'qualified'
+        WHERE id = ? AND project_id = ?
+      `);
+      for (const lid of lead_ids) {
+        const info = promoteStmt.run(lid, project_id);
+        if (info.changes > 0) {
+          promotedCount++;
+          handedOffLeadIds.push(lid);
+          if (!primaryLeadId) primaryLeadId = lid;
+        }
+      }
+    }
 
-    leads.forEach(l => {
-      const leadId = uuidv4();
-      insertLead.run(leadId, project_id, l.name || l.full_name || 'Prospect Lead', l.email || '', l.title || l.job_title || 'Decision Maker', l.icp_score || 85);
-      insertedCount++;
-    });
+    // 1b. Insert any newly supplied lead objects (avoiding duplicate email within project)
+    if (Array.isArray(leads) && leads.length > 0) {
+      const findByEmail = db.prepare('SELECT id FROM leads WHERE project_id = ? AND email = ? LIMIT 1');
+      const insertLead = db.prepare(`
+        INSERT INTO leads (id, project_id, full_name, email, phone, job_title, icp_score, status, source_evidence)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'qualified', ?)
+      `);
+      for (const l of leads) {
+        if (l.email) {
+          const existing = findByEmail.get(project_id, l.email);
+          if (existing) {
+            db.prepare("UPDATE leads SET status = 'qualified' WHERE id = ?").run(existing.id);
+            promotedCount++;
+            handedOffLeadIds.push(existing.id);
+            if (!primaryLeadId) primaryLeadId = existing.id;
+            continue;
+          }
+        }
+        const leadId = uuidv4();
+        insertLead.run(
+          leadId,
+          project_id,
+          l.name || l.full_name || 'Prospect Lead',
+          l.email || '',
+          l.phone || null,
+          l.title || l.job_title || 'Decision Maker',
+          typeof l.icp_score === 'number' ? l.icp_score : 85,
+          JSON.stringify({ origin_research_task_id, handoff_source: 'research_to_sales' })
+        );
+        insertedCount++;
+        handedOffLeadIds.push(leadId);
+        if (!primaryLeadId) primaryLeadId = leadId;
+      }
+    }
 
-    // 2. Create high-intent deal opportunity in Sales CRM
+    // 1c. If neither lead_ids nor leads were explicitly passed, promote all 'new'/'enriched' leads in the project
+    if (handedOffLeadIds.length === 0) {
+      const projectLeads = db.prepare("SELECT id FROM leads WHERE project_id = ? AND status IN ('new','enriched')").all(project_id);
+      for (const pl of projectLeads) {
+        db.prepare("UPDATE leads SET status = 'qualified' WHERE id = ?").run(pl.id);
+        promotedCount++;
+        handedOffLeadIds.push(pl.id);
+        if (!primaryLeadId) primaryLeadId = pl.id;
+      }
+    }
+
+    // 2. Create high-intent deal opportunity linked to primary lead in Sales CRM
     db.prepare(`
-      INSERT INTO deals (id, project_id, title, stage, value, probability)
-      VALUES (?, ?, ?, 'lead', ?, 30)
-    `).run(dealId, project_id, `${project.client_name || project.name} - ${deal_title}`, estimated_value);
+      INSERT INTO deals (id, project_id, lead_id, title, stage, value, probability)
+      VALUES (?, ?, ?, ?, 'lead', ?, 30)
+    `).run(dealId, project_id, primaryLeadId, `${project.client_name || project.name} - ${deal_title}`, estimated_value);
 
-    // 3. Log handoff in activity
+    // 3. Log handoff lineage in activity
     db.prepare(`
-      INSERT INTO activity (id, project_id, user_id, action, meta)
-      VALUES (?, ?, ?, 'handoff_research_to_sales', ?)
+      INSERT INTO activity (id, project_id, task_id, user_id, action, meta)
+      VALUES (?, ?, ?, ?, 'handoff_research_to_sales', ?)
     `).run(
       uuidv4(),
       project_id,
+      origin_research_task_id || null,
       req.user.id,
-      JSON.stringify({ imported_leads: insertedCount, deal_id: dealId, target_project: project.name })
+      JSON.stringify({
+        imported_leads: insertedCount + promotedCount,
+        inserted_leads: insertedCount,
+        promoted_leads: promotedCount,
+        lead_ids: handedOffLeadIds,
+        deal_id: dealId,
+        origin_research_task_id,
+        target_project: project.name
+      })
     );
   })();
 
+  const totalHandled = insertedCount + promotedCount;
   res.json({
     ok: true,
-    message: `Successfully handed off ${insertedCount} leads to Sales CRM`,
-    imported_leads: insertedCount,
+    message: `Successfully handed off ${totalHandled} leads to Sales CRM`,
+    imported_leads: totalHandled,
+    inserted_leads: insertedCount,
+    promoted_leads: promotedCount,
+    lead_ids: handedOffLeadIds,
+    primary_lead_id: primaryLeadId,
     deal_id: dealId
   });
 }));
@@ -2009,11 +2165,20 @@ app.post('/api/handoff/research-to-sales', authMiddleware, requireRole('owner', 
 // 7. Handoff: Sales -> Creative Studio (Client Onboarding to Production)
 app.post('/api/handoff/sales-to-creative', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager'), asyncHandler(async (req, res) => {
   const { deal_id, client_name, project_name, goal, guidelines, services = ['landing-page', 'social-content', 'ads-creative'] } = req.body;
-  
-  const targetClient = client_name || 'New Onboarded Client';
+
+  let sourceDeal = null;
+  if (deal_id) {
+    sourceDeal = db.prepare('SELECT * FROM deals WHERE id = ?').get(deal_id);
+    if (!sourceDeal) {
+      return res.status(404).json({ error: 'Source deal not found' });
+    }
+  }
+
+  const targetClient = client_name || sourceDeal?.title || 'New Onboarded Client';
   const targetProjectName = project_name || `${targetClient} Growth Campaign`;
   const targetGoal = goal || 'Produce high-converting multi-channel marketing assets';
   const newProjectId = uuidv4();
+  const initializedTaskIds = [];
 
   db.transaction(() => {
     // 1. If deal exists, mark it as 'closed_won'
@@ -2033,25 +2198,33 @@ app.post('/api/handoff/sales-to-creative', authMiddleware, requireRole('owner', 
       VALUES (?, ?, ?, 'manager')
     `).run(uuidv4(), newProjectId, req.user.id);
 
-    // 4. Creative Director auto-deconstructs client brief into initial WBS tasks
+    // 4. Creative Director auto-deconstructs client brief into initial WBS tasks with lineage in input_json
     const insertTask = db.prepare(`
-      INSERT INTO tasks (id, project_id, title, pipeline, description, status, priority, created_by)
-      VALUES (?, ?, ?, ?, ?, 'draft', 'high', ?)
+      INSERT INTO tasks (id, project_id, title, pipeline, description, status, priority, input_json, created_by)
+      VALUES (?, ?, ?, ?, ?, 'draft', 'high', ?, ?)
     `);
 
     services.forEach(srv => {
+      const tid = uuidv4();
       const srvTitle = srv.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
       insertTask.run(
-        uuidv4(),
+        tid,
         newProjectId,
         `${srvTitle} Production Package`,
         srv,
         `Creative Studio production package for ${targetClient}: ${targetGoal}`,
+        JSON.stringify({
+          origin_deal_id: deal_id || null,
+          origin_project_id: sourceDeal?.project_id || null,
+          origin_lead_id: sourceDeal?.lead_id || null,
+          service_category: srv
+        }),
         req.user.id
       );
+      initializedTaskIds.push(tid);
     });
 
-    // 5. Log handoff in activity
+    // 5. Log onboarding lineage in activity
     db.prepare(`
       INSERT INTO activity (id, project_id, user_id, action, meta)
       VALUES (?, ?, ?, 'handoff_sales_to_creative', ?)
@@ -2059,7 +2232,14 @@ app.post('/api/handoff/sales-to-creative', authMiddleware, requireRole('owner', 
       uuidv4(),
       newProjectId,
       req.user.id,
-      JSON.stringify({ client: targetClient, project_id: newProjectId, services_count: services.length })
+      JSON.stringify({
+        client: targetClient,
+        project_id: newProjectId,
+        origin_deal_id: deal_id || null,
+        origin_project_id: sourceDeal?.project_id || null,
+        services_count: services.length,
+        task_ids: initializedTaskIds
+      })
     );
   })();
 
@@ -2068,7 +2248,9 @@ app.post('/api/handoff/sales-to-creative', authMiddleware, requireRole('owner', 
     message: `Client ${targetClient} successfully onboarded into Creative Studio!`,
     project_id: newProjectId,
     project_name: targetProjectName,
-    services_initialized: services.length
+    origin_deal_id: deal_id || null,
+    services_initialized: services.length,
+    task_ids: initializedTaskIds
   });
 }));
 
