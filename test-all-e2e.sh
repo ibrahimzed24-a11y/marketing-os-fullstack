@@ -33,6 +33,7 @@ echo -e "Started At:         $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
 echo -e "${BOLD}${CYAN}--------------------------------------------------------------------------------${RESET}\n"
 
 SUITES=(
+  "test-phase0-security.sh:Phase 0 Security & Data Integrity:JWT Fail-Fast, Vault AES-256-GCM, RBAC, Turso Safety"
   "test-flow.sh:Core Lifecycle & Harness Grounding:Lifecycle, Harness Upload, RBAC Exploits"
   "test-agents-rag.sh:Sovereign Agents & Vector Search:32 Agents Registry, Semantic Ingestion, RBAC Gates"
   "test-llm-config.sh:Dynamic LLM Routing & Key Vault:6-Provider Registry, Key Masking, Ping Verification"

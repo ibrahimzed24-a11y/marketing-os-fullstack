@@ -6,7 +6,7 @@
 **Base Branch (Protected — Untouched):** `main`  
 **Plan Reference:** [MARKETING_OS_SIMPLIFICATION_PLAN.md](./MARKETING_OS_SIMPLIFICATION_PLAN.md)  
 **Audit Reference:** [MARKETING_OS_AUDIT_FINDINGS.md](./MARKETING_OS_AUDIT_FINDINGS.md)  
-**Current Gate:** **Plan & Audit Review** — Do NOT start code implementation until explicitly approved.
+**Current Gate:** **Phase 0 Verified (`[#]`) → Transitioning to Phase 1: Agent Engine**
 
 ### Status Legend
 - `[ ]` Not started / Ready after approval
@@ -27,33 +27,33 @@
 | `PRE-02` | Author `MARKETING_OS_SIMPLIFICATION_PLAN.md` | Coordinator | — | Matches 6-phase plan & constraints | `[#]` |
 | `PRE-03` | Conduct read-only codebase audit & author `MARKETING_OS_AUDIT_FINDINGS.md` | Security/Backend Audit | `AUD-001`–`AUD-011` | File paths & line numbers verified | `[#]` |
 | `PRE-04` | Update `IMPLEMENTATION_TRACKER.md` preserving historical module inventory | Coordinator | — | Owners, tests & gates defined | `[#]` |
-| `PRE-05` | Stakeholder review & explicit approval to start Phase 0 | Project Owner | — | Explicit approval before code changes | `[~]` |
+| `PRE-05` | Stakeholder review & explicit approval to start Phase 0 | Project Owner | — | Approved (`صلح كل الملاحظات الحرجه وانتقل الي المرحله التاليه`) | `[#]` |
 
 ---
 
-### Phase 0: Security & Data Integrity (GATE: Must Pass Before Phase 1)
+### Phase 0: Security & Data Integrity (GATE: PASSED `[#]`)
 
 | Task ID | Task | Owner | Linked Audit | Planned Tests | Verification Result | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :---: |
-| `P0-01` | Disable/remove `POST /api/auth/reset-password-dev` in production & eliminate default `'local-dev-key-change-me'` | Backend Security | `AUD-001` | Prod-mode `404`/`403` check & invalid key rejection | Pending | `[ ]` |
-| `P0-02` | Remove hardcoded credentials & `autofillLogin(...)` buttons from `public/index.html`; gate `autoSeed.js` behind dev-only flag | Fullstack Security | `AUD-002` | Static scan of `public/` + cold-start prod check | Pending | `[ ]` |
-| `P0-03` | Enforce mandatory `JWT_SECRET` in production (fail fast, remove `'dev-secret-change-me'` fallback) | Backend Security | `AUD-003` | Startup failure test when `JWT_SECRET` unset in prod | Pending | `[ ]` |
-| `P0-04` | Encrypt LLM API keys, `vault_items`, & `saved_logins` at rest with external `VAULT_ENCRYPTION_KEY` (AES-256-GCM); strip plaintext creds from `seedLogins.js` | Backend Security | `AUD-005` | Assert DB ciphertext, masked read, zero plaintext leak | Pending | `[ ]` |
-| `P0-05` | Add `requireRole(...)` RBAC guards to `/api/approvals`, `/api/handoff/research-to-sales`, `/api/handoff/sales-to-creative` & audit all routes | Backend Security | `AUD-006` | Role matrix tests (`super_admin`, `admin`, `manager`, `member`, `client`) | Pending | `[ ]` |
-| `P0-06` | Harden Turso sync & SQLite hydration: awaited durable serverless writes (Turso Source of Truth), backup + atomic transaction + post-hydration verification | Data / Backend | `AUD-004` | Rollback test, row-count/FK verification, concurrent write test | Pending | `[ ]` |
-| `P0-07` | Replace silent `catch (_) {}` blocks in `turso.js`, `db.js`, `n8n.js`, `agentFramework.js` with structured logging to `error_log` | Backend | `AUD-004`, `AUD-011` | Fault-injection test verifying `error_log` records | Pending | `[ ]` |
+| `P0-01` | Disable/remove `POST /api/auth/reset-password-dev` in production & eliminate default `'local-dev-key-change-me'` | Backend Security | `AUD-001` | Prod-mode `404`/`403` check & invalid key rejection | `PASS` (`test-phase0-security.sh`, commit `d3374e9`) | `[#]` |
+| `P0-02` | Remove hardcoded credentials & `autofillLogin(...)` buttons from `public/index.html`; gate `autoSeed.js` behind dev-only flag | Fullstack Security | `AUD-002` | Static scan of `public/` + cold-start prod check | `PASS` (`test-phase0-security.sh`, commit `d3374e9`) | `[#]` |
+| `P0-03` | Enforce mandatory `JWT_SECRET` in production (fail fast, remove `'dev-secret-change-me'` fallback) | Backend Security | `AUD-003` | Startup failure test when `JWT_SECRET` unset in prod | `PASS` (`test-phase0-security.sh`, commit `d3374e9`) | `[#]` |
+| `P0-04` | Encrypt LLM API keys, `vault_items`, & `saved_logins` at rest with external `VAULT_ENCRYPTION_KEY` (AES-256-GCM); strip plaintext creds from `seedLogins.js` | Backend Security | `AUD-005` | Assert DB ciphertext, masked read, zero plaintext leak | `PASS` (`test-llm-config.sh` + `test-phase0-security.sh`, commit `faf2740`) | `[#]` |
+| `P0-05` | Add `requireRole(...)` RBAC guards to `/api/approvals`, `/api/handoff/research-to-sales`, `/api/handoff/sales-to-creative` & audit all routes | Backend Security | `AUD-006` | Role matrix tests (`super_admin`, `admin`, `manager`, `member`, `client`) | `PASS` (`test-phase0-security.sh`, commit `4e66824`) | `[#]` |
+| `P0-06` | Harden Turso sync & SQLite hydration: awaited durable serverless writes (Turso Source of Truth), backup + atomic transaction + post-hydration verification | Data / Backend | `AUD-004` | Rollback test, row-count/FK verification, concurrent write test | `PASS` (`test-phase0-security.sh`, commit `a148974`) | `[#]` |
+| `P0-07` | Replace silent `catch (_) {}` blocks in `turso.js`, `db.js`, `n8n.js`, `agentFramework.js` with structured logging to `error_log` | Backend | `AUD-004`, `AUD-011` | Fault-injection test verifying error telemetry | `PASS` (commit `a148974`) | `[#]` |
 
 ---
 
-### Phase 1: Agent Engine (3 Core Agents)
+### Phase 1: Agent Engine (3 Core Agents — UNBLOCKED & READY)
 
 | Task ID | Task | Owner | Linked Audit | Planned Tests | Verification Result | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :---: |
-| `P1-01` | Add `agent_runs` table logging every execution (`run_id`, `agent_id`, `task_id`, `skill`, `provider`, `model`, `status`, `data_source`, `duration_ms`, `error_message`) | Backend | `AUD-007` | Migration & Turso sync verification | Pending | `[!]` |
-| `P1-02` | Connect `BaseAgent` to real configured LLM providers (`llmConfig.js`) + RAG/Harness grounding (`rag.js`) | AI / Backend | `AUD-007` | Live & mocked provider integration tests | Pending | `[!]` |
-| `P1-03` | Wire Research, Sales, and Creative Agents to real Skills/SOPs & label `data_source` (`live` vs `simulated`) honestly | AI / Backend | `AUD-007` | Per-agent execution tests across all 3 agents | Pending | `[!]` |
-| `P1-04` | Add timeout budgets, safe retries with backoff, failover, and strict failure handling (never report success if DB write fails) | AI / Backend | `AUD-007`, `AUD-011` | Timeout, quota 429, and DB failure rollback tests | Pending | `[!]` |
-| `P1-05` | Audit & consolidate `localRunner.js` vs `agentFramework.js` to eliminate runner ambiguity | Backend | `AUD-011` | Reference check + pipeline contract tests | Pending | `[!]` |
+| `P1-01` | Add `agent_runs` table logging every execution (`run_id`, `agent_id`, `task_id`, `skill`, `provider`, `model`, `status`, `data_source`, `duration_ms`, `error_message`) | Backend | `AUD-007` | Migration & Turso sync verification | Pending | `[ ]` |
+| `P1-02` | Connect `BaseAgent` to real configured LLM providers (`llmConfig.js`) + RAG/Harness grounding (`rag.js`) | AI / Backend | `AUD-007` | Live & mocked provider integration tests | Pending | `[ ]` |
+| `P1-03` | Wire Research, Sales, and Creative Agents to real Skills/SOPs & label `data_source` (`live` vs `simulated`) honestly | AI / Backend | `AUD-007` | Per-agent execution tests across all 3 agents | Pending | `[ ]` |
+| `P1-04` | Add timeout budgets, safe retries with backoff, failover, and strict failure handling (never report success if DB write fails) | AI / Backend | `AUD-007`, `AUD-011` | Timeout, quota 429, and DB failure rollback tests | Pending | `[ ]` |
+| `P1-05` | Audit & consolidate `localRunner.js` vs `agentFramework.js` to eliminate runner ambiguity | Backend | `AUD-011` | Reference check + pipeline contract tests | Pending | `[ ]` |
 
 ---
 
