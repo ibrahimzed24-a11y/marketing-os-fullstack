@@ -6,7 +6,7 @@
 **Base Branch (Protected — Untouched):** `main`  
 **Plan Reference:** [MARKETING_OS_SIMPLIFICATION_PLAN.md](./MARKETING_OS_SIMPLIFICATION_PLAN.md)  
 **Audit Reference:** [MARKETING_OS_AUDIT_FINDINGS.md](./MARKETING_OS_AUDIT_FINDINGS.md)  
-**Current Gate:** **Phases 0–4 & Local E2E (11/11) Verified (`[#]`) → Ready for Phase 5 Staging & Release Gate (`P5-03` / `P5-04`)**
+**Current Gate:** **Staging Preview (`P5-03`) Verified (`[#]`) → Ready for Human Sign-Off on PR to `main` & Production Release (`P5-04`)**
 
 ### Status Legend
 - `[ ]` Not started / Ready after approval
@@ -93,7 +93,7 @@
 | :--- | :--- | :--- | :--- | :--- | :--- | :---: |
 | `P5-01` | Run all existing E2E suites (`./test-all-e2e.sh`) and fix any failures | QA / Backend | — | 11 / 11 suites passing (100% OK, 0 failed) | `PASS` (11/11 suites in 26s) | `[#]` |
 | `P5-02` | Add & pass dedicated suites: Security/RBAC, 3-Agent Engine, CRM CRUD & Persistence, Approval/Execution Separation, Full Workflow A–Z, Failure & Retries | QA / Backend | All | `test-phase0-security.sh`, `test-phase1-agents.sh`, `test-phase2-3-4-governance.sh`, `test-phase4-walkthrough.sh` | `PASS` (11/11 suites) | `[#]` |
-| `P5-03` | Deploy `feature/marketing-os-simplification` to **Staging / Preview** (isolated DB) and run full verification | DevOps / QA | — | Staging smoke & E2E sign-off | Awaiting Staging Approval | `[ ]` |
+| `P5-03` | Deploy `feature/marketing-os-simplification` to **Staging / Preview** & run live security + smoke verification | DevOps / QA | — | Staging Preview (`marketing-os-fullstack-l9z3g6d0i-zid16.vercel.app`) + `JWT_SECRET`/`VAULT_ENCRYPTION_KEY`/`OS_API_KEY` secrets | `PASS` (HTML clean, dev reset 404, 5 APIs 401 auth-gated) | `[#]` |
 | `P5-04` | Open PR to `main`, obtain approval, merge, and release to **Production** | Project Owner | — | Post-deploy production verification (with `JWT_SECRET` & `VAULT_ENCRYPTION_KEY` set in Vercel env) | Awaiting Release Approval | `[ ]` |
 
 ---
