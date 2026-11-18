@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120" width="400" height="120">
+  <defs>
+    <linearGradient id="grad_lakeside_family_dental_main" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#0284C7"/>
+    </linearGradient>
+    <filter id="grad_lakeside_family_dental_shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#0F172A" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <!-- Transparent Container Canvas -->
+  <rect width="400" height="120" fill="transparent"/>
+
+  <!-- Brand Emblem Vector Crest -->
+  <g id="brand-crest">
+    
+        <rect x="25" y="16" width="80" height="88" rx="20" fill="url(#grad_lakeside_family_dental_main)" filter="url(#grad_lakeside_family_dental_shadow)"/>
+        <!-- Lake Water Ripples -->
+        <path d="M32 74 Q48 66 65 74 T98 74" fill="none" stroke="#38BDF8" stroke-width="2.5" stroke-linecap="round"/>
+        <path d="M36 82 Q50 76 65 82 T94 82" fill="none" stroke="#E0F2FE" stroke-width="1.8" stroke-linecap="round"/>
+        <!-- Central Tooth -->
+        <path d="M53 40 C53 32 60 29 65 34 C70 29 77 32 77 40 C77 52 74 61 69 70 C67 74 65 74 65 69 C65 74 63 74 61 70 C56 61 53 52 53 40 Z" fill="#FFFFFF"/>
+        <!-- 3 Family Stars -->
+        <polygon points="65,24 66.5,27.5 70,27.5 67,29.5 68.5,33 65,31 61.5,33 63,29.5 60,27.5 63.5,27.5" fill="#FCD34D"/>
+        <circle cx="48" cy="30" r="2" fill="#FCD34D"/>
+        <circle cx="82" cy="30" r="2" fill="#FCD34D"/>
+        <!-- Monogram -->
+        <rect x="47" y="86" width="36" height="14" rx="7" fill="#0284C7"/>
+        <text x="65" y="97" font-family="system-ui, -apple-system, sans-serif" font-size="8.5" font-weight="900" fill="#FFFFFF" text-anchor="middle" letter-spacing="1">LFD</text>
+        
+  </g>
+
+  <!-- Clean Brand Typography -->
+  <g id="brand-typography">
+    <!-- Primary Clinic Name -->
+    <text x="124" y="53" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="21" font-weight="800" fill="#0F172A" letter-spacing="0.2">LAKESIDE</text>
+    <!-- Secondary Designation -->
+    <text x="125" y="74" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#0284C7" letter-spacing="2.2">FAMILY DENTAL</text>
+    <!-- Location & Credential Tag -->
+    <text x="125" y="92" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="9.5" font-weight="500" fill="#64748B" letter-spacing="1.2">BURLINGTON ON • 4.8★ (422 REVIEWS)</text>
+  </g>
+</svg>

@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120" width="400" height="120">
+  <defs>
+    <linearGradient id="grad_fraserview_dentist_main" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0C4A6E"/>
+      <stop offset="100%" stop-color="#0D9488"/>
+    </linearGradient>
+    <filter id="grad_fraserview_dentist_shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#0F172A" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <!-- Transparent Container Canvas -->
+  <rect width="400" height="120" fill="transparent"/>
+
+  <!-- Brand Emblem Vector Crest -->
+  <g id="brand-crest">
+    
+        <circle cx="65" cy="60" r="44" fill="url(#grad_fraserview_dentist_main)" filter="url(#grad_fraserview_dentist_shadow)"/>
+        <!-- Ocean Wave & Mountain Path -->
+        <path d="M30 65 C45 50 55 75 75 58 C85 50 95 62 100 68 C96 85 82 98 65 98 C48 98 34 85 30 65 Z" fill="#0284C7" opacity="0.6"/>
+        <path d="M36 72 Q52 55 68 66 T100 70" fill="none" stroke="#E0F2FE" stroke-width="2"/>
+        <!-- Central Tooth Profile -->
+        <path d="M53 40 C53 32 60 30 65 35 C70 30 77 32 77 40 C77 52 74 61 69 70 C67 74 65 74 65 69 C65 74 63 74 61 70 C56 61 53 52 53 40 Z" fill="#FFFFFF"/>
+        <!-- Sun Spark -->
+        <circle cx="75" cy="34" r="3" fill="#FCD34D"/>
+        <!-- Monogram -->
+        <rect x="49" y="82" width="32" height="14" rx="7" fill="#0D9488"/>
+        <text x="65" y="93" font-family="system-ui, -apple-system, sans-serif" font-size="8.5" font-weight="900" fill="#FFFFFF" text-anchor="middle" letter-spacing="1">FD</text>
+        
+  </g>
+
+  <!-- Clean Brand Typography -->
+  <g id="brand-typography">
+    <!-- Primary Clinic Name -->
+    <text x="124" y="52" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="19" font-weight="800" fill="#0C4A6E" letter-spacing="0.2">FRASERVIEW DENTIST</text>
+    <!-- Secondary Designation -->
+    <text x="125" y="73" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#0D9488" letter-spacing="2.2">FAMILY &amp; COSMETIC DENTAL</text>
+    <!-- Location & Credential Tag -->
+    <text x="125" y="91" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="9.5" font-weight="500" fill="#64748B" letter-spacing="1.2">VANCOUVER BC • 4.9★ CARE</text>
+  </g>
+</svg>

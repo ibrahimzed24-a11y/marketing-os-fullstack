@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120" width="400" height="120">
+  <defs>
+    <linearGradient id="grad_clinique_dentaire_laurier_main" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E3A8A"/>
+      <stop offset="100%" stop-color="#D97706"/>
+    </linearGradient>
+    <filter id="grad_clinique_dentaire_laurier_shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#0F172A" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <!-- Transparent Container Canvas -->
+  <rect width="400" height="120" fill="transparent"/>
+
+  <!-- Brand Emblem Vector Crest -->
+  <g id="brand-crest">
+    
+        <circle cx="65" cy="60" r="44" fill="url(#grad_clinique_dentaire_laurier_main)" filter="url(#grad_clinique_dentaire_laurier_shadow)"/>
+        <!-- Golden Laurel Leaves Left -->
+        <path d="M38 64 C35 56 36 46 42 38 C44 42 43 48 40 54 C45 48 47 40 53 36 C52 42 49 48 46 56 C51 52 56 46 60 42" fill="none" stroke="#D97706" stroke-width="2.5" stroke-linecap="round"/>
+        <!-- Golden Laurel Leaves Right -->
+        <path d="M92 64 C95 56 94 46 88 38 C86 42 87 48 90 54 C85 48 83 40 77 36 C78 42 81 48 84 56 C79 52 74 46 70 42" fill="none" stroke="#D97706" stroke-width="2.5" stroke-linecap="round"/>
+        <!-- Central Tooth -->
+        <path d="M53 45 C53 38 60 36 65 41 C70 36 77 38 77 45 C77 56 74 64 69 72 C67 76 65 76 65 71 C65 76 63 76 61 72 C56 64 53 56 53 45 Z" fill="#FFFFFF"/>
+        <!-- Gold Star of Excellence -->
+        <polygon points="65,26 67,31 72,31 68,34 70,39 65,36 60,39 62,34 58,31 63,31" fill="#D97706"/>
+        <!-- Monogram Badge -->
+        <rect x="52" y="83" width="26" height="15" rx="7.5" fill="#D97706"/>
+        <text x="65" y="94" font-family="system-ui, -apple-system, sans-serif" font-size="9" font-weight="900" fill="#1E3A8A" text-anchor="middle">L</text>
+        
+  </g>
+
+  <!-- Clean Brand Typography -->
+  <g id="brand-typography">
+    <!-- Primary Clinic Name -->
+    <text x="124" y="52" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="19" font-weight="800" fill="#1E3A8A" letter-spacing="0.2">DENTAIRE LAURIER</text>
+    <!-- Secondary Designation -->
+    <text x="125" y="73" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#D97706" letter-spacing="2.2">CLINIQUE DENTAIRE</text>
+    <!-- Location & Credential Tag -->
+    <text x="125" y="91" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="9.5" font-weight="500" fill="#64748B" letter-spacing="1.2">VICTORIAVILLE • EXCELLENCE</text>
+  </g>
+</svg>

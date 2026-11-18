@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120" width="400" height="120">
+  <defs>
+    <linearGradient id="grad_savannah_dental_main" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#78350F"/>
+      <stop offset="100%" stop-color="#D97706"/>
+    </linearGradient>
+    <filter id="grad_savannah_dental_shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#0F172A" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <!-- Transparent Container Canvas -->
+  <rect width="400" height="120" fill="transparent"/>
+
+  <!-- Brand Emblem Vector Crest -->
+  <g id="brand-crest">
+    
+        <circle cx="65" cy="60" r="44" fill="url(#grad_savannah_dental_main)" filter="url(#grad_savannah_dental_shadow)"/>
+        <!-- Sunburst Rays -->
+        <g stroke="#D97706" stroke-width="2" opacity="0.6">
+            <line x1="65" y1="20" x2="65" y2="28"/>
+            <line x1="65" y1="92" x2="65" y2="100"/>
+            <line x1="25" y1="60" x2="33" y2="60"/>
+            <line x1="97" y1="60" x2="105" y2="60"/>
+            <line x1="37" y1="32" x2="43" y2="38"/>
+            <line x1="87" y1="82" x2="93" y2="88"/>
+            <line x1="37" y1="88" x2="43" y2="82"/>
+            <line x1="87" y1="38" x2="93" y2="32"/>
+        </g>
+        <!-- Golden Center Disc -->
+        <circle cx="65" cy="60" r="28" fill="#D97706" opacity="0.8"/>
+        <!-- Central Tooth -->
+        <path d="M53 45 C53 37 60 34 65 39 C70 34 77 37 77 45 C77 56 74 65 69 74 C67 78 65 78 65 73 C65 78 63 78 61 74 C56 65 53 56 53 45 Z" fill="#FFFFFF"/>
+        <!-- Spark -->
+        <polygon points="65,32 66.5,35.5 70,35.5 67,37.5 68.5,41 65,39 61.5,41 63,37.5 60,35.5 63.5,35.5" fill="#FEF3C7"/>
+        <!-- Monogram -->
+        <rect x="49" y="82" width="32" height="14" rx="7" fill="#78350F"/>
+        <text x="65" y="93" font-family="system-ui, -apple-system, sans-serif" font-size="8.5" font-weight="900" fill="#FFFFFF" text-anchor="middle" letter-spacing="1">SD</text>
+        
+  </g>
+
+  <!-- Clean Brand Typography -->
+  <g id="brand-typography">
+    <!-- Primary Clinic Name -->
+    <text x="124" y="52" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="19" font-weight="800" fill="#78350F" letter-spacing="0.2">SAVANNAH DENTAL</text>
+    <!-- Secondary Designation -->
+    <text x="125" y="73" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#B45309" letter-spacing="2.2">CLINICAL EXCELLENCE</text>
+    <!-- Location & Credential Tag -->
+    <text x="125" y="91" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="9.5" font-weight="500" fill="#64748B" letter-spacing="1.2">EDMONTON AB • 4.9★ (106 REVIEWS)</text>
+  </g>
+</svg>

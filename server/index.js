@@ -3121,6 +3121,38 @@ app.get('/api/projects/:id/lead-logos/fetch-status', authMiddleware, asyncHandle
   res.json({ ok: true, job: getLogoFetchJobStatus(req.params.id) });
 }));
 
+// Master SVG Export (all 138 clinic brand emblems vector sheet)
+app.get('/api/projects/:id/lead-logos/master-svg', authMiddleware, asyncHandler(async (req, res) => {
+  if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
+  const candidates = [
+    path.join(__dirname, '../public/exports/all_leads_logos.svg'),
+    path.join(__dirname, '../uploads/all_leads_logos.svg')
+  ];
+  const found = candidates.find(p => fs.existsSync(p));
+  if (!found) {
+    return res.status(404).json({ error: 'Master SVG not found. Generation may be in progress.' });
+  }
+  res.setHeader('Content-Type', 'image/svg+xml');
+  res.setHeader('Content-Disposition', 'attachment; filename="all_leads_logos.svg"');
+  fs.createReadStream(found).pipe(res);
+}));
+
+// Download all individual SVGs as a ZIP archive
+app.get('/api/projects/:id/lead-logos/download-svg-zip', authMiddleware, asyncHandler(async (req, res) => {
+  if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
+  const candidates = [
+    path.join(__dirname, '../public/exports/valioz_leads_logos_svg.zip'),
+    path.join(__dirname, '../uploads/valioz_leads_logos_svg.zip')
+  ];
+  const found = candidates.find(p => fs.existsSync(p));
+  if (!found) {
+    return res.status(404).json({ error: 'Lead Logos ZIP not found. Archive compilation may be in progress.' });
+  }
+  res.setHeader('Content-Type', 'application/zip');
+  res.setHeader('Content-Disposition', 'attachment; filename="valioz_leads_logos_svg.zip"');
+  fs.createReadStream(found).pipe(res);
+}));
+
 // 3b-v. Smart Calendar & Timezone-Aware Email Campaign Scheduler (Admins & Sales/Team Users)
 app.get('/api/email-schedules', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager', 'member'), asyncHandler(async (req, res) => {
   const { project_id } = req.query;

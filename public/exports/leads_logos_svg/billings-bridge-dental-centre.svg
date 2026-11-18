@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120" width="400" height="120">
+  <defs>
+    <linearGradient id="grad_billings_bridge_dental_centre_main" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F2942"/>
+      <stop offset="100%" stop-color="#00A896"/>
+    </linearGradient>
+    <filter id="grad_billings_bridge_dental_centre_shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#0F172A" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <!-- Transparent Container Canvas -->
+  <rect width="400" height="120" fill="transparent"/>
+
+  <!-- Brand Emblem Vector Crest -->
+  <g id="brand-crest">
+    
+        <!-- Shield Background -->
+        <path d="M25 24 C25 24 65 14 65 14 C65 14 105 24 105 24 C105 58 92 88 65 106 C38 88 25 58 25 24 Z" fill="url(#grad_billings_bridge_dental_centre_main)" filter="url(#grad_billings_bridge_dental_centre_shadow)"/>
+        <!-- Bridge Cables & Arch -->
+        <path d="M30 65 Q65 30 100 65" fill="none" stroke="#E0F2FE" stroke-width="2.5" opacity="0.8"/>
+        <line x1="45" y1="52" x2="45" y2="78" stroke="#E0F2FE" stroke-width="1.5" opacity="0.6"/>
+        <line x1="65" y1="40" x2="65" y2="78" stroke="#E0F2FE" stroke-width="1.5" opacity="0.8"/>
+        <line x1="85" y1="52" x2="85" y2="78" stroke="#E0F2FE" stroke-width="1.5" opacity="0.6"/>
+        <!-- Polished Tooth Emblem -->
+        <path d="M52 46 C52 38 60 34 65 40 C70 34 78 38 78 46 C78 58 75 66 69 76 C67 80 64 80 63 74 C62 80 59 80 57 76 C51 66 52 58 52 46 Z" fill="#FFFFFF"/>
+        <!-- Star highlight -->
+        <circle cx="73" cy="43" r="2" fill="#00A896"/>
+        <!-- Monogram Pill -->
+        <rect x="47" y="86" width="36" height="14" rx="7" fill="#00A896"/>
+        <text x="65" y="97" font-family="system-ui, -apple-system, sans-serif" font-size="8.5" font-weight="900" fill="#FFFFFF" text-anchor="middle" letter-spacing="1">BB</text>
+        
+  </g>
+
+  <!-- Clean Brand Typography -->
+  <g id="brand-typography">
+    <!-- Primary Clinic Name -->
+    <text x="124" y="52" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="19" font-weight="800" fill="#0F2942" letter-spacing="0.2">BILLINGS BRIDGE</text>
+    <!-- Secondary Designation -->
+    <text x="125" y="73" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#00A896" letter-spacing="2.2">DENTAL CENTRE</text>
+    <!-- Location & Credential Tag -->
+    <text x="125" y="91" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="9.5" font-weight="500" fill="#64748B" letter-spacing="1.2">OTTAWA • ESTABLISHED CARE</text>
+  </g>
+</svg>

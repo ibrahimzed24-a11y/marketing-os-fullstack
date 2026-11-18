@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120" width="400" height="120">
+  <defs>
+    <linearGradient id="grad_centre_dentaire_boulevard_galeries_d_anjou_main" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E3A8A"/>
+      <stop offset="100%" stop-color="#D4AF37"/>
+    </linearGradient>
+    <filter id="grad_centre_dentaire_boulevard_galeries_d_anjou_shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#0F172A" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <!-- Transparent Container Canvas -->
+  <rect width="400" height="120" fill="transparent"/>
+
+  <!-- Brand Emblem Vector Crest -->
+  <g id="brand-crest">
+    
+        <!-- Octagonal / Heraldic Badge -->
+        <rect x="25" y="16" width="80" height="88" rx="20" fill="url(#grad_centre_dentaire_boulevard_galeries_d_anjou_main)" filter="url(#grad_centre_dentaire_boulevard_galeries_d_anjou_shadow)"/>
+        <rect x="29" y="20" width="72" height="80" rx="16" fill="none" stroke="#D4AF37" stroke-width="1.5" opacity="0.8"/>
+        <!-- Archway -->
+        <path d="M40 78 V48 C40 34 90 34 90 48 V78 Z" fill="none" stroke="#D4AF37" stroke-width="2"/>
+        <!-- Central Enamel Tooth -->
+        <path d="M52 44 C52 37 60 34 65 39 C70 34 78 37 78 44 C78 54 75 62 70 70 C68 74 66 74 65 69 C64 74 62 74 60 70 C55 62 52 54 52 44 Z" fill="#FFFFFF"/>
+        <!-- Crown Jewels / Gold sparkle -->
+        <polygon points="65,30 67,35 72,35 68,38 70,43 65,40 60,43 62,38 58,35 63,35" fill="#D4AF37"/>
+        <!-- Monogram -->
+        <rect x="49" y="80" width="32" height="14" rx="7" fill="#D4AF37"/>
+        <text x="65" y="91" font-family="system-ui, -apple-system, sans-serif" font-size="8" font-weight="900" fill="#1E3A8A" text-anchor="middle" letter-spacing="1">GA</text>
+        
+  </g>
+
+  <!-- Clean Brand Typography -->
+  <g id="brand-typography">
+    <!-- Primary Clinic Name -->
+    <text x="124" y="52" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="19" font-weight="800" fill="#1E3A8A" letter-spacing="0.2">GALERIES D'ANJOU</text>
+    <!-- Secondary Designation -->
+    <text x="125" y="73" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#B45309" letter-spacing="2.2">CENTRE DENTAIRE</text>
+    <!-- Location & Credential Tag -->
+    <text x="125" y="91" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="9.5" font-weight="500" fill="#64748B" letter-spacing="1.2">MONTRÉAL • SOINS COMPLETS</text>
+  </g>
+</svg>

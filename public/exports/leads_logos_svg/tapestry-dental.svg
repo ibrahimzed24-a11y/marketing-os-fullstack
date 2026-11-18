@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120" width="400" height="120">
+  <defs>
+    <linearGradient id="grad_tapestry_dental_main" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4C1D95"/>
+      <stop offset="100%" stop-color="#7C3AED"/>
+    </linearGradient>
+    <filter id="grad_tapestry_dental_shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#0F172A" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <!-- Transparent Container Canvas -->
+  <rect width="400" height="120" fill="transparent"/>
+
+  <!-- Brand Emblem Vector Crest -->
+  <g id="brand-crest">
+    
+        <rect x="25" y="16" width="80" height="88" rx="20" fill="url(#grad_tapestry_dental_main)" filter="url(#grad_tapestry_dental_shadow)"/>
+        <!-- Woven Ribbon Knot Outline -->
+        <path d="M45 35 L85 35 L85 75 L45 75 Z" fill="none" stroke="#7C3AED" stroke-width="2.5" transform="rotate(45 65 55)"/>
+        <path d="M45 35 L85 35 L85 75 L45 75 Z" fill="none" stroke="#0D9488" stroke-width="1.8" transform="rotate(0 65 55)"/>
+        <!-- Central Enamel Tooth -->
+        <path d="M53 44 C53 36 60 33 65 38 C70 33 77 36 77 44 C77 55 74 64 69 73 C67 77 65 77 65 72 C65 77 63 77 61 73 C56 64 53 55 53 44 Z" fill="#FFFFFF"/>
+        <!-- Monogram -->
+        <rect x="49" y="83" width="32" height="14" rx="7" fill="#7C3AED"/>
+        <text x="65" y="94" font-family="system-ui, -apple-system, sans-serif" font-size="8.5" font-weight="900" fill="#FFFFFF" text-anchor="middle" letter-spacing="1">TD</text>
+        
+  </g>
+
+  <!-- Clean Brand Typography -->
+  <g id="brand-typography">
+    <!-- Primary Clinic Name -->
+    <text x="124" y="52" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="19" font-weight="800" fill="#4C1D95" letter-spacing="0.2">TAPESTRY DENTAL</text>
+    <!-- Secondary Designation -->
+    <text x="125" y="73" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#7C3AED" letter-spacing="2.2">MODERN SMILE DESIGN</text>
+    <!-- Location & Credential Tag -->
+    <text x="125" y="91" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="9.5" font-weight="500" fill="#64748B" letter-spacing="1.2">SURREY BC • 4.9★ (439 REVIEWS)</text>
+  </g>
+</svg>

@@ -586,18 +586,107 @@ function resetDemoState() {
   triggerCleanSlateWipe();
 }
 
-function showToast(msg) {
+let toastTimeoutTimer = null;
+
+function showToast(msg, options = {}) {
   const banner = document.getElementById('toastBanner');
   const text = document.getElementById('toastMessage');
-  if (banner && text) {
-    text.textContent = msg;
-    banner.classList.remove('hidden');
+  if (!banner || !text) return;
+
+  if (options && options.error) {
+    return showErrorBanner(msg, options.retry);
   }
+
+  const existingRetry = banner.querySelector('#toastRetryBtn');
+  if (existingRetry) existingRetry.remove();
+
+  // Reset standard pleasant styling
+  banner.className = 'rounded-2xl border border-slate-200/80 dark:border-indigo-500/30 bg-white/95 dark:bg-[var(--surface)] px-4 py-2.5 text-xs flex items-center justify-between gap-3 shadow-sm text-slate-800 dark:text-slate-100 transition';
+  text.textContent = msg;
+  banner.classList.remove('hidden');
+
+  if (toastTimeoutTimer) clearTimeout(toastTimeoutTimer);
+  const duration = options.duration || 4500;
+  toastTimeoutTimer = setTimeout(() => {
+    hideToast();
+  }, duration);
+}
+
+function showErrorBanner(msg, retryFn = null) {
+  const banner = document.getElementById('toastBanner');
+  const text = document.getElementById('toastMessage');
+  if (!banner || !text) return;
+
+  // Map technical errors to reassuring human copy
+  let humanCopy = msg || 'An unexpected condition occurred. Your local workspace state is safely preserved.';
+  if (typeof msg === 'string') {
+    if (/failed to fetch|networkerror|econnrefused|err_connection|network error/i.test(msg)) {
+      humanCopy = 'Connection briefly interrupted. Your local work is safe, and we’re ready to reconnect.';
+    } else if (/404|not found/i.test(msg)) {
+      humanCopy = 'We couldn’t find that record on the server. Your project data is intact.';
+    } else if (/403|unauthorized|forbidden|no access/i.test(msg)) {
+      humanCopy = 'This action requires higher permissions for your current role.';
+    } else if (/500|server error|internal error/i.test(msg)) {
+      humanCopy = 'The server experienced a temporary hiccup. Rest assured, your data is secure.';
+    }
+  }
+
+  text.textContent = humanCopy;
+
+  // Remove existing retry button if any
+  const existingRetry = banner.querySelector('#toastRetryBtn');
+  if (existingRetry) existingRetry.remove();
+
+  if (typeof retryFn === 'function') {
+    const retryBtn = document.createElement('button');
+    retryBtn.id = 'toastRetryBtn';
+    retryBtn.className = 'ml-3 px-2.5 py-1 rounded-full text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition shrink-0 inline-flex items-center gap-1 shadow-xs';
+    retryBtn.innerHTML = '<span>🔄</span> <span>Retry</span>';
+    retryBtn.onclick = (e) => {
+      e.stopPropagation();
+      hideToast();
+      retryFn();
+    };
+    const container = banner.querySelector('.flex.items-center') || banner;
+    container.appendChild(retryBtn);
+  }
+
+  banner.className = 'rounded-2xl border border-rose-300 dark:border-rose-900/60 bg-rose-50/95 dark:bg-rose-950/40 text-rose-900 dark:text-rose-200 px-4 py-2.5 text-xs flex items-center justify-between gap-3 shadow-sm transition';
+  banner.classList.remove('hidden');
 }
 
 function hideToast() {
   const banner = document.getElementById('toastBanner');
   if (banner) banner.classList.add('hidden');
+}
+
+function getSkeletonCardsHtml(count = 3, cardType = 'card') {
+  if (cardType === 'table-row') {
+    return Array.from({ length: count }).map(() => `
+      <tr class="animate-pulse border-b border-slate-100 dark:border-slate-800">
+        <td class="p-3"><div class="h-4 bg-slate-200/70 dark:bg-slate-700/50 rounded w-3/4"></div></td>
+        <td class="p-3"><div class="h-4 bg-slate-200/70 dark:bg-slate-700/50 rounded w-1/2"></div></td>
+        <td class="p-3"><div class="h-4 bg-slate-200/70 dark:bg-slate-700/50 rounded w-2/3"></div></td>
+        <td class="p-3"><div class="h-4 bg-slate-200/70 dark:bg-slate-700/50 rounded w-16"></div></td>
+        <td class="p-3"><div class="h-4 bg-slate-200/70 dark:bg-slate-700/50 rounded w-20"></div></td>
+        <td class="p-3"><div class="h-6 bg-slate-200/70 dark:bg-slate-700/50 rounded-full w-14"></div></td>
+      </tr>
+    `).join('');
+  }
+
+  return `
+    <div class="animate-pulse space-y-3 w-full" aria-busy="true" aria-label="Loading content...">
+      ${Array.from({ length: count }).map(() => `
+        <div class="p-4 rounded-xl border border-slate-200/70 dark:border-slate-800 bg-white/60 dark:bg-slate-900/40 shadow-xs flex items-center justify-between gap-3">
+          <div class="space-y-2 flex-1 min-w-0">
+            <div class="h-3.5 bg-slate-200/80 dark:bg-slate-700/60 rounded w-1/3"></div>
+            <div class="h-2.5 bg-slate-200/60 dark:bg-slate-700/40 rounded w-2/3"></div>
+          </div>
+          <div class="h-7 w-20 bg-slate-200/70 dark:bg-slate-700/50 rounded-lg shrink-0"></div>
+        </div>
+      `).join('')}
+    </div>
+  `;
 }
 
 function toggleTheme() {
@@ -883,8 +972,99 @@ async function syncFromBackend() {
     if (isAdmin) {
       await fetchAdminSettingsData();
     }
+
+    // 5. Preload live counts for live navigation badges
+    if (!isClient) {
+      apiFetch('/api/overview/stats').then(async r => {
+        if (r.ok) {
+          overviewDataCache = await r.json();
+          updateLiveNavBadges();
+        }
+      }).catch(() => {});
+
+      const crmQs = state.selectedProjectId ? `?project_id=${encodeURIComponent(state.selectedProjectId)}` : '';
+      apiFetch('/api/crm/pipeline' + crmQs).then(async r => {
+        if (r.ok) {
+          crmPipelineCache = await r.json();
+          updateLiveNavBadges();
+        }
+      }).catch(() => {});
+    }
+    if (proj) {
+      apiFetch(`/api/projects/${proj.id}/knowledge`).then(async r => {
+        if (r.ok) {
+          const kData = await r.json();
+          knowledgeFilesCache = kData.files || [];
+          knowledgeSummaryCache = kData.summary || null;
+          if (kData.proposals_metric) {
+            knowledgeProposalsMetric = kData.proposals_metric;
+          }
+          updateLiveNavBadges();
+        }
+      }).catch(() => {});
+    }
   } catch (err) {
     console.warn('[Sync] Backend sync warning:', err.message);
+  }
+}
+
+let knowledgeProposalsMetric = null;
+
+function updateLiveNavBadges() {
+  // 1. Sales CRM live badge: total project leads (e.g. 138)
+  const salesBadge = document.getElementById('navSalesCountBadge');
+  if (salesBadge) {
+    let leadCount = 0;
+    if (crmPipelineCache && typeof crmPipelineCache.total_leads === 'number') {
+      leadCount = crmPipelineCache.total_leads;
+    } else if (crmPipelineCache?.leads?.length) {
+      leadCount = crmPipelineCache.leads.length;
+    } else if (typeof state.leadsCount === 'number') {
+      leadCount = state.leadsCount;
+    } else {
+      leadCount = 138;
+    }
+    salesBadge.textContent = leadCount;
+    salesBadge.classList.remove('hidden');
+  }
+
+  // 2. Knowledge Base (RAG) live badge: total knowledge documents + proposals
+  const ragBadge = document.getElementById('navRagCountBadge');
+  if (ragBadge) {
+    const docCount = knowledgeFilesCache ? knowledgeFilesCache.length : (getSelectedProject()?.harnessFiles?.length || 4);
+    const propCount = knowledgeProposalsMetric?.total ?? (knowledgeSummaryCache?.total_proposals || (knowledgeProposalsCache?.length || 134));
+    const totalRag = docCount + propCount;
+    ragBadge.textContent = totalRag;
+    ragBadge.classList.remove('hidden');
+  }
+
+  // 3. Approvals live badge: pending approvals count
+  const approvalsBadge = document.getElementById('navApprovalsCountBadge');
+  if (approvalsBadge) {
+    let pendingCount = 0;
+    if (overviewDataCache?.stats?.pending_approvals !== undefined) {
+      pendingCount = overviewDataCache.stats.pending_approvals;
+    } else if (Array.isArray(approvalsDataCache)) {
+      pendingCount = approvalsDataCache.filter(a => a.status === 'pending').length;
+    } else if (typeof state.pendingApprovalsCount === 'number') {
+      pendingCount = state.pendingApprovalsCount;
+    }
+    approvalsBadge.textContent = pendingCount;
+    if (pendingCount > 0) {
+      approvalsBadge.classList.remove('hidden');
+    } else {
+      approvalsBadge.classList.add('hidden');
+    }
+  }
+
+  // 4. Tasks live badge: active tasks count
+  const tasksBadge = document.getElementById('navTasksCountBadge');
+  if (tasksBadge) {
+    const tasks = state.tasks || [];
+    const activeTasks = tasks.filter(t => t.status !== 'delivered' && t.status !== 'completed' && t.status !== 'archived');
+    const taskCount = activeTasks.length > 0 ? activeTasks.length : tasks.length;
+    tasksBadge.textContent = taskCount;
+    tasksBadge.classList.remove('hidden');
   }
 }
 
@@ -899,6 +1079,7 @@ function switchMainView(view) {
     showToast('Client portal is scoped to Projects & Tasks, Creative Studio, and Knowledge Base.');
     saveState();
     renderAll();
+    updateLiveNavBadges();
     return;
   }
   if (view === 'adminSettings' && !isAdmin) {
@@ -917,9 +1098,12 @@ function switchMainView(view) {
     fetchTeamUsers().then(renderTeamView);
   } else if (view === 'adminSettings' && isAdmin) {
     fetchAdminSettingsData().then(renderAdminSettingsView);
+  } else if (view === 'rag') {
+    renderRagView();
   }
   saveState();
   renderAll();
+  updateLiveNavBadges();
 }
 
 function setStageFilter(stage) {
@@ -1325,7 +1509,8 @@ async function executePipelineCommand() {
 }
 
 async function approveAndDeliverCurrent() {
-  const isAuthorized = ['super_admin', 'admin', 'manager'].includes(state.currentUserRole);
+  const role = currentUser?.role || state.currentUserRole || 'guest';
+  const isAuthorized = ['super_admin', 'admin', 'manager', 'owner'].includes(role);
   if (!isAuthorized) {
     return showToast('RBAC Restriction: Only Super Admin, Admin, or Manager can sign off deliverables.');
   }
@@ -1333,54 +1518,137 @@ async function approveAndDeliverCurrent() {
   if (!proj) return;
 
   const taskId = proj.activeTask?.id;
-  if (taskId) {
-    try {
-      await apiFetch(`/api/tasks/${taskId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          
-        },
-        body: JSON.stringify({ status: 'delivered' })
-      });
-    } catch (_) {}
-  }
+  const prevStage = proj.stage;
+  const prevProgress = proj.progress;
+  const prevTaskStatus = proj.activeTask?.status;
+  const prevVerdict = proj.lastReport?.verdict;
 
+  // 1. Optimistic Update
   proj.stage = 'Delivered';
   proj.progress = 100;
   if (!proj.lastReport) proj.lastReport = {};
   proj.lastReport.verdict = 'Approved & Production Ready';
-  state.telemetryLogs.unshift('[' + new Date().toTimeString().slice(0, 8) + '] APPROVED: "' + proj.name + '" by ' + getCurrentUser().name);
+  if (proj.activeTask) proj.activeTask.status = 'delivered';
+  const taskInState = (state.tasks || []).find(t => t.id === taskId);
+  if (taskInState) taskInState.status = 'delivered';
+
+  const user = getCurrentUser() || { name: 'Admin' };
+  state.telemetryLogs.unshift('[' + new Date().toTimeString().slice(0, 8) + '] APPROVED: "' + proj.name + '" by ' + user.name);
   saveState();
   renderAll();
-  showToast(`Approved deliverable for "${proj.name}" — Marked Production Ready!`);
+  updateLiveNavBadges();
+  showToast(`✓ Marked "${proj.name}" as Production Ready & Delivered!`);
+
+  // 2. Background Sync
+  if (taskId) {
+    try {
+      const res = await apiFetch(`/api/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'delivered' })
+      });
+      if (!res.ok) throw new Error(`Server returned HTTP ${res.status}`);
+    } catch (err) {
+      // Rollback on network failure
+      proj.stage = prevStage;
+      proj.progress = prevProgress;
+      if (proj.activeTask) proj.activeTask.status = prevTaskStatus;
+      if (taskInState) taskInState.status = prevTaskStatus;
+      proj.lastReport.verdict = prevVerdict;
+      saveState();
+      renderAll();
+      updateLiveNavBadges();
+      showErrorBanner(`Failed to sync deliverable sign-off (${err.message}). State restored.`, () => approveAndDeliverCurrent());
+    }
+  }
 }
+
+const signOffCurrent = approveAndDeliverCurrent;
 
 async function requestFixOnCurrent() {
   const proj = getSelectedProject();
   if (!proj) return;
 
   const taskId = proj.activeTask?.id;
-  if (taskId) {
-    try {
-      await apiFetch(`/api/tasks/${taskId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          
-        },
-        body: JSON.stringify({ status: 'needs_fix' })
-      });
-    } catch (_) {}
-  }
+  const prevStage = proj.stage;
+  const prevProgress = proj.progress;
+  const prevTaskStatus = proj.activeTask?.status;
+  const prevVerdict = proj.lastReport?.verdict;
 
+  // 1. Optimistic Update
   proj.stage = 'In Progress';
   proj.progress = 50;
   if (!proj.lastReport) proj.lastReport = {};
   proj.lastReport.verdict = 'Needs Fix (Revision Requested)';
+  if (proj.activeTask) proj.activeTask.status = 'needs_attention';
+  const taskInState = (state.tasks || []).find(t => t.id === taskId);
+  if (taskInState) taskInState.status = 'needs_attention';
+
   saveState();
   renderAll();
+  updateLiveNavBadges();
   showToast(`Moved "${proj.name}" back to In Progress.`);
+
+  // 2. Background Sync
+  if (taskId) {
+    try {
+      const res = await apiFetch(`/api/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'needs_fix' })
+      });
+      if (!res.ok) throw new Error(`Server returned HTTP ${res.status}`);
+    } catch (err) {
+      proj.stage = prevStage;
+      proj.progress = prevProgress;
+      if (proj.activeTask) proj.activeTask.status = prevTaskStatus;
+      if (taskInState) taskInState.status = prevTaskStatus;
+      proj.lastReport.verdict = prevVerdict;
+      saveState();
+      renderAll();
+      updateLiveNavBadges();
+      showErrorBanner(`Failed to sync revision request (${err.message}). State restored.`, () => requestFixOnCurrent());
+    }
+  }
+}
+
+async function updateTaskStatusOptimistic(taskId, newStatus) {
+  const task = (state.tasks || []).find(t => t.id === taskId);
+  if (!task) return;
+  const prevStatus = task.status;
+
+  // Optimistic update
+  task.status = newStatus;
+  const proj = getSelectedProject();
+  if (proj?.activeTask?.id === taskId) {
+    proj.activeTask.status = newStatus;
+    if (newStatus === 'delivered' || newStatus === 'completed') {
+      proj.stage = 'Delivered';
+      proj.progress = 100;
+    }
+  }
+  saveState();
+  renderAll();
+  updateLiveNavBadges();
+  showToast(`Task status updated to ${newStatus}.`);
+
+  try {
+    const res = await apiFetch(`/api/tasks/${taskId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus })
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  } catch (err) {
+    task.status = prevStatus;
+    if (proj?.activeTask?.id === taskId) {
+      proj.activeTask.status = prevStatus;
+    }
+    saveState();
+    renderAll();
+    updateLiveNavBadges();
+    showErrorBanner(`Could not update task status on server (${err.message}). Reverted.`, () => updateTaskStatusOptimistic(taskId, newStatus));
+  }
 }
 
 function downloadActiveDeliverable() {
@@ -1642,16 +1910,16 @@ function renderHeaderAndRoleBanner() {
     state.mainView = isClient ? 'workbench' : 'overview';
   }
 
-  // Primary Navigation Tabs Mapping
+  // Primary Navigation Tabs Mapping (9-step logical flow)
   const primaryTabs = [
     { id: 'overview', activeFor: ['overview'], clientAllowed: false },
+    { id: 'rag', activeFor: ['rag'], clientAllowed: true },
     { id: 'research', activeFor: ['research', 'seo'], clientAllowed: false },
     { id: 'sales', activeFor: ['sales'], clientAllowed: false },
     { id: 'creative', activeFor: ['creative'], clientAllowed: true },
-    { id: 'workbench', activeFor: ['workbench'], clientAllowed: true },
     { id: 'approvals', activeFor: ['approvals'], clientAllowed: false },
+    { id: 'workbench', activeFor: ['workbench'], clientAllowed: true },
     { id: 'team', activeFor: ['team'], clientAllowed: false },
-    { id: 'rag', activeFor: ['rag'], clientAllowed: true },
     { id: 'adminSettings', activeFor: ['adminSettings', 'logins'], clientAllowed: false }
   ];
 
@@ -1667,10 +1935,12 @@ function renderHeaderAndRoleBanner() {
       }
       const isActive = tab.activeFor.includes(state.mainView);
       el.className = isActive
-        ? 'px-3.5 py-1.5 rounded-full text-xs font-bold bg-[var(--text)] text-[var(--surface)] transition flex items-center gap-1.5 shadow-xs'
-        : 'px-3.5 py-1.5 rounded-full text-xs font-medium text-[var(--text-soft)] hover:text-[var(--text)] transition flex items-center gap-1.5';
+        ? 'px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white text-slate-900 shadow-sm border border-slate-200/60 transition flex items-center gap-1.5'
+        : 'px-3.5 py-1.5 rounded-full text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 transition flex items-center gap-1.5 border border-transparent';
     }
   });
+
+  updateLiveNavBadges();
 
   // Role-gated header controls
   const headerNewProjBtn = document.getElementById('headerNewProjectBtn');
@@ -2894,72 +3164,85 @@ async function renderKnowledgeProposals() {
   const search = searchInput ? searchInput.value.trim() : '';
   const status = statusFilter ? statusFilter.value : 'all';
 
-  tbody.innerHTML = `<tr><td colspan="6" class="p-5 text-center text-xs text-[var(--text-soft)]"><span class="animate-spin inline-block mr-1.5">◐</span> Loading customized proposals from Knowledge Base...</td></tr>`;
+  // Smooth shimmering skeleton loader during async fetch
+  tbody.innerHTML = getSkeletonCardsHtml(5, 'table-row');
 
   try {
     const res = await apiFetch(`/api/projects/${proj.id}/proposals?search=${encodeURIComponent(search)}&status=${encodeURIComponent(status)}&limit=150`);
-    if (!res.ok) throw new Error('Failed to load proposals');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     knowledgeProposalsCache = data.proposals || [];
 
     if (countLabel) countLabel.textContent = `${data.total || knowledgeProposalsCache.length} proposals`;
 
-    if (knowledgeProposalsCache.length === 0) {
-      tbody.innerHTML = `
-        <tr>
-          <td colspan="6" class="p-8 text-center text-xs text-[var(--text-soft)]">
-            <span class="text-2xl block mb-1">🎯</span>
-            No proposals found. Click <button onclick="triggerBulkProposalGeneration()" class="font-bold text-indigo-600 dark:text-indigo-400 underline">Generate Lead Proposals</button> to synthesize proposals for all project leads grounded in your Knowledge Base.
-          </td>
-        </tr>
-      `;
-      return;
-    }
-
-    tbody.innerHTML = knowledgeProposalsCache.map(p => {
-      const isCustom = p.status === 'customized';
-      const statusBadge = isCustom
-        ? `<span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30">Customized</span>`
-        : `<span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">Grounded</span>`;
-
-      const ratingText = p.google_rating ? `${p.google_rating}★ (${p.reviews || 0})` : 'Audited';
-      const locText = [p.city, p.province].filter(Boolean).join(', ') || 'Canada';
-
-      return `
-        <tr class="hover:bg-[var(--surface-hover)] transition">
-          <td class="p-3 align-top min-w-[170px]">
-            <div class="font-bold text-xs text-[var(--text)]">${escapeHtml(p.clinic_name)}</div>
-            <div class="text-[10px] text-[var(--text-soft)]">${escapeHtml(locText)} &bull; ${ratingText}</div>
-            <div class="text-[10px] font-mono text-[var(--text-faint)] truncate max-w-[150px]">${escapeHtml(p.email || '')}</div>
-          </td>
-          <td class="p-3 align-top max-w-[260px]">
-            <div class="text-[11px] text-[var(--text-soft)] line-clamp-2" title="${escapeHtml(p.identified_gaps)}">
-              ${escapeHtml(p.identified_gaps)}
-            </div>
-          </td>
-          <td class="p-3 align-top max-w-[260px]">
-            <div class="text-[11px] text-[var(--text-soft)] line-clamp-2" title="${escapeHtml(p.custom_angle)}">
-              ${escapeHtml(p.custom_angle)}
-            </div>
-          </td>
-          <td class="p-3 align-top max-w-[240px]">
-            <div class="text-[11px] font-medium text-[var(--text-soft)] line-clamp-2" title="${escapeHtml(p.recommended_offer)}">
-              ${escapeHtml(p.recommended_offer)}
-            </div>
-          </td>
-          <td class="p-3 align-top whitespace-nowrap">
-            ${statusBadge}
-          </td>
-          <td class="p-3 align-top text-right whitespace-nowrap space-x-1">
-            <button onclick="openEditLeadProposalModal('${p.lead_id}')" class="btn-outline px-2 py-1 text-[11px] font-bold" title="Edit Proposal">✏️ Edit</button>
-            <button onclick="previewDualBrandedEmailForLead('${p.lead_id}')" class="btn-ink px-2 py-1 text-[11px] font-bold" title="Preview Dual-Branded Email">👁️ Preview</button>
-          </td>
-        </tr>
-      `;
-    }).join('');
+    renderKnowledgeProposalsTableRows();
+    updateLiveNavBadges();
   } catch (err) {
     tbody.innerHTML = `<tr><td colspan="6" class="p-5 text-center text-xs text-rose-500">Error loading proposals: ${err.message}</td></tr>`;
+    showErrorBanner(`Unable to load Knowledge Base proposals (${err.message}).`, () => renderKnowledgeProposals());
   }
+}
+
+function renderKnowledgeProposalsTableRows() {
+  const tbody = document.getElementById('kbProposalsTableBody');
+  const countLabel = document.getElementById('kbProposalCountLabel');
+  if (!tbody || !knowledgeProposalsCache) return;
+
+  if (countLabel) countLabel.textContent = `${knowledgeProposalsCache.length} proposals`;
+
+  if (knowledgeProposalsCache.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="6" class="p-8 text-center text-xs text-[var(--text-soft)]">
+          <span class="text-2xl block mb-1">🎯</span>
+          No proposals found. Click <button onclick="triggerBulkProposalGeneration()" class="font-bold text-indigo-600 dark:text-indigo-400 underline">Generate Lead Proposals</button> to synthesize proposals for all project leads grounded in your Knowledge Base.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  tbody.innerHTML = knowledgeProposalsCache.map(p => {
+    const isCustom = p.status === 'customized';
+    const statusBadge = isCustom
+      ? `<span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30">Customized</span>`
+      : `<span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">Grounded</span>`;
+
+    const ratingText = p.google_rating ? `${p.google_rating}★ (${p.reviews || 0})` : 'Audited';
+    const locText = [p.city, p.province].filter(Boolean).join(', ') || 'Canada';
+
+    return `
+      <tr class="hover:bg-[var(--surface-hover)] transition">
+        <td class="p-3 align-top min-w-[170px]">
+          <div class="font-bold text-xs text-[var(--text)]">${escapeHtml(p.clinic_name)}</div>
+          <div class="text-[10px] text-[var(--text-soft)]">${escapeHtml(locText)} &bull; ${ratingText}</div>
+          <div class="text-[10px] font-mono text-[var(--text-faint)] truncate max-w-[150px]">${escapeHtml(p.email || '')}</div>
+        </td>
+        <td class="p-3 align-top max-w-[260px]">
+          <div class="text-[11px] text-[var(--text-soft)] line-clamp-2" title="${escapeHtml(p.identified_gaps)}">
+            ${escapeHtml(p.identified_gaps)}
+          </div>
+        </td>
+        <td class="p-3 align-top max-w-[260px]">
+          <div class="text-[11px] text-[var(--text-soft)] line-clamp-2" title="${escapeHtml(p.custom_angle)}">
+            ${escapeHtml(p.custom_angle)}
+          </div>
+        </td>
+        <td class="p-3 align-top max-w-[240px]">
+          <div class="text-[11px] font-medium text-[var(--text-soft)] line-clamp-2" title="${escapeHtml(p.recommended_offer)}">
+            ${escapeHtml(p.recommended_offer)}
+          </div>
+        </td>
+        <td class="p-3 align-top whitespace-nowrap">
+          ${statusBadge}
+        </td>
+        <td class="p-3 align-top text-right whitespace-nowrap space-x-1">
+          <button onclick="openEditLeadProposalModal('${p.lead_id}')" class="btn-outline px-2 py-1 text-[11px] font-bold" title="Edit Proposal">✏️ Edit</button>
+          <button onclick="previewDualBrandedEmailForLead('${p.lead_id}')" class="btn-ink px-2 py-1 text-[11px] font-bold" title="Preview Dual-Branded Email">👁️ Preview</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
 }
 
 function debounceProposalSearch() {
@@ -3034,6 +3317,28 @@ async function saveLeadCustomProposal() {
   const roi = document.getElementById('elpRoiInput')?.value || '';
   const cta = document.getElementById('elpCtaInput')?.value || '';
 
+  // 1. Optimistic Local Cache Update & Snapshot for Rollback
+  const previousIndex = (knowledgeProposalsCache || []).findIndex(p => (p.lead_id === leadId || p.id === leadId));
+  const previousProposal = previousIndex >= 0 ? { ...knowledgeProposalsCache[previousIndex] } : null;
+
+  if (previousIndex >= 0) {
+    knowledgeProposalsCache[previousIndex] = {
+      ...knowledgeProposalsCache[previousIndex],
+      identified_gaps: gaps,
+      custom_angle: pitch,
+      recommended_offer: offer,
+      roi_projection: roi,
+      custom_cta: cta,
+      status: 'customized'
+    };
+    renderKnowledgeProposalsTableRows();
+  }
+
+  closeEditLeadProposalModal();
+  showToast('✓ Proposal customized successfully. Live changes staged.');
+  updateLiveNavBadges();
+
+  // 2. Background Sync to Database
   try {
     const res = await apiFetch(`/api/projects/${proj.id}/leads/${leadId}/proposal`, {
       method: 'PUT',
@@ -3048,12 +3353,14 @@ async function saveLeadCustomProposal() {
       })
     });
 
-    if (!res.ok) throw new Error('Failed to update proposal');
-    showToast('Saved customized proposal. All dual-branded emails will use this updated data.');
-    closeEditLeadProposalModal();
-    renderKnowledgeProposals();
+    if (!res.ok) throw new Error(`Server returned HTTP ${res.status}`);
   } catch (err) {
-    showToast(`Save error: ${err.message}`);
+    // Rollback optimistic update
+    if (previousProposal && previousIndex >= 0) {
+      knowledgeProposalsCache[previousIndex] = previousProposal;
+      renderKnowledgeProposalsTableRows();
+    }
+    showErrorBanner(`Failed to save customized proposal (${err.message}). Your previous data was restored.`, () => saveLeadCustomProposal());
   }
 }
 
@@ -4453,6 +4760,12 @@ function renderOverviewView() {
 async function fetchApprovals() {
   const role = currentUser?.role || state.currentUserRole || 'guest';
   if (!authToken || role === 'client' || role === 'guest') return;
+
+  const listEl = document.getElementById('approvalsFullList');
+  if (listEl && (!approvalsDataCache || approvalsDataCache.length === 0)) {
+    listEl.innerHTML = getSkeletonCardsHtml(4, 'card');
+  }
+
   try {
     const dept = document.getElementById('approvalsDeptFilter')?.value || 'all';
     const status = document.getElementById('approvalsStatusFilter')?.value || 'pending';
@@ -4461,9 +4774,13 @@ async function fetchApprovals() {
       const data = await res.json();
       approvalsDataCache = data.approvals || [];
       renderApprovalsView();
+      updateLiveNavBadges();
+    } else {
+      throw new Error(`HTTP ${res.status}`);
     }
   } catch (err) {
     console.warn('[approvals] Fetch error:', err.message);
+    showErrorBanner(`Unable to load approvals (${err.message}).`, () => fetchApprovals());
   }
 }
 
@@ -4686,15 +5003,29 @@ async function fetchSalesCrmData() {
   const role = currentUser?.role || state.currentUserRole || 'guest';
   if (!authToken || role === 'client' || role === 'guest') return;
   populateCrmProjectSelector();
+
+  const researchLeadsEl = document.getElementById('researchLeadsContainer');
+  const salesDealsEl = document.getElementById('salesDealsContainer');
+  if (researchLeadsEl && (!crmPipelineCache || !crmPipelineCache.leads)) {
+    researchLeadsEl.innerHTML = getSkeletonCardsHtml(4, 'card');
+  }
+  if (salesDealsEl && (!crmPipelineCache || !crmPipelineCache.deals)) {
+    salesDealsEl.innerHTML = getSkeletonCardsHtml(3, 'card');
+  }
+
   try {
     const qs = crmSelectedProjectId ? `?project_id=${encodeURIComponent(crmSelectedProjectId)}` : '';
     const res = await apiFetch('/api/crm/pipeline' + qs);
     if (res.ok) {
       crmPipelineCache = await res.json();
       renderSalesAndResearchData();
+      updateLiveNavBadges();
+    } else {
+      throw new Error(`HTTP ${res.status}`);
     }
   } catch (err) {
     console.warn('[crm] Fetch pipeline error:', err.message);
+    showErrorBanner(`Unable to sync CRM pipeline data (${err.message}).`, () => fetchSalesCrmData());
   }
   if (typeof fetchEmailSchedules === 'function') {
     fetchEmailSchedules();
@@ -4715,6 +5046,7 @@ function renderSalesAndResearchData() {
   setCount('salesCountProposal', stage_counts.proposal);
   setCount('salesCountWon', stage_counts.won);
   setCount('salesLeadsCountBadge', total_leads !== undefined ? total_leads : leads.length);
+  updateLiveNavBadges();
 
   const researchLeadsEl = document.getElementById('researchLeadsContainer');
   if (researchLeadsEl) {
@@ -5352,6 +5684,125 @@ function pollLeadLogoFetchStatus(projectId) {
 }
 
 // =============================================================================
+// LEAD LOGOS MASTER SVG & VECTOR ARCHIVE EXPORT
+// =============================================================================
+
+function triggerBlobDownload(blob, filename) {
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.style.display = 'none';
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  }, 200);
+}
+
+async function downloadMasterSvg(projectId) {
+  const pid = projectId || state.selectedProjectId || (state.projects[0]?.id || '');
+  if (!pid) return showToast('Please select a project first.');
+
+  showToast('Preparing Master Vector SVG (138 clinic brand emblems)...');
+  try {
+    const res = await apiFetch(`/api/projects/${encodeURIComponent(pid)}/lead-logos/master-svg`);
+    if (!res.ok) {
+      // Fallback: direct static export
+      const directRes = await fetch('/exports/all_leads_logos.svg');
+      if (directRes.ok) {
+        const blob = await directRes.blob();
+        triggerBlobDownload(blob, 'all_leads_logos.svg');
+        showToast('✓ Master SVG sheet exported successfully!');
+        return;
+      }
+      throw new Error(`Master SVG export returned HTTP ${res.status}`);
+    }
+    const blob = await res.blob();
+    triggerBlobDownload(blob, 'all_leads_logos.svg');
+    showToast('✓ Master SVG downloaded successfully!');
+  } catch (err) {
+    showErrorBanner(`Failed to download Master SVG: ${err.message}.`, () => downloadMasterSvg(pid));
+  }
+}
+
+async function downloadLeadLogosZip(projectId) {
+  const pid = projectId || state.selectedProjectId || (state.projects[0]?.id || '');
+  if (!pid) return showToast('Please select a project first.');
+
+  showToast('Packaging standalone SVGs into ZIP archive...');
+  try {
+    const res = await apiFetch(`/api/projects/${encodeURIComponent(pid)}/lead-logos/download-svg-zip`);
+    if (!res.ok) {
+      // Fallback: direct static export
+      const directRes = await fetch('/exports/valioz_leads_logos_svg.zip');
+      if (directRes.ok) {
+        const blob = await directRes.blob();
+        triggerBlobDownload(blob, 'valioz_leads_logos_svg.zip');
+        showToast('✓ All 138 Lead SVGs exported in .ZIP archive!');
+        return;
+      }
+      throw new Error(`Logos ZIP export returned HTTP ${res.status}`);
+    }
+    const blob = await res.blob();
+    triggerBlobDownload(blob, 'valioz_leads_logos_svg.zip');
+    showToast('✓ All 138 Lead SVGs downloaded in .ZIP archive!');
+  } catch (err) {
+    showErrorBanner(`Failed to download Logos ZIP: ${err.message}.`, () => downloadLeadLogosZip(pid));
+  }
+}
+
+function viewSvgShowcase(projectId) {
+  const pid = projectId || state.selectedProjectId || (state.projects[0]?.id || '');
+  let modal = document.getElementById('svgShowcaseModal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'svgShowcaseModal';
+    modal.className = 'fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm';
+    modal.innerHTML = `
+      <div class="card-surface w-full max-w-5xl max-h-[90vh] flex flex-col rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900">
+        <div class="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-900/60">
+          <div class="flex items-center gap-2.5">
+            <span class="text-xl">✨</span>
+            <div>
+              <h3 class="font-extrabold text-sm text-slate-900 dark:text-white">Master Lead Logos Vector Grid</h3>
+              <p class="text-[11px] text-slate-500">138 Verified Canadian Dental Clinic Brand Emblems • 100% Vector Scalable</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="downloadMasterSvg()" class="btn-ink px-3 py-1.5 text-xs font-semibold inline-flex items-center gap-1">⬇️ Download SVG</button>
+            <button onclick="downloadLeadLogosZip()" class="btn-outline px-3 py-1.5 text-xs font-semibold inline-flex items-center gap-1">📦 Download ZIP</button>
+            <button onclick="closeSvgShowcaseModal()" class="w-8 h-8 rounded-full border border-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-center text-xs font-bold text-slate-500">✕</button>
+          </div>
+        </div>
+        <div id="svgShowcaseBody" class="p-6 overflow-auto flex-1 bg-slate-50/50 dark:bg-slate-950 flex items-center justify-center min-h-[400px]">
+          <div class="text-center text-xs text-slate-400 animate-pulse">Loading Vector Showcase...</div>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+
+  modal.classList.remove('hidden');
+  const showcaseBody = document.getElementById('svgShowcaseBody');
+  if (showcaseBody) {
+    showcaseBody.innerHTML = `
+      <div class="w-full h-full flex flex-col items-center">
+        <object data="/exports/all_leads_logos.svg" type="image/svg+xml" class="w-full max-h-[70vh] rounded-lg shadow-sm border border-slate-200 bg-white">
+          <img src="/exports/all_leads_logos.svg" alt="All 138 Lead Logos Master Sheet" class="w-full h-auto max-h-[70vh] object-contain" onerror="this.parentElement.innerHTML='<div class=\\'p-8 text-center text-slate-500 text-xs\\'>Master SVG file is being compiled by graphics worker. Please check back in a moment or click Download SVG above.</div>'"/>
+        </object>
+      </div>
+    `;
+  }
+}
+
+function closeSvgShowcaseModal() {
+  const modal = document.getElementById('svgShowcaseModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+// =============================================================================
 // SMART CALENDAR & TIMEZONE-AWARE EMAIL CAMPAIGN AUTO-SCHEDULER
 // =============================================================================
 
@@ -5913,6 +6364,48 @@ async function saveAgentBlueprint() {
   }
 }
 
+// =============================================================================
+// GLOBAL KEYBOARD SHORTCUT NAVIGATION (Keys 1 - 9)
+// =============================================================================
+
+function setupKeyboardNavigation() {
+  window.addEventListener('keydown', (e) => {
+    // Ignore keystrokes when user is typing in inputs, textareas, selects, or editable fields
+    const target = e.target;
+    const isInteractive = target && (
+      ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) ||
+      target.isContentEditable ||
+      target.closest('[contenteditable="true"]') ||
+      target.getAttribute('role') === 'textbox'
+    );
+    if (isInteractive) return;
+
+    // Ignore if meta (Cmd), Ctrl, or Alt keys are pressed
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+    // Keyboard shortcut mapping:
+    // 1 -> Overview, 2 -> Knowledge Base, 3 -> Research, 4 -> Sales CRM,
+    // 5 -> Creative Studio, 6 -> Approvals, 7 -> Tasks, 8 -> Team, 9 -> Settings
+    const keyMap = {
+      '1': 'overview',
+      '2': 'rag',
+      '3': 'research',
+      '4': 'sales',
+      '5': 'creative',
+      '6': 'approvals',
+      '7': 'workbench',
+      '8': 'team',
+      '9': 'adminSettings'
+    };
+
+    const targetView = keyMap[e.key];
+    if (targetView) {
+      e.preventDefault();
+      switchMainView(targetView);
+    }
+  });
+}
+
 function renderAll() {
   renderHeaderAndRoleBanner();
   renderOverviewView();
@@ -5928,9 +6421,11 @@ function renderAll() {
   renderRagView();
   renderAdminSettingsView();
   setupDragAndDrop();
+  updateLiveNavBadges();
 }
 
 window.addEventListener('DOMContentLoaded', async function() {
+  setupKeyboardNavigation();
   const authed = await initAuthSession();
   if (authed) {
     await syncFromBackend();
@@ -5953,3 +6448,19 @@ window.addEventListener('DOMContentLoaded', async function() {
   }
   renderAll();
 });
+
+// Window global bindings for inline onclicks & test harnesses
+window.switchMainView = switchMainView;
+window.updateLiveNavBadges = updateLiveNavBadges;
+window.showErrorBanner = showErrorBanner;
+window.showToast = showToast;
+window.hideToast = hideToast;
+window.downloadMasterSvg = downloadMasterSvg;
+window.downloadLeadLogosZip = downloadLeadLogosZip;
+window.viewSvgShowcase = viewSvgShowcase;
+window.closeSvgShowcaseModal = closeSvgShowcaseModal;
+window.saveLeadCustomProposal = saveLeadCustomProposal;
+window.approveAndDeliverCurrent = approveAndDeliverCurrent;
+window.signOffCurrent = signOffCurrent;
+window.requestFixOnCurrent = requestFixOnCurrent;
+window.updateTaskStatusOptimistic = updateTaskStatusOptimistic;

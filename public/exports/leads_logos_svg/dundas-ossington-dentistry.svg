@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120" width="400" height="120">
+  <defs>
+    <linearGradient id="grad_dundas_ossington_dentistry_main" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#18181B"/>
+      <stop offset="100%" stop-color="#0891B2"/>
+    </linearGradient>
+    <filter id="grad_dundas_ossington_dentistry_shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#0F172A" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <!-- Transparent Container Canvas -->
+  <rect width="400" height="120" fill="transparent"/>
+
+  <!-- Brand Emblem Vector Crest -->
+  <g id="brand-crest">
+    
+        <rect x="24" y="16" width="82" height="88" rx="18" fill="url(#grad_dundas_ossington_dentistry_main)" filter="url(#grad_dundas_ossington_dentistry_shadow)"/>
+        <!-- Minimal Crosshair Grid -->
+        <line x1="24" y1="60" x2="106" y2="60" stroke="#0891B2" stroke-width="1.5" stroke-dasharray="3 3" opacity="0.6"/>
+        <line x1="65" y1="16" x2="65" y2="104" stroke="#0891B2" stroke-width="1.5" stroke-dasharray="3 3" opacity="0.6"/>
+        <!-- Central Modern Tooth Silhouette -->
+        <path d="M52 42 C52 34 60 32 65 37 C70 32 78 34 78 42 C78 54 75 63 70 72 C68 76 66 76 65 71 C64 76 62 76 60 72 C55 63 52 54 52 42 Z" fill="#FFFFFF"/>
+        <circle cx="65" cy="52" r="5" fill="#0891B2"/>
+        <!-- Monogram Badge -->
+        <rect x="48" y="82" width="34" height="14" rx="7" fill="#0891B2"/>
+        <text x="65" y="93" font-family="system-ui, -apple-system, sans-serif" font-size="8.5" font-weight="900" fill="#FFFFFF" text-anchor="middle" letter-spacing="1">DO</text>
+        
+  </g>
+
+  <!-- Clean Brand Typography -->
+  <g id="brand-typography">
+    <!-- Primary Clinic Name -->
+    <text x="124" y="52" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="19" font-weight="800" fill="#18181B" letter-spacing="0.2">DUNDAS OSSINGTON</text>
+    <!-- Secondary Designation -->
+    <text x="125" y="73" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#0891B2" letter-spacing="2.2">DENTISTRY</text>
+    <!-- Location & Credential Tag -->
+    <text x="125" y="91" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="9.5" font-weight="500" fill="#64748B" letter-spacing="1.2">TORONTO • COMPREHENSIVE CLINIC</text>
+  </g>
+</svg>

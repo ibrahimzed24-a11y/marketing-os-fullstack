@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120" width="400" height="120">
+  <defs>
+    <linearGradient id="grad_espanola_dental_centre_main" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#14532D"/>
+      <stop offset="100%" stop-color="#16A34A"/>
+    </linearGradient>
+    <filter id="grad_espanola_dental_centre_shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#0F172A" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <!-- Transparent Container Canvas -->
+  <rect width="400" height="120" fill="transparent"/>
+
+  <!-- Brand Emblem Vector Crest -->
+  <g id="brand-crest">
+    
+        <path d="M26 24 C26 24 65 14 65 14 C65 14 104 24 104 24 C104 60 90 88 65 106 C40 88 26 60 26 24 Z" fill="url(#grad_espanola_dental_centre_main)" filter="url(#grad_espanola_dental_centre_shadow)"/>
+        <!-- Pine Tree Silhouette in White/Mint -->
+        <polygon points="65,28 72,40 68,40 75,52 70,52 78,66 52,66 60,52 55,52 62,40 58,40" fill="#22C55E" opacity="0.9"/>
+        <!-- Tooth Profile emerging from Pine -->
+        <path d="M54 50 C54 44 60 42 65 46 C70 42 76 44 76 50 C76 60 73 68 69 76 C67 80 65 80 65 75 C65 80 63 80 61 76 C57 68 54 60 54 50 Z" fill="#FFFFFF"/>
+        <!-- Monogram Badge -->
+        <rect x="47" y="84" width="36" height="14" rx="7" fill="#16A34A"/>
+        <text x="65" y="95" font-family="system-ui, -apple-system, sans-serif" font-size="8.5" font-weight="900" fill="#FFFFFF" text-anchor="middle" letter-spacing="1">EDC</text>
+        
+  </g>
+
+  <!-- Clean Brand Typography -->
+  <g id="brand-typography">
+    <!-- Primary Clinic Name -->
+    <text x="124" y="53" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="21" font-weight="800" fill="#14532D" letter-spacing="0.2">ESPANOLA</text>
+    <!-- Secondary Designation -->
+    <text x="125" y="74" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#15803D" letter-spacing="2.2">DENTAL CENTRE</text>
+    <!-- Location & Credential Tag -->
+    <text x="125" y="92" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="9.5" font-weight="500" fill="#64748B" letter-spacing="1.2">NORTHERN ONTARIO • FAMILY CARE</text>
+  </g>
+</svg>

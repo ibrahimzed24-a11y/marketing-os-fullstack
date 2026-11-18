@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120" width="400" height="120">
+  <defs>
+    <linearGradient id="grad_centre_dentaire_poirier_tremblay_main" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#064E3B"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <filter id="grad_centre_dentaire_poirier_tremblay_shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#0F172A" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <!-- Transparent Container Canvas -->
+  <rect width="400" height="120" fill="transparent"/>
+
+  <!-- Brand Emblem Vector Crest -->
+  <g id="brand-crest">
+    
+        <circle cx="65" cy="60" r="44" fill="url(#grad_centre_dentaire_poirier_tremblay_main)" filter="url(#grad_centre_dentaire_poirier_tremblay_shadow)"/>
+        <!-- Ribbon 1 (Left Dr. Poirier) -->
+        <path d="M45 42 C40 50 40 65 52 75 C58 80 62 80 64 72 C60 62 58 52 58 42 C58 36 50 36 45 42 Z" fill="#10B981" opacity="0.9"/>
+        <!-- Ribbon 2 (Right Dr. Tremblay) -->
+        <path d="M85 42 C90 50 90 65 78 75 C72 80 68 80 66 72 C70 62 72 52 72 42 C72 36 80 36 85 42 Z" fill="#D1FAE5" opacity="0.95"/>
+        <!-- United Dental Core -->
+        <path d="M54 44 C54 38 60 36 65 40 C70 36 76 38 76 44 C76 54 73 62 69 70 C67 74 65 74 65 69 C65 74 63 74 61 70 C57 62 54 54 54 44 Z" fill="#FFFFFF"/>
+        <!-- Monogram Badge -->
+        <rect x="47" y="84" width="36" height="14" rx="7" fill="#059669"/>
+        <text x="65" y="95" font-family="system-ui, -apple-system, sans-serif" font-size="8.5" font-weight="900" fill="#FFFFFF" text-anchor="middle" letter-spacing="1">PT</text>
+        
+  </g>
+
+  <!-- Clean Brand Typography -->
+  <g id="brand-typography">
+    <!-- Primary Clinic Name -->
+    <text x="124" y="52" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="19" font-weight="800" fill="#064E3B" letter-spacing="0.2">POIRIER TREMBLAY</text>
+    <!-- Secondary Designation -->
+    <text x="125" y="73" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#059669" letter-spacing="2.2">CENTRE DENTAIRE</text>
+    <!-- Location & Credential Tag -->
+    <text x="125" y="91" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="9.5" font-weight="500" fill="#64748B" letter-spacing="1.2">VARENNES • DR POIRIER &amp; DR TREMBLAY</text>
+  </g>
+</svg>

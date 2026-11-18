@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120" width="400" height="120">
+  <defs>
+    <linearGradient id="grad_greystone_family_dental_main" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E293B"/>
+      <stop offset="100%" stop-color="#D97706"/>
+    </linearGradient>
+    <filter id="grad_greystone_family_dental_shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#0F172A" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <!-- Transparent Container Canvas -->
+  <rect width="400" height="120" fill="transparent"/>
+
+  <!-- Brand Emblem Vector Crest -->
+  <g id="brand-crest">
+    
+        <path d="M65 16 L104 38 L92 90 L65 106 L38 90 L26 38 Z" fill="url(#grad_greystone_family_dental_main)" filter="url(#grad_greystone_family_dental_shadow)"/>
+        <!-- Diamond Facet Lines -->
+        <line x1="65" y1="16" x2="65" y2="106" stroke="#D97706" stroke-width="1.5" opacity="0.7"/>
+        <line x1="26" y1="38" x2="104" y2="38" stroke="#D97706" stroke-width="1.5" opacity="0.7"/>
+        <polygon points="65,16 104,38 65,58 26,38" fill="#D97706" opacity="0.25"/>
+        <!-- Central Luminous Tooth -->
+        <path d="M53 46 C53 38 60 35 65 40 C70 35 77 38 77 46 C77 56 74 64 69 72 C67 76 65 76 65 71 C65 76 63 76 61 72 C56 64 53 56 53 46 Z" fill="#FFFFFF"/>
+        <!-- Gold Dental Star -->
+        <polygon points="65,34 67,39 72,39 68,42 70,47 65,44 60,47 62,42 58,39 63,39" fill="#D97706"/>
+        <!-- Monogram -->
+        <rect x="46" y="84" width="38" height="14" rx="7" fill="#D97706"/>
+        <text x="65" y="95" font-family="system-ui, -apple-system, sans-serif" font-size="8.5" font-weight="900" fill="#FFFFFF" text-anchor="middle" letter-spacing="1">GFD</text>
+        
+  </g>
+
+  <!-- Clean Brand Typography -->
+  <g id="brand-typography">
+    <!-- Primary Clinic Name -->
+    <text x="124" y="53" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="21" font-weight="800" fill="#1E293B" letter-spacing="0.2">GREYSTONE</text>
+    <!-- Secondary Designation -->
+    <text x="125" y="74" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#B45309" letter-spacing="2.2">FAMILY DENTAL</text>
+    <!-- Location & Credential Tag -->
+    <text x="125" y="92" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="9.5" font-weight="500" fill="#64748B" letter-spacing="1.2">CALGARY AB • 5.0★ VERIFIED</text>
+  </g>
+</svg>

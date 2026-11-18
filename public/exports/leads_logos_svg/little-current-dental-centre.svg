@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120" width="400" height="120">
+  <defs>
+    <linearGradient id="grad_little_current_dental_centre_main" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E3A8A"/>
+      <stop offset="100%" stop-color="#0284C7"/>
+    </linearGradient>
+    <filter id="grad_little_current_dental_centre_shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#0F172A" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <!-- Transparent Container Canvas -->
+  <rect width="400" height="120" fill="transparent"/>
+
+  <!-- Brand Emblem Vector Crest -->
+  <g id="brand-crest">
+    
+        <path d="M26 24 C26 24 65 14 65 14 C65 14 104 24 104 24 C104 60 90 88 65 106 C40 88 26 60 26 24 Z" fill="url(#grad_little_current_dental_centre_main)" filter="url(#grad_little_current_dental_centre_shadow)"/>
+        <!-- Wave Currents -->
+        <path d="M32 50 Q48 38 65 50 T98 50" fill="none" stroke="#06B6D4" stroke-width="3" stroke-linecap="round"/>
+        <path d="M34 62 Q50 50 65 62 T96 62" fill="none" stroke="#E0F2FE" stroke-width="2" stroke-linecap="round"/>
+        <!-- Central Enamel Tooth -->
+        <path d="M53 42 C53 34 60 32 65 37 C70 32 77 34 77 42 C77 54 74 63 69 72 C67 76 65 76 65 71 C65 76 63 76 61 72 C56 63 53 54 53 42 Z" fill="#FFFFFF"/>
+        <!-- Compass Spark -->
+        <polygon points="65,28 67,33 72,33 68,36 70,41 65,38 60,41 62,36 58,33 63,33" fill="#06B6D4"/>
+        <!-- Monogram Badge -->
+        <rect x="49" y="84" width="32" height="14" rx="7" fill="#0284C7"/>
+        <text x="65" y="95" font-family="system-ui, -apple-system, sans-serif" font-size="8.5" font-weight="900" fill="#FFFFFF" text-anchor="middle" letter-spacing="1">LC</text>
+        
+  </g>
+
+  <!-- Clean Brand Typography -->
+  <g id="brand-typography">
+    <!-- Primary Clinic Name -->
+    <text x="124" y="53" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="21" font-weight="800" fill="#1E3A8A" letter-spacing="0.2">LITTLE CURRENT</text>
+    <!-- Secondary Designation -->
+    <text x="125" y="74" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#0284C7" letter-spacing="2.2">DENTAL CENTRE</text>
+    <!-- Location & Credential Tag -->
+    <text x="125" y="92" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="9.5" font-weight="500" fill="#64748B" letter-spacing="1.2">MANITOULIN ISLAND • ESTABLISHED</text>
+  </g>
+</svg>

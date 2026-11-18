@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 120" width="400" height="120">
+  <defs>
+    <linearGradient id="grad_meadow_dental_care_main" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#14532D"/>
+      <stop offset="100%" stop-color="#16A34A"/>
+    </linearGradient>
+    <filter id="grad_meadow_dental_care_shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="4" flood-color="#0F172A" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <!-- Transparent Container Canvas -->
+  <rect width="400" height="120" fill="transparent"/>
+
+  <!-- Brand Emblem Vector Crest -->
+  <g id="brand-crest">
+    
+        <circle cx="65" cy="60" r="44" fill="url(#grad_meadow_dental_care_main)" filter="url(#grad_meadow_dental_care_shadow)"/>
+        <!-- Meadow Grass Blades -->
+        <path d="M40 76 C42 54 54 44 65 42 C60 56 52 70 40 76 Z" fill="#22C55E" opacity="0.9"/>
+        <path d="M90 76 C88 54 76 44 65 42 C70 56 78 70 90 76 Z" fill="#16A34A" opacity="0.9"/>
+        <!-- White Enamel Molar Silhouette -->
+        <path d="M53 44 C53 36 60 33 65 38 C70 33 77 36 77 44 C77 55 74 64 69 73 C67 77 65 77 65 72 C65 77 63 77 61 73 C56 64 53 55 53 44 Z" fill="#FFFFFF"/>
+        <!-- Dewdrop Sparkle -->
+        <circle cx="65" cy="36" r="3" fill="#DCFCE7"/>
+        <!-- Monogram Badge -->
+        <rect x="46" y="82" width="38" height="14" rx="7" fill="#16A34A"/>
+        <text x="65" y="93" font-family="system-ui, -apple-system, sans-serif" font-size="8.5" font-weight="900" fill="#FFFFFF" text-anchor="middle" letter-spacing="1">MDC</text>
+        
+  </g>
+
+  <!-- Clean Brand Typography -->
+  <g id="brand-typography">
+    <!-- Primary Clinic Name -->
+    <text x="124" y="53" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="21" font-weight="800" fill="#14532D" letter-spacing="0.2">MEADOW DENTAL</text>
+    <!-- Secondary Designation -->
+    <text x="125" y="74" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#16A34A" letter-spacing="2.2">CARE &amp; SMILE STUDIO</text>
+    <!-- Location & Credential Tag -->
+    <text x="125" y="92" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="9.5" font-weight="500" fill="#64748B" letter-spacing="1.2">BRAMPTON ON • 4.7★ (192 REVIEWS)</text>
+  </g>
+</svg>
