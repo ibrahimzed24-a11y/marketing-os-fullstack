@@ -797,7 +797,10 @@ try {
 
 function getCurrentUser() {
   if (currentUser) return currentUser;
-  return state.users.find(u => u.role === state.currentUserRole) || state.users[0];
+  const matched = Array.isArray(state.users)
+    ? (state.users.find(u => u.role === state.currentUserRole) || state.users[0])
+    : null;
+  return matched || { id: '', name: 'Guest', email: '', role: 'guest' };
 }
 
 async function apiFetch(url, options = {}) {
@@ -877,6 +880,10 @@ async function submitLoginForm() {
       authToken = data.token;
       currentUser = data.user;
       state.currentUserRole = data.user.role;
+      state.mainView = data.user.role === 'client' ? 'workbench' : 'overview';
+      overviewDataCache = null;
+      approvalsDataCache = [];
+      crmPipelineCache = { leads: [], deals: [], stage_counts: {} };
       localStorage.setItem('marketing_os_token', authToken);
       localStorage.setItem('marketing_os_user', JSON.stringify(data.user));
 
@@ -884,6 +891,7 @@ async function submitLoginForm() {
       closeAuthModal();
       showToast(`Welcome back, ${data.user.name} (${data.user.role.toUpperCase()})`);
       await syncFromBackend();
+      saveState();
       renderAll();
     } else {
       if (errEl) {
@@ -907,6 +915,12 @@ async function submitLoginForm() {
 function handleUserSignOut() {
   authToken = '';
   currentUser = null;
+  state.currentUserRole = 'guest';
+  state.users = [];
+  state.savedLogins = [];
+  overviewDataCache = null;
+  approvalsDataCache = [];
+  crmPipelineCache = { leads: [], deals: [], stage_counts: {} };
   localStorage.removeItem('marketing_os_token');
   localStorage.removeItem('marketing_os_user');
   showToast('You have been signed out.');
@@ -950,6 +964,11 @@ function getSelectedProject() {
 
 // --- Live Backend Sync ---
 async function syncFromBackend() {
+  if (!authToken) return;
+  const role = currentUser?.role || state.currentUserRole || 'guest';
+  const isClient = role === 'client';
+  const isAdmin = ['super_admin', 'owner', 'admin'].includes(role);
+
   try {
     // 1. Fetch live projects from backend SQLite
     const resProjects = await apiFetch('/api/projects');
@@ -962,8 +981,9 @@ async function syncFromBackend() {
             id: p.id,
             name: p.name,
             client: p.client_name || 'Client',
+            goal: p.goal || existing?.goal || 'Execute grounded marketing pipeline.',
             pipeline: p.type || 'content-seo',
-            stage: p.status === 'in_progress' ? 'In Progress' : (p.status === 'in_review' ? 'In Review' : (p.status === 'delivered' ? 'Delivered' : 'Plan')),
+            stage: p.status === 'in_progress' ? 'In Progress' : (p.status === 'in_review' ? 'In Review' : (p.status === 'delivered' ? 'Delivered' : 'Draft')),
             progress: p.progress || (p.status === 'delivered' ? 100 : (p.status === 'in_review' ? 90 : (p.status === 'in_progress' ? 50 : 20))),
             harnessFiles: existing?.harnessFiles || [],
             activeTask: existing?.activeTask || null,
@@ -987,15 +1007,26 @@ async function syncFromBackend() {
       }
     }
 
-    // 2. Fetch live saved logins from backend SQLite
-    const resLogins = await apiFetch('/api/saved-logins?reveal=' + state.loginsRevealed);
-    if (resLogins.ok) {
-      const data = await resLogins.json();
-      if (data.logins && data.logins.length > 0) {
-        state.savedLogins = data.logins;
-        const navBadge = document.getElementById('navLoginsCountBadge');
-        if (navBadge) navBadge.textContent = String(data.total || data.logins.length);
+    // 2. Fetch live saved logins from backend SQLite (internal roles only — clients have no vault access)
+    if (!isClient) {
+      const resLogins = await apiFetch('/api/saved-logins?reveal=' + state.loginsRevealed);
+      if (resLogins.ok) {
+        const data = await resLogins.json();
+        if (data.logins && data.logins.length > 0) {
+          state.savedLogins = data.logins;
+          const navBadge = document.getElementById('navLoginsCountBadge');
+          if (navBadge) navBadge.textContent = String(data.total || data.logins.length);
+        }
       }
+    } else {
+      state.savedLogins = [];
+    }
+
+    // 2b. Fetch live team users (admin/super_admin only)
+    if (isAdmin) {
+      await fetchTeamUsers();
+    } else if (currentUser) {
+      state.users = [currentUser];
     }
 
     // 3. Fetch live project tasks and harness files
@@ -1017,31 +1048,55 @@ async function syncFromBackend() {
         if (pData.project) {
           proj.guidelines = pData.project.guidelines || proj.guidelines || '';
           proj.custom_rules = pData.project.custom_rules || proj.custom_rules || '';
+          proj.goal = pData.project.goal || proj.goal || '';
         }
         if (pData.tasks && pData.tasks.length > 0) {
           proj.activeTask = pData.tasks[0];
           state.tasks = pData.tasks;
+        } else {
+          state.tasks = [];
         }
       }
     }
 
     // 4. Fetch SEO Tree data & Admin telemetry
     await fetchSeoTree();
-    await fetchAdminSettingsData();
+    if (isAdmin) {
+      await fetchAdminSettingsData();
+    }
   } catch (err) {
     console.warn('[Sync] Backend sync warning:', err.message);
   }
 }
 
 function switchMainView(view) {
+  const role = currentUser?.role || state.currentUserRole || 'guest';
+  const isClient = role === 'client';
+  const isAdmin = ['super_admin', 'owner', 'admin'].includes(role);
+  const clientBlockedViews = ['overview', 'research', 'sales', 'approvals', 'team', 'adminSettings', 'logins'];
+
+  if (isClient && clientBlockedViews.includes(view)) {
+    state.mainView = 'workbench';
+    showToast('Client portal is scoped to Projects & Tasks, Creative Studio, and Knowledge Base.');
+    saveState();
+    renderAll();
+    return;
+  }
+  if (view === 'adminSettings' && !isAdmin) {
+    showToast('RBAC Restriction: Settings require Admin or Super Admin role.');
+    return;
+  }
+
   state.mainView = view;
-  if (view === 'overview') {
+  if (view === 'overview' && !isClient) {
     fetchOverviewStats();
-  } else if (view === 'approvals') {
+  } else if (view === 'approvals' && !isClient) {
     fetchApprovals();
-  } else if (view === 'research' || view === 'sales') {
+  } else if ((view === 'research' || view === 'sales') && !isClient) {
     fetchSalesCrmData();
-  } else if (view === 'adminSettings') {
+  } else if (view === 'team' && isAdmin) {
+    fetchTeamUsers().then(renderTeamView);
+  } else if (view === 'adminSettings' && isAdmin) {
     fetchAdminSettingsData().then(renderAdminSettingsView);
   }
   saveState();
@@ -1054,7 +1109,7 @@ function setStageFilter(stage) {
   renderAll();
 }
 
-function selectProject(projectId) {
+async function selectProject(projectId) {
   state.selectedProjectId = projectId;
   const proj = getSelectedProject();
   if (proj && proj.pipeline) {
@@ -1063,6 +1118,28 @@ function selectProject(projectId) {
     if (cmdInput && PIPELINE_CATALOG[proj.pipeline]) {
       cmdInput.value = PIPELINE_CATALOG[proj.pipeline].defaultCmd;
     }
+  }
+  if (authToken && proj) {
+    try {
+      const pRes = await apiFetch('/api/projects/' + proj.id);
+      if (pRes.ok) {
+        const pData = await pRes.json();
+        if (pData.files) {
+          proj.harnessFiles = pData.files.map(f => ({
+            id: f.id,
+            name: f.original_name || f.filename,
+            category: f.file_category || detectFileCategoryJs(f.original_name || f.filename),
+            meta: (f.mime || 'application/octet-stream') + ' • ' + Math.round((f.size || 1024)/1024) + ' KB',
+            rows: f.parsed_summary || 'Verified Grounding File',
+            status: 'Injected into reasoning'
+          }));
+        }
+        if (pData.tasks) {
+          proj.activeTask = pData.tasks[0] || null;
+          state.tasks = pData.tasks;
+        }
+      }
+    } catch (_) {}
   }
   saveState();
   renderAll();
@@ -1110,45 +1187,62 @@ function toggleNewProjectDrawer() {
   if (el) el.classList.toggle('hidden');
 }
 
-function createNewProject() {
+async function createNewProject() {
+  if (!['super_admin', 'owner', 'admin', 'manager'].includes(state.currentUserRole)) {
+    return showToast('RBAC Restriction: Only Super Admin, Admin, or Manager can create projects.');
+  }
   const name = (document.getElementById('npName')?.value || '').trim();
   const brand = (document.getElementById('npClient')?.value || '').trim() || 'Internal Marketing';
   if (!name) return showToast('Please enter a Project Name.');
 
   const pipeline = document.getElementById('npPipeline')?.value || 'email-campaign';
-  const newProj = {
-    id: 'proj-' + Date.now(),
-    name: name,
-    client: brand,
-    goal: document.getElementById('npGoal')?.value.trim() || 'Execute grounded marketing pipeline.',
-    stage: 'Draft',
-    progress: 15,
-    deliverable: document.getElementById('npDeliverable')?.value || 'Email Sequence',
-    pipeline: pipeline,
-    squad: PIPELINE_CATALOG[pipeline] ? PIPELINE_CATALOG[pipeline].squad.slice() : ['CO', 'BR', 'SE', 'MR'],
-    assigneeId: 'u-member',
-    harnessFiles: [
-      { name: 'leads.csv', meta: brand + ' Target Accounts • 1.2 MB', rows: '45 contacts', status: 'Injected into reasoning' },
-      { name: 'brief.pdf', meta: brand + ' Project Brief • 850 KB', rows: 'Core Value Prop', status: 'Injected into reasoning' }
-    ],
-    lastReport: {
-      verdict: 'Draft Initialized',
-      grounded: 'Yes • 2 starter harness files',
-      usable: 'Ready for pipeline run',
-      sellable: 'Pending execution',
-      summary: 'Project initialized in Draft stage.',
-      shipped: 'Workspace scaffolded.',
-      blocked: 'None.',
-      nextSteps: 'Run pipeline command in Workbench.'
+  const goal = (document.getElementById('npGoal')?.value || '').trim() || 'Execute grounded marketing pipeline.';
+  const deliverable = document.getElementById('npDeliverable')?.value || 'Email Sequence';
+
+  try {
+    const res = await apiFetch('/api/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        client_name: brand,
+        goal,
+        type: pipeline
+      })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return showToast('Error creating project: ' + (data.error || `HTTP ${res.status}`));
     }
-  };
-  state.projects.unshift(newProj);
-  state.selectedProjectId = newProj.id;
-  state.selectedPipeline = pipeline;
-  document.getElementById('newProjectDrawer')?.classList.add('hidden');
-  saveState();
-  renderAll();
-  showToast('Created project "' + newProj.name + '".');
+
+    const projectId = data.id;
+    state.selectedProjectId = projectId;
+    state.selectedPipeline = pipeline;
+
+    const npName = document.getElementById('npName');
+    const npClient = document.getElementById('npClient');
+    const npGoal = document.getElementById('npGoal');
+    if (npName) npName.value = '';
+    if (npClient) npClient.value = '';
+    if (npGoal) npGoal.value = '';
+
+    document.getElementById('newProjectDrawer')?.classList.add('hidden');
+
+    await syncFromBackend();
+    const createdProj = state.projects.find(p => p.id === projectId);
+    if (createdProj) {
+      createdProj.deliverable = deliverable;
+      createdProj.goal = goal;
+      createdProj.pipeline = pipeline;
+      createdProj.squad = PIPELINE_CATALOG[pipeline] ? PIPELINE_CATALOG[pipeline].squad.slice() : ['CO', 'BR', 'SE', 'MR'];
+    }
+    state.selectedProjectId = projectId;
+    saveState();
+    renderAll();
+    showToast('Created project "' + name + '".');
+  } catch (err) {
+    showToast('Error creating project: ' + err.message);
+  }
 }
 
 function detectFileCategoryJs(filename) {
@@ -1686,29 +1780,42 @@ function copyToClipboard(text, label = 'Copied') {
 
 // --- RENDER VIEWS ---
 function renderHeaderAndRoleBanner() {
-  const user = getCurrentUser();
-  const role = user.role || state.currentUserRole;
+  const user = getCurrentUser() || { id: '', name: 'Guest', email: '', role: 'guest' };
+  const role = user.role || state.currentUserRole || 'guest';
 
-  // Primary 5 Navigation Tabs Mapping
-  const primaryTabs = [
-    { id: 'overview', activeFor: ['overview'] },
-    { id: 'research', activeFor: ['research', 'seo'] },
-    { id: 'sales', activeFor: ['sales'] },
-    { id: 'creative', activeFor: ['creative'] },
-    { id: 'workbench', activeFor: ['workbench'] },
-    { id: 'approvals', activeFor: ['approvals'] },
-    { id: 'team', activeFor: ['team'] },
-    { id: 'rag', activeFor: ['rag'] },
-    { id: 'adminSettings', activeFor: ['adminSettings', 'logins'] }
-  ];
-
+  const isClient = role === 'client';
   const isAdmin = ['super_admin', 'owner', 'admin'].includes(role);
+  const isSuperAdmin = role === 'super_admin';
+  const canCreateProject = ['super_admin', 'owner', 'admin', 'manager'].includes(role);
+  const clientBlockedViews = ['overview', 'research', 'sales', 'approvals', 'team', 'adminSettings', 'logins'];
+
+  if (isClient && clientBlockedViews.includes(state.mainView)) {
+    state.mainView = 'workbench';
+  }
+  if (!isAdmin && state.mainView === 'adminSettings') {
+    state.mainView = isClient ? 'workbench' : 'overview';
+  }
+
+  // Primary Navigation Tabs Mapping
+  const primaryTabs = [
+    { id: 'overview', activeFor: ['overview'], clientAllowed: false },
+    { id: 'research', activeFor: ['research', 'seo'], clientAllowed: false },
+    { id: 'sales', activeFor: ['sales'], clientAllowed: false },
+    { id: 'creative', activeFor: ['creative'], clientAllowed: true },
+    { id: 'workbench', activeFor: ['workbench'], clientAllowed: true },
+    { id: 'approvals', activeFor: ['approvals'], clientAllowed: false },
+    { id: 'team', activeFor: ['team'], clientAllowed: false },
+    { id: 'rag', activeFor: ['rag'], clientAllowed: true },
+    { id: 'adminSettings', activeFor: ['adminSettings', 'logins'], clientAllowed: false }
+  ];
 
   primaryTabs.forEach(tab => {
     const el = document.getElementById('navTab-' + tab.id);
     if (el) {
       if (tab.id === 'adminSettings') {
         el.style.display = isAdmin ? 'inline-flex' : 'none';
+      } else if (isClient && !tab.clientAllowed) {
+        el.style.display = 'none';
       } else {
         el.style.display = 'inline-flex';
       }
@@ -1718,6 +1825,20 @@ function renderHeaderAndRoleBanner() {
         : 'px-3.5 py-1.5 rounded-full text-xs font-medium text-[var(--text-soft)] hover:text-[var(--text)] transition flex items-center gap-1.5';
     }
   });
+
+  // Role-gated header controls
+  const headerNewProjBtn = document.getElementById('headerNewProjectBtn');
+  if (headerNewProjBtn) {
+    headerNewProjBtn.style.display = canCreateProject ? 'inline-flex' : 'none';
+  }
+  const cleanSlateBtn = document.getElementById('cleanSlateBtn');
+  if (cleanSlateBtn) {
+    cleanSlateBtn.style.display = isSuperAdmin ? 'inline-flex' : 'none';
+  }
+  const vaultCard = document.getElementById('vaultCardContainer');
+  if (vaultCard) {
+    vaultCard.style.display = isClient ? 'none' : '';
+  }
 
   // Toggle view containers
   const allViews = ['overview', 'workbench', 'research', 'sales', 'creative', 'approvals', 'roleDash', 'pipelines', 'team', 'seo', 'logins', 'agents', 'rag', 'adminSettings'];
@@ -1733,9 +1854,9 @@ function renderHeaderAndRoleBanner() {
   const chip = document.getElementById('headerRoleChip');
   const avatarPill = document.getElementById('headerAvatarPill');
   if (badge) badge.textContent = user.name || 'Marketing Team';
-  if (chip) chip.textContent = (user.role || state.currentUserRole).toUpperCase().replace('_', ' ');
+  if (chip) chip.textContent = String(role).toUpperCase().replace('_', ' ');
   if (avatarPill) {
-    const initials = (user.name || 'MT').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    const initials = (user.name || 'MT').split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'MT';
     avatarPill.textContent = initials;
   }
 
@@ -2328,8 +2449,8 @@ function renderSavedLoginsView() {
 function renderRoleSpecificDashboard() {
   const container = document.getElementById('roleSpecificDashboardContent');
   if (!container) return;
-  const user = getCurrentUser();
-  const role = user.role || state.currentUserRole;
+  const user = getCurrentUser() || { name: 'Guest', role: 'guest' };
+  const role = user.role || state.currentUserRole || 'guest';
 
   let dashboardSubtitle = 'Internal Marketing Workforce Tasks & Execution';
   let badgeLabel = state.tasks.length + ' Tasks in Factory';
@@ -2394,22 +2515,105 @@ function renderPipelinesCatalogView() {
   ).join('');
 }
 
+async function fetchTeamUsers() {
+  const role = currentUser?.role || state.currentUserRole || 'guest';
+  if (!authToken || !['super_admin', 'owner', 'admin'].includes(role)) {
+    if (currentUser) state.users = [currentUser];
+    return;
+  }
+  try {
+    const res = await apiFetch('/api/users');
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data.users)) {
+        state.users = data.users;
+      }
+    }
+  } catch (err) {
+    console.warn('[team] Fetch users warning:', err.message);
+  }
+}
+
+async function addNewTeamMember() {
+  const role = currentUser?.role || state.currentUserRole || 'guest';
+  if (!['super_admin', 'owner', 'admin'].includes(role)) {
+    return showToast('RBAC Restriction: Only Admin or Super Admin can provision team accounts.');
+  }
+
+  const nameEl = document.getElementById('tmName');
+  const emailEl = document.getElementById('tmEmail');
+  const roleEl = document.getElementById('tmRole');
+  const deptEl = document.getElementById('tmDept');
+
+  const name = (nameEl?.value || '').trim();
+  const email = (emailEl?.value || '').trim().toLowerCase();
+  const memberRole = roleEl?.value || 'member';
+  const department = deptEl?.value || 'Growth';
+
+  if (!name || !email) {
+    return showToast('Please enter both Full Name and Work Email.');
+  }
+
+  try {
+    const res = await apiFetch('/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, role: memberRole, department })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return showToast('Error provisioning account: ' + (data.error || `HTTP ${res.status}`));
+    }
+
+    if (nameEl) nameEl.value = '';
+    if (emailEl) emailEl.value = '';
+    await fetchTeamUsers();
+    renderTeamView();
+    showToast(`Provisioned team account for ${name} (${memberRole}).`);
+  } catch (err) {
+    showToast('Network error provisioning account: ' + err.message);
+  }
+}
+
 function renderTeamView() {
+  const role = currentUser?.role || state.currentUserRole || 'guest';
+  const isAdmin = ['super_admin', 'owner', 'admin'].includes(role);
+  const formBox = document.getElementById('addTeamMemberFormBox');
+  if (formBox) {
+    formBox.style.display = isAdmin ? '' : 'none';
+  }
+
   const grid = document.getElementById('teamMembersGrid');
   if (!grid) return;
-  grid.innerHTML = state.users.map(u =>
-    '<div class="card-subtle p-4 flex items-start justify-between gap-3">' +
+
+  const list = Array.isArray(state.users) && state.users.length > 0
+    ? state.users
+    : (currentUser ? [currentUser] : []);
+
+  if (list.length === 0) {
+    grid.innerHTML = '<div class="col-span-full text-center py-8 text-xs text-[var(--text-soft)]">No team members loaded yet.</div>';
+    return;
+  }
+
+  grid.innerHTML = list.map(u => {
+    const initials = (u.initials || (u.name || u.email || 'U').split(/\s+/).filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'U');
+    const deptLabel = u.department ? `<span class="text-[10px] px-2 py-0.5 rounded-full bg-[var(--surface)] border border-[var(--border)] text-[var(--text-soft)] font-medium">${escapeHtml(u.department)}</span>` : '';
+    const statusLabel = u.status || 'active';
+    return '<div class="card-subtle p-4 flex items-start justify-between gap-3">' +
       '<div class="flex items-center gap-3 min-w-0">' +
-        '<div class="w-10 h-10 rounded-2xl bg-indigo-600 text-white font-bold text-xs grid place-items-center shrink-0">' + u.initials + '</div>' +
+        '<div class="w-10 h-10 rounded-2xl bg-indigo-600 text-white font-bold text-xs grid place-items-center shrink-0">' + escapeHtml(initials) + '</div>' +
         '<div class="min-w-0">' +
-          '<div class="font-bold text-xs truncate">' + u.name + '</div>' +
-          '<div class="text-[11px] text-[var(--text-soft)] mono truncate">' + u.email + '</div>' +
-          '<span class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-600 font-semibold mono mt-1 inline-block">' + u.role + '</span>' +
+          '<div class="font-bold text-xs truncate">' + escapeHtml(u.name || 'Team Member') + '</div>' +
+          '<div class="text-[11px] text-[var(--text-soft)] mono truncate">' + escapeHtml(u.email || '') + '</div>' +
+          '<div class="flex items-center gap-1.5 mt-1 flex-wrap">' +
+            '<span class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 font-semibold mono">' + escapeHtml(u.role || 'member') + '</span>' +
+            deptLabel +
+          '</div>' +
         '</div>' +
       '</div>' +
-      '<button onclick="switchRoleSession(\'' + u.role + '\')" class="btn-outline px-2.5 py-1 text-[10px]">Switch</button>' +
-    '</div>'
-  ).join('');
+      '<span class="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 uppercase shrink-0">' + escapeHtml(statusLabel) + '</span>' +
+    '</div>';
+  }).join('');
 }
 
 // =============================================================================
@@ -2631,10 +2835,11 @@ async function renderRagView() {
   const selEl = document.getElementById('ragProjectSelect');
   if (selEl) {
     selEl.innerHTML = state.projects.map(p => `
-      <option value="${p.id}" ${p.id === state.selectedProjectId ? 'selected' : ''}>${p.name}</option>
+      <option value="${p.id}" ${p.id === state.selectedProjectId ? 'selected' : ''}>${escapeHtml(p.name)}</option>
     `).join('');
   }
 
+  if (!authToken) return;
   const badge = document.getElementById('ragChunkCountBadge');
   const proj = getSelectedProject();
   if (proj) {
@@ -2955,7 +3160,7 @@ async function fetchSeoTree() {
 async function renderSeoView() {
   const grid = document.getElementById('seoDisciplinesGrid');
   const chipsRow = document.getElementById('seoFilterChips');
-  if (!grid) return;
+  if (!grid || !authToken) return;
 
   if (!seoTreeData || seoTreeData.length === 0) {
     await fetchSeoTree();
@@ -3187,7 +3392,8 @@ let adminWatchdogTelemetry = null;
 let adminLlmFilter = 'all';
 
 async function fetchAdminSettingsData() {
-  if (!['super_admin', 'admin'].includes(state.currentUserRole)) return;
+  const role = currentUser?.role || state.currentUserRole || 'guest';
+  if (!authToken || !['super_admin', 'owner', 'admin'].includes(role)) return;
   try {
     const [llmRes, wdRes] = await Promise.all([
       apiFetch('/api/admin/llm-config', {  }),
@@ -3246,6 +3452,8 @@ async function pingLlmProvider(provider) {
 }
 
 async function fetchTursoStatus() {
+  const role = currentUser?.role || state.currentUserRole || 'guest';
+  if (!authToken || !['super_admin', 'owner', 'admin'].includes(role)) return;
   try {
     const res = await apiFetch('/api/admin/turso/status');
     if (res.ok) {
@@ -3389,9 +3597,70 @@ async function triggerAdminWatchdogScan() {
   }
 }
 
+async function submitChangePassword() {
+  const curEl = document.getElementById('cpCurrentPassword');
+  const newEl = document.getElementById('cpNewPassword');
+  const confEl = document.getElementById('cpConfirmPassword');
+  const msgEl = document.getElementById('cpStatusMessage');
+  const btn = document.getElementById('cpSubmitBtn');
+
+  const currentPassword = curEl?.value || '';
+  const newPassword = newEl?.value || '';
+  const confirmPassword = confEl?.value || '';
+
+  const showStatus = (text, ok) => {
+    if (!msgEl) return;
+    msgEl.textContent = text;
+    msgEl.className = ok
+      ? 'p-3 rounded-xl text-xs font-medium bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+      : 'p-3 rounded-xl text-xs font-medium bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400';
+    msgEl.classList.remove('hidden');
+  };
+
+  if (!currentPassword || !newPassword) {
+    return showStatus('Please fill in both your current password and new password.', false);
+  }
+  if (newPassword.length < 8) {
+    return showStatus('New password must be at least 8 characters long.', false);
+  }
+  if (newPassword !== confirmPassword) {
+    return showStatus('New password and confirmation do not match.', false);
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Updating...';
+  }
+  try {
+    const res = await apiFetch('/api/auth/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ currentPassword, newPassword })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      if (curEl) curEl.value = '';
+      if (newEl) newEl.value = '';
+      if (confEl) confEl.value = '';
+      showStatus(data.message || 'Password successfully updated.', true);
+      showToast('Password updated successfully.');
+    } else {
+      showStatus(data.error || 'Failed to update password.', false);
+    }
+  } catch (err) {
+    showStatus('Network error: ' + err.message, false);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Update Password';
+    }
+  }
+}
+
 function renderAdminSettingsView() {
+  const role = currentUser?.role || state.currentUserRole || 'guest';
   const container = document.getElementById('view-adminSettings');
-  if (!container || container.classList.contains('hidden')) return;
+  if (!authToken || !['super_admin', 'owner', 'admin'].includes(role) || !container || container.classList.contains('hidden')) return;
 
   fetchTursoStatus();
 
@@ -3494,6 +3763,8 @@ let overviewDataCache = null;
 let approvalsDataCache = [];
 
 async function fetchOverviewStats() {
+  const role = currentUser?.role || state.currentUserRole || 'guest';
+  if (!authToken || role === 'client' || role === 'guest') return;
   try {
     const res = await apiFetch('/api/overview/stats');
     if (res.ok) {
@@ -3510,8 +3781,9 @@ function refreshOverviewStats() {
 }
 
 function renderOverviewView() {
+  const role = currentUser?.role || state.currentUserRole || 'guest';
   const container = document.getElementById('view-overview');
-  if (!container || container.classList.contains('hidden')) return;
+  if (!authToken || role === 'client' || role === 'guest' || !container || container.classList.contains('hidden')) return;
 
   if (!overviewDataCache) {
     fetchOverviewStats();
@@ -3614,6 +3886,8 @@ function renderOverviewView() {
 }
 
 async function fetchApprovals() {
+  const role = currentUser?.role || state.currentUserRole || 'guest';
+  if (!authToken || role === 'client' || role === 'guest') return;
   try {
     const dept = document.getElementById('approvalsDeptFilter')?.value || 'all';
     const status = document.getElementById('approvalsStatusFilter')?.value || 'pending';
@@ -3766,17 +4040,25 @@ function openApprovalModal(approvalId) {
   const modal = document.getElementById('approvalModal');
   const dBadge = document.getElementById('modalAppDeptBadge');
   const aName = document.getElementById('modalAppAgent');
+  const aStatus = document.getElementById('modalAppStatusBadge');
+  const aExec = document.getElementById('modalAppExecBadge');
   const aTitle = document.getElementById('modalAppTitle');
   const aAction = document.getElementById('modalAppAction');
   const aSummary = document.getElementById('modalAppSummary');
   const aPreview = document.getElementById('modalAppPreview');
   const aNotes = document.getElementById('modalAppNotes');
+  const decisionBtns = document.getElementById('modalAppDecisionBtns');
 
   if (dBadge) dBadge.textContent = (app.department || 'GENERAL').toUpperCase();
   if (aName) aName.textContent = app.agent_name || 'Operational Agent';
+  if (aStatus) aStatus.textContent = `Approval: ${app.status || 'pending'}`;
+  if (aExec) aExec.textContent = `Exec: ${app.execution_status || 'not_executed'}`;
   if (aTitle) aTitle.textContent = app.title || 'Approval Request';
   if (aAction) aAction.textContent = app.action_type || 'External Action Execution';
   if (aSummary) aSummary.textContent = app.summary || 'Deliverable prepared by agent requiring human verification.';
+  if (decisionBtns) {
+    decisionBtns.style.display = (app.status || 'pending') === 'pending' ? 'flex' : 'none';
+  }
   
   if (aPreview) {
     let previewContent = app.preview_data || 'No preview payload provided.';
@@ -3797,15 +4079,18 @@ function closeApprovalModal() {
 }
 
 async function executeModalDecision(decision) {
-  if (!currentReviewApprovalId) return;
+  const approvalId = currentReviewApprovalId;
+  if (!approvalId) return;
   const notes = document.getElementById('modalAppNotes')?.value || '';
   closeApprovalModal();
-  await submitApprovalDecision(currentReviewApprovalId, decision, notes);
+  await submitApprovalDecision(approvalId, decision, notes);
 }
 
 let crmPipelineCache = { leads: [], deals: [], stage_counts: {} };
 
 async function fetchSalesCrmData() {
+  const role = currentUser?.role || state.currentUserRole || 'guest';
+  if (!authToken || role === 'client' || role === 'guest') return;
   try {
     const res = await apiFetch('/api/crm/pipeline');
     if (res.ok) {
@@ -3957,6 +4242,172 @@ async function handoffSalesToCreative(dealId, suggestedClientName = '') {
   } catch (err) {
     showToast(`Network error: ${err.message}`);
   }
+}
+
+// =============================================================================
+// MODAL CONTROLLERS: MCP ENGINE HUB, TASK DISPATCH MODAL, AGENT BLUEPRINT MODAL
+// =============================================================================
+function openMcpModal() {
+  const modal = document.getElementById('mcpModal');
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closeMcpModal() {
+  const modal = document.getElementById('mcpModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function copySnippetText(elementId) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  copyToClipboard(el.textContent || '', 'Configuration snippet copied');
+}
+
+function openTaskModal() {
+  if (state.currentUserRole === 'client') {
+    showToast('Client role is read-only and cannot dispatch tasks.');
+    return;
+  }
+  const modal = document.getElementById('taskModal');
+  const projSelect = document.getElementById('modalTaskProject');
+  if (projSelect) {
+    projSelect.innerHTML = state.projects.map(p =>
+      `<option value="${p.id}" ${p.id === state.selectedProjectId ? 'selected' : ''}>${escapeHtml(p.name)}</option>`
+    ).join('');
+  }
+  const pipeSelect = document.getElementById('modalTaskPipeline');
+  if (pipeSelect && state.selectedPipeline) {
+    pipeSelect.value = state.selectedPipeline;
+  }
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closeTaskModal() {
+  const modal = document.getElementById('taskModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+async function submitModalTask() {
+  const projectId = document.getElementById('modalTaskProject')?.value || state.selectedProjectId;
+  const pipeline = document.getElementById('modalTaskPipeline')?.value || 'email-campaign';
+  const title = (document.getElementById('modalTaskTitle')?.value || '').trim();
+  const description = (document.getElementById('modalTaskBrief')?.value || '').trim();
+
+  if (!projectId) return showToast('Please select or create a project first.');
+  if (!title) return showToast('Please enter a Task Title.');
+
+  try {
+    const createRes = await apiFetch(`/api/projects/${projectId}/tasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, pipeline, description, priority: 'high' })
+    });
+    const createData = await createRes.json().catch(() => ({}));
+    if (!createRes.ok) {
+      return showToast('Task creation failed: ' + (createData.error || `HTTP ${createRes.status}`));
+    }
+
+    closeTaskModal();
+    showToast(`Launching "${title}"...`);
+
+    const runRes = await apiFetch(`/api/tasks/${createData.id}/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!runRes.ok) {
+      const errData = await runRes.json().catch(() => ({}));
+      return showToast('Task execution failed: ' + (errData.error || `HTTP ${runRes.status}`));
+    }
+
+    state.selectedProjectId = projectId;
+    state.selectedPipeline = pipeline;
+    state.mainView = 'workbench';
+    await syncFromBackend();
+    saveState();
+    renderAll();
+    showToast(`Task "${title}" completed and staged in review!`);
+  } catch (err) {
+    showToast('Task error: ' + err.message);
+  }
+}
+
+function getAgentBlueprintContent(agent, tab) {
+  const key = `mos_agent_bp_${agent.slug}_${tab}`;
+  try {
+    const saved = localStorage.getItem(key);
+    if (saved) return saved;
+  } catch (_) {}
+
+  if (tab === 'SKILL') {
+    return `# ${agent.name} — Playbook & Capabilities\n\n` +
+      `- **Department:** ${agent.dept}\n` +
+      `- **Assigned Pipelines:** ${(agent.assigned_pipelines || []).join(', ')}\n\n` +
+      `## Core Capabilities\n` +
+      (agent.capabilities || []).map(c => `- ${c}`).join('\n');
+  }
+  if (tab === 'MEMORY') {
+    return `# ${agent.name} — Grounding Context\n\n` +
+      `All executions ground against active project harness assets and RAG vector chunks.\n` +
+      `Human-in-the-Loop Gate G2 applies before external execution.`;
+  }
+  return `# ${agent.name} (@${agent.slug}) — Role Directive\n\n` +
+    `**Role:** ${agent.role}\n` +
+    `**Department:** ${agent.dept}\n\n` +
+    `## System Directive\n${agent.system_directive || ''}`;
+}
+
+function openAgentModal(slug) {
+  activeBlueprintAgentSlug = slug || 'coordinator';
+  activeBlueprintTab = 'AGENT';
+  const agent = AGENTS_32.find(a => a.slug === activeBlueprintAgentSlug) || AGENTS_32[0];
+  const modal = document.getElementById('agentBlueprintModal');
+  if (!modal || !agent) return;
+
+  const avatar = document.getElementById('abAvatar');
+  const title = document.getElementById('abTitle');
+  const sub = document.getElementById('abSubtitle');
+  if (avatar) {
+    avatar.textContent = agent.initials;
+    avatar.style.background = agent.color;
+  }
+  if (title) title.textContent = `${agent.name} — ${agent.role}`;
+  if (sub) sub.textContent = `@${agent.slug} • ${agent.dept} Guidelines & Playbook`;
+
+  switchAgentFileTab('AGENT');
+  modal.classList.remove('hidden');
+}
+
+function closeAgentModal() {
+  const modal = document.getElementById('agentBlueprintModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function switchAgentFileTab(tab) {
+  activeBlueprintTab = tab || 'AGENT';
+  const agent = AGENTS_32.find(a => a.slug === activeBlueprintAgentSlug) || AGENTS_32[0];
+  ['AGENT', 'SKILL', 'MEMORY'].forEach(t => {
+    const btn = document.getElementById('abFileTab-' + t);
+    if (btn) {
+      btn.className = t === activeBlueprintTab
+        ? 'px-3 py-1 rounded-full text-xs font-semibold mono bg-[var(--text)] text-[var(--surface)]'
+        : 'px-3 py-1 rounded-full text-xs font-semibold mono bg-[var(--bg-soft)] text-[var(--text-soft)]';
+    }
+  });
+  const editor = document.getElementById('abFileEditor');
+  if (editor && agent) {
+    editor.value = getAgentBlueprintContent(agent, activeBlueprintTab);
+  }
+}
+
+function saveAgentBlueprint() {
+  const editor = document.getElementById('abFileEditor');
+  if (!editor) return;
+  const key = `mos_agent_bp_${activeBlueprintAgentSlug}_${activeBlueprintTab}`;
+  try {
+    localStorage.setItem(key, editor.value);
+  } catch (_) {}
+  closeAgentModal();
+  showToast(`Saved ${activeBlueprintTab} guidelines for @${activeBlueprintAgentSlug}.`);
 }
 
 function renderAll() {

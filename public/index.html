@@ -214,7 +214,7 @@
         <button id="navTab-agents" onclick="switchMainView('agents')"></button>
       </div>
       <div class="hidden md:flex items-center gap-2 text-[11px] text-[var(--text-soft)]">
-        <button onclick="triggerCleanSlateWipe()" class="text-[11px] text-red-500 hover:text-red-600 font-semibold inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-500/10 border border-red-500/20" title="Wipe all demo projects and tasks to keep platform clean">🧹 Zero-Data Slate</button>
+        <button id="cleanSlateBtn" onclick="triggerCleanSlateWipe()" class="text-[11px] text-red-500 hover:text-red-600 font-semibold inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-500/10 border border-red-500/20" title="Wipe all demo projects and tasks to keep platform clean">🧹 Zero-Data Slate</button>
       </div>
     </div>
   </header>
@@ -291,7 +291,7 @@
         </div>
       </div>
     </div>
-  </section>
+  </div>
 
   <!-- MAIN CONTAINER -->
   <main class="max-w-[1600px] mx-auto px-3 sm:px-6 py-4 space-y-5">
@@ -799,7 +799,7 @@
                 <h2 id="wbProjectTitle" class="text-lg sm:text-xl font-bold tracking-tight mt-1">Marketing Campaign</h2>
                 <p id="wbProjectGoal" class="text-xs text-[var(--text-soft)] mt-1">Campaign objective and deliverable scope.</p>
               </div>
-              <div class="flex items-center gap-2 shrink-0">
+              <div class="flex flex-wrap items-center gap-2 shrink-0 max-w-full">
                 <button onclick="openGuidelinesModal()" class="btn-outline px-3 py-1.5 text-xs inline-flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 font-semibold shadow-xs" title="Customize Campaign Guidelines, Tone of Voice, and Deliverable Playbook">
                   <span>⚙️ Campaign Playbook & Rules</span>
                 </button>
@@ -809,9 +809,9 @@
 
             <!-- 8 Marketing Pipeline Quick-Selector Pills -->
             <div class="mt-4">
-              <div class="flex items-center justify-between mb-2">
+              <div class="flex flex-wrap items-center justify-between gap-1 mb-2">
                 <span class="text-xs font-bold">1. Select Campaign Pipeline & Marketing Team</span>
-                <span id="activeSquadLabel" class="text-[11px] text-[var(--text-soft)] mono">Team: Strategy Lead, Market Researcher, Content Creator, Campaign Lead</span>
+                <span id="activeSquadLabel" class="text-[11px] text-[var(--text-soft)] mono truncate max-w-full">Team: Strategy Lead, Market Researcher, Content Creator, Campaign Lead</span>
               </div>
               <div id="wbPipelineSelector" class="grid grid-cols-2 sm:grid-cols-4 gap-2"></div>
             </div>
@@ -850,7 +850,7 @@
                 <div class="mt-2 h-1.5 rounded-full bg-[var(--bg-soft)] overflow-hidden">
                   <div id="wbExecBar" class="h-full bg-gradient-to-r from-indigo-600 via-violet-600 to-emerald-500 transition-all duration-300" style="width: 100%"></div>
                 </div>
-                <div id="wbExecStepsRow" class="mt-2.5 grid grid-cols-5 gap-1.5 text-[10px]"></div>
+                <div id="wbExecStepsRow" class="mt-2.5 grid grid-cols-2 sm:grid-cols-5 gap-1.5 text-[10px]"></div>
                 <div id="wbTelemetryLog" class="mt-2.5 mono text-[11px] text-[var(--text-soft)] bg-[var(--bg-soft)] rounded-lg p-2 max-h-24 overflow-y-auto"></div>
               </div>
             </div>
@@ -858,16 +858,16 @@
             <!-- 5-Tab Live Deliverable Inspector -->
             <div class="mt-5">
               <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-                <div class="flex items-center gap-2">
+                <div class="flex flex-wrap items-center gap-2 min-w-0">
                   <h3 class="text-xs font-bold">Live Deliverable Output</h3>
                   <span id="outputPipelineBadge" class="text-[10px] mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">Verified Against Campaign Assets</span>
                 </div>
-                <div class="flex items-center gap-1 bg-[var(--bg-soft)] p-1 rounded-full border border-[var(--border)]">
-                  <button id="outTab-Preview" onclick="switchOutputTab('Preview')" class="px-3 py-1 rounded-full text-[11px] font-semibold transition">Live Preview</button>
-                  <button id="outTab-Code" onclick="switchOutputTab('Code')" class="px-3 py-1 rounded-full text-[11px] font-semibold transition">Raw Deliverable & Payload</button>
-                  <button id="outTab-Data" onclick="switchOutputTab('Data')" class="px-3 py-1 rounded-full text-[11px] font-semibold transition">Campaign Assets</button>
-                  <button id="outTab-RAG" onclick="switchOutputTab('RAG')" class="px-3 py-1 rounded-full text-[11px] font-semibold transition">Knowledge Base</button>
-                  <button id="outTab-Report" onclick="switchOutputTab('Report')" class="px-3 py-1 rounded-full text-[11px] font-semibold transition">Executive Report</button>
+                <div class="flex flex-wrap items-center gap-1 bg-[var(--bg-soft)] p-1 rounded-2xl sm:rounded-full border border-[var(--border)] max-w-full">
+                  <button id="outTab-Preview" onclick="switchOutputTab('Preview')" class="px-2.5 sm:px-3 py-1 rounded-full text-[11px] font-semibold transition">Live Preview</button>
+                  <button id="outTab-Code" onclick="switchOutputTab('Code')" class="px-2.5 sm:px-3 py-1 rounded-full text-[11px] font-semibold transition">Raw Deliverable & Payload</button>
+                  <button id="outTab-Data" onclick="switchOutputTab('Data')" class="px-2.5 sm:px-3 py-1 rounded-full text-[11px] font-semibold transition">Campaign Assets</button>
+                  <button id="outTab-RAG" onclick="switchOutputTab('RAG')" class="px-2.5 sm:px-3 py-1 rounded-full text-[11px] font-semibold transition">Knowledge Base</button>
+                  <button id="outTab-Report" onclick="switchOutputTab('Report')" class="px-2.5 sm:px-3 py-1 rounded-full text-[11px] font-semibold transition">Executive Report</button>
                 </div>
               </div>
 
@@ -1310,6 +1310,34 @@
           <!-- Stalled / Needs Attention Tasks List -->
         </div>
       </div>
+
+      <!-- Account Security & Change Password -->
+      <div id="changePasswordCard" class="card-surface p-5 space-y-4">
+        <div class="border-b border-[var(--border)] pb-3">
+          <h3 class="text-sm font-bold flex items-center gap-2">
+            <span>🔐 Account Security & Change Password</span>
+          </h3>
+          <p class="text-xs text-[var(--text-soft)]">Update your Marketing OS account password. Minimum 8 characters required.</p>
+        </div>
+        <div id="cpStatusMessage" class="hidden p-3 rounded-xl text-xs font-medium"></div>
+        <form id="changePasswordForm" onsubmit="event.preventDefault(); submitChangePassword();" class="grid sm:grid-cols-4 gap-3 items-end">
+          <div>
+            <label for="cpCurrentPassword" class="block text-[11px] font-semibold text-[var(--text-soft)] mb-1">Current Password</label>
+            <input id="cpCurrentPassword" type="password" autocomplete="current-password" class="input-field text-xs" placeholder="Current password" required />
+          </div>
+          <div>
+            <label for="cpNewPassword" class="block text-[11px] font-semibold text-[var(--text-soft)] mb-1">New Password</label>
+            <input id="cpNewPassword" type="password" autocomplete="new-password" minlength="8" class="input-field text-xs" placeholder="Min. 8 characters" required />
+          </div>
+          <div>
+            <label for="cpConfirmPassword" class="block text-[11px] font-semibold text-[var(--text-soft)] mb-1">Confirm New Password</label>
+            <input id="cpConfirmPassword" type="password" autocomplete="new-password" minlength="8" class="input-field text-xs" placeholder="Re-enter new password" required />
+          </div>
+          <div>
+            <button type="submit" id="cpSubmitBtn" class="btn-primary w-full py-2 text-xs font-bold">Update Password</button>
+          </div>
+        </form>
+      </div>
     </div>
 
   </main>
@@ -1322,10 +1350,11 @@
       <!-- Modal Header -->
       <div class="flex items-center justify-between pb-3 border-b border-[var(--border)]">
         <div>
-          <div class="flex items-center gap-2 mb-1">
+          <div class="flex items-center gap-2 mb-1 flex-wrap">
             <span id="modalAppDeptBadge" class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">CREATIVE</span>
             <span id="modalAppAgent" class="text-xs font-semibold text-[var(--text-soft)]">Agent Name</span>
-            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-500/20 text-amber-400 border border-amber-500/30">PENDING REVIEW</span>
+            <span id="modalAppStatusBadge" class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-500/20 text-amber-400 border border-amber-500/30">Approval: pending</span>
+            <span id="modalAppExecBadge" class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-[var(--bg-soft)] text-[var(--text-soft)] border border-[var(--border)]">Exec: not_executed</span>
           </div>
           <h2 id="modalAppTitle" class="text-base font-bold text-[var(--text)]">Approval Title</h2>
         </div>
@@ -1367,7 +1396,7 @@
           Cancel
         </button>
 
-        <div class="flex items-center gap-2">
+        <div id="modalAppDecisionBtns" class="flex items-center gap-2">
           <button id="modalBtnReject" onclick="executeModalDecision('reject')" class="px-3 py-1.5 rounded-xl text-xs font-semibold text-red-500 hover:bg-red-500/10 transition">
             ✕ Reject
           </button>
@@ -1375,7 +1404,7 @@
             ✏️ Request Revision
           </button>
           <button id="modalBtnApprove" onclick="executeModalDecision('approve')" class="px-4 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition flex items-center gap-1.5 shadow-sm">
-            <span>✓</span> <span>Approve & Execute</span>
+            <span>✓</span> <span>Approve</span>
           </button>
         </div>
       </div>
