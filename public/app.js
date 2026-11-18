@@ -3520,7 +3520,7 @@ async function saveLlmProviderConfig(provider) {
 
   const payload = {
     provider,
-    endpoint_url: urlEl?.value?.trim(),
+    base_url: urlEl?.value?.trim(),
     default_model: modelEl?.value?.trim(),
     ...(keyEl?.value ? { api_key: keyEl.value.trim() } : {})
   };
@@ -3666,14 +3666,25 @@ function renderAdminSettingsView() {
 
   // 1. Health Status Bar Elements
   const activeProv = adminLlmActiveConfig?.provider || 'ollama';
-  const activeModel = adminLlmActiveConfig?.model || 'llama3.2';
   const provObj = adminLlmProviders.find(p => p.provider === activeProv);
+  const activeModel = adminLlmActiveConfig?.default_model || adminLlmActiveConfig?.model || provObj?.default_model || 'Not configured';
+  const activeIsOnline = (provObj?.status || adminLlmActiveConfig?.status) === 'online';
+  const activeStatusLabel = activeIsOnline ? 'ONLINE' : ((provObj?.status || 'NOT CONNECTED').toUpperCase());
 
   const activeProvEl = document.getElementById('healthActiveProvider');
-  if (activeProvEl) activeProvEl.textContent = (provObj?.display_name || activeProv) + (provObj?.provider_type === 'local' ? ' (Local)' : ' (Cloud)');
+  if (activeProvEl) {
+    activeProvEl.textContent = (provObj?.display_name || activeProv) + ' — ' + activeStatusLabel;
+    activeProvEl.className = activeIsOnline
+      ? 'text-sm font-extrabold text-emerald-600 dark:text-emerald-400 truncate'
+      : 'text-sm font-extrabold text-amber-600 dark:text-amber-400 truncate';
+  }
 
   const activeModelEl = document.getElementById('healthActiveModel');
-  if (activeModelEl) activeModelEl.textContent = 'Model: ' + activeModel;
+  if (activeModelEl) {
+    activeModelEl.textContent = activeIsOnline
+      ? 'Model: ' + activeModel
+      : 'Model: ' + activeModel + ' (Configure a Cloud API key or live endpoint)';
+  }
 
   const wdDetailsEl = document.getElementById('healthWatchdogDetails');
   if (wdDetailsEl && adminWatchdogTelemetry) {
@@ -3710,22 +3721,39 @@ function renderAdminSettingsView() {
     provContainer.innerHTML = filtered.map(p => {
       const isPrimary = p.is_default || p.provider === activeProv;
       const isCloud = p.provider_type === 'cloud_api' || p.provider_type === 'cloud';
+      const isOnline = p.status === 'online';
+      const statusText = p.status || 'untested';
+      const statusColorClass = isOnline
+        ? 'text-emerald-600 dark:text-emerald-400'
+        : ((statusText === 'offline' || statusText === 'error') ? 'text-rose-500' : 'text-amber-500');
 
-      return '<div class="card-subtle p-4 rounded-2xl border ' + (isPrimary ? 'border-indigo-500 shadow-md bg-[var(--surface)]' : 'border-[var(--border)]') + ' flex flex-col justify-between space-y-3">' +
+      const primaryBadge = isPrimary
+        ? (isOnline
+            ? '<span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500 text-white shadow-xs">Connected · Primary</span>'
+            : '<span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/40">Selected (' + escapeHtml(statusText === 'untested' ? 'Not Connected' : statusText.toUpperCase()) + ')</span>')
+        : '<span class="text-[10px] text-[var(--text-faint)]">Standby</span>';
+
+      const cardBorder = isPrimary
+        ? (isOnline ? 'border-emerald-500 shadow-md bg-[var(--surface)]' : 'border-amber-500/60 shadow-sm bg-[var(--surface)]')
+        : 'border-[var(--border)]';
+
+      const endpointVal = p.base_url || p.endpoint_url || '';
+
+      return '<div class="card-subtle p-4 rounded-2xl border ' + cardBorder + ' flex flex-col justify-between space-y-3">' +
         '<div>' +
           '<div class="flex items-center justify-between gap-2">' +
             '<div class="flex items-center gap-2">' +
               '<span class="font-bold text-sm">' + escapeHtml(p.display_name || p.provider) + '</span>' +
-              '<span class="text-[10px] px-2 py-0.5 rounded-full font-bold ' + (isCloud ? 'bg-purple-500/15 text-purple-700 dark:text-purple-300' : 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300') + '">' +
+              '<span class="text-[10px] px-2 py-0.5 rounded-full font-bold ' + (isCloud ? 'bg-purple-500/15 text-purple-700 dark:text-purple-300' : 'bg-slate-500/15 text-slate-600 dark:text-slate-300') + '">' +
                 (isCloud ? 'Cloud API' : 'Local LLM') +
               '</span>' +
             '</div>' +
-            (isPrimary ? '<span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500 text-white shadow-xs">Active Primary</span>' : '<span class="text-[10px] text-[var(--text-faint)]">Standby</span>') +
+            primaryBadge +
           '</div>' +
           '<div class="space-y-2.5 mt-3 text-xs">' +
             '<div>' +
               '<label class="block text-[10px] font-semibold text-[var(--text-soft)] uppercase mb-1">Base Endpoint URL</label>' +
-              '<input id="llm-url-' + p.provider + '" type="text" value="' + escapeHtml(p.endpoint_url || '') + '" class="input-field text-xs mono py-1 px-2.5" />' +
+              '<input id="llm-url-' + p.provider + '" type="text" value="' + escapeHtml(endpointVal) + '" class="input-field text-xs mono py-1 px-2.5" />' +
             '</div>' +
             '<div>' +
               '<label class="block text-[10px] font-semibold text-[var(--text-soft)] uppercase mb-1">Default Model</label>' +
@@ -3740,14 +3768,19 @@ function renderAdminSettingsView() {
         '</div>' +
         '<div class="pt-2 border-t border-[var(--border)] space-y-2">' +
           '<div class="flex items-center justify-between text-[11px]">' +
-            '<span class="text-[var(--text-soft)]">Status: <b class="' + (p.status === 'online' ? 'text-emerald-600' : 'text-slate-500') + '">' + (p.status || 'Untested') + '</b>' + (p.latency_ms ? ' (' + p.latency_ms + 'ms)' : '') + '</span>' +
+            '<span class="text-[var(--text-soft)]">Status: <b class="' + statusColorClass + '">' + escapeHtml(statusText) + '</b>' + (p.latency_ms ? ' (' + p.latency_ms + 'ms)' : '') + '</span>' +
             '<button onclick="pingLlmProvider(\'' + p.provider + '\')" class="btn-outline px-2.5 py-1 text-[11px] font-semibold hover:border-indigo-500">⚡ Test Ping</button>' +
           '</div>' +
+          (p.last_error && !isOnline
+            ? '<div class="text-[10px] text-rose-500/90 leading-snug break-words">⚠ ' + escapeHtml(p.last_error) + '</div>'
+            : '') +
           '<div class="grid grid-cols-2 gap-2">' +
             '<button onclick="saveLlmProviderConfig(\'' + p.provider + '\')" class="btn-outline py-1.5 text-[11px] font-semibold">Save</button>' +
             (!isPrimary
               ? '<button onclick="setActiveLlmRouting(\'' + p.provider + '\')" class="btn-primary py-1.5 text-[11px] font-bold">Set Primary</button>'
-              : '<button disabled class="py-1.5 text-[11px] font-bold rounded-full bg-emerald-600/20 text-emerald-700 dark:text-emerald-300 cursor-default">Primary Active</button>') +
+              : (isOnline
+                  ? '<button disabled class="py-1.5 text-[11px] font-bold rounded-full bg-emerald-600/20 text-emerald-700 dark:text-emerald-300 cursor-default">Primary Online</button>'
+                  : '<button disabled class="py-1.5 text-[11px] font-bold rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 cursor-default">Selected (Offline)</button>')) +
           '</div>' +
         '</div>' +
       '</div>';
