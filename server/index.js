@@ -65,6 +65,27 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(correlationMiddleware);
 
+// Startup Turso Hydration Gate: guarantee cold-start Serverless requests
+// NEVER query an unhydrated local SQLite DB before Turso Cloud sync completes.
+let hydrationPromise = null;
+if (turso.isConfigured()) {
+  hydrationPromise = turso.hydrateFromTurso(db).catch((err) => {
+    console.error(`[Turso] Startup hydration error: ${err.message}`);
+    return { ok: false, error: err.message };
+  });
+}
+
+app.use('/api', async (req, res, next) => {
+  if (hydrationPromise) {
+    try {
+      await hydrationPromise;
+    } catch (err) {
+      console.error(`[Turso] Hydration gate error: ${err.message}`);
+    }
+  }
+  next();
+});
+
 // Serverless Durability Guard: On Vercel (or when TURSO_AWAIT_WRITES=true),
 // await all in-flight Turso cloud writes BEFORE finalizing mutating HTTP responses
 // so Serverless execution freeze never drops writes.
@@ -212,6 +233,25 @@ app.post('/api/auth/login', asyncHandler(async (req, res) => {
     user = db.prepare('SELECT * FROM users WHERE email=?').get(cleanEmail);
   } catch (err) {
     throw new DatabaseError('Failed to query user record', err.message);
+  }
+
+  // Authoritative Turso Cloud fallback if user missing locally on a warm Serverless instance
+  if (!user && turso.isConfigured()) {
+    try {
+      const tc = turso.getClient();
+      if (tc) {
+        const cloudRes = await tc.execute({ sql: 'SELECT * FROM users WHERE email = ? LIMIT 1', args: [cleanEmail] });
+        if (cloudRes.rows && cloudRes.rows.length > 0) {
+          user = cloudRes.rows[0];
+          db.prepare(`
+            INSERT OR REPLACE INTO users (id, name, email, password_hash, role, department, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+          `).run(user.id, user.name, user.email, user.password_hash, user.role, user.department || '', user.status || 'active');
+        }
+      }
+    } catch (cloudErr) {
+      console.error(`[auth] Turso authoritative lookup failed: ${cloudErr.message}`);
+    }
   }
 
   if (!user) return res.status(401).json({ error: 'Invalid credentials' });
@@ -2381,13 +2421,6 @@ app.get('*', (req, res) => res.sendFile(path.join(__dirname, '../public/index.ht
 
 // Global Centralized Error Handling Middleware
 app.use(errorHandler);
-
-// Initialize Turso Cloud sync on startup (if configured)
-if (turso.isConfigured()) {
-  turso.hydrateFromTurso(db).catch(err => {
-    console.warn(`[Turso] Startup sync note: ${err.message}`);
-  });
-}
 
 // Start Server (standalone mode)
 if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
