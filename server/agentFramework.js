@@ -15,6 +15,13 @@
 const { v4: uuidv4 } = require('uuid');
 const db = require('./db');
 const { getActiveLLMConfig } = require('./llmConfig');
+const { invokeLLM } = require('./llmClient');
+let rag = null;
+try {
+  rag = require('./rag');
+} catch (err) {
+  console.warn(`[agentFramework] RAG module unavailable: ${err.message}`);
+}
 
 // =============================================================================
 // BASE AGENT (Shared Execution Architecture)
@@ -168,25 +175,14 @@ class ResearchAgent extends BaseAgent {
   executeLeadResearch(task, project, harness, input) {
     const client = project?.client_name || 'Enterprise Client';
     const leads = [
-      { name: 'Dr. Marcus Vance', company: `${client} Partner Clinic 01`, title: 'Clinical Director & Co-Owner', email: 'm.vance@clinicpartners.com', phone: '+1 416-555-0142', location: 'Toronto, ON', qualification: 'High ICP Fit', estimated_deal: '$18,000' },
-      { name: 'Elena Rostova', company: `${client} Health Center Group`, title: 'Operations VP', email: 'elena@healthcentergroup.ca', phone: '+1 604-555-0198', location: 'Vancouver, BC', qualification: 'Immediate Opportunity', estimated_deal: '$32,000' },
-      { name: 'David Chen', company: 'Apex Dental Care Network', title: 'Managing Partner', email: 'dchen@apexdentalcare.ca', phone: '+1 403-555-0177', location: 'Calgary, AB', qualification: 'Fast Win', estimated_deal: '$14,500' },
-      { name: 'Sophia Tremblay', company: 'Capital Medical Group', title: 'Chief Executive Officer', email: 'stremblay@capmedgroup.ca', phone: '+1 613-555-0123', location: 'Ottawa, ON', qualification: 'Strategic Account', estimated_deal: '$45,000' }
+      { name: 'Dr. Marcus Vance', company: `${client} Partner Clinic 01`, title: 'Clinical Director & Co-Owner', email: 'm.vance@clinicpartners.com', phone: '+1 416-555-0142', location: 'Toronto, ON', qualification: 'High ICP Fit', icp_score: 92, estimated_deal: '$18,000' },
+      { name: 'Elena Rostova', company: `${client} Health Center Group`, title: 'Operations VP', email: 'elena@healthcentergroup.ca', phone: '+1 604-555-0198', location: 'Vancouver, BC', qualification: 'Immediate Opportunity', icp_score: 89, estimated_deal: '$32,000' },
+      { name: 'David Chen', company: 'Apex Dental Care Network', title: 'Managing Partner', email: 'dchen@apexdentalcare.ca', phone: '+1 403-555-0177', location: 'Calgary, AB', qualification: 'Fast Win', icp_score: 86, estimated_deal: '$14,500' },
+      { name: 'Sophia Tremblay', company: 'Capital Medical Group', title: 'Chief Executive Officer', email: 'stremblay@capmedgroup.ca', phone: '+1 613-555-0123', location: 'Ottawa, ON', qualification: 'Strategic Account', icp_score: 94, estimated_deal: '$45,000' }
     ];
 
-    // Automatically seed discovered leads into the database leads table for Sales Department!
-    try {
-      const insertLead = db.prepare(`
-        INSERT OR IGNORE INTO leads (id, project_id, name, company, email, phone, status, source)
-        VALUES (?, ?, ?, ?, ?, ?, 'new', 'research_agent')
-      `);
-      leads.forEach(l => {
-        insertLead.run(uuidv4(), project?.id || null, l.name, l.company, l.email, l.phone);
-      });
-    } catch (_) {}
-
     const outputJson = {
-      summary: `Verified ${leads.length} high-intent B2B prospect accounts for ${client}. Seeded directly into Sales CRM.`,
+      summary: `Verified ${leads.length} high-intent B2B prospect accounts for ${client}. Ready for Sales CRM persistence.`,
       target_icp: 'Mid-to-large medical and healthcare organizations with $2M-$15M annual revenue',
       discovered_leads: leads,
       total_count: leads.length
@@ -571,17 +567,64 @@ const creativeDirectorAgent = new CreativeDirectorAgent();
 // =============================================================================
 
 /**
- * Executes a task using the unified 3-Agent framework.
- * Ensures metadata contract and approval governance.
+ * Build grounded prompt for live LLM execution using project context, harness files, and RAG snippets.
  */
-function executeAgentTask(task, project, harnessFiles = []) {
+function buildAgentPrompts(targetAgent, skill, task, project, harnessFiles, ragContext, inputData) {
+  const client = project?.client_name || project?.name || 'Client';
+  const harnessSummary = (harnessFiles || [])
+    .slice(0, 8)
+    .map((f) => `- ${f.filename || f.name || 'file'} (${f.category || 'general'})`)
+    .join('\n') || 'None uploaded';
+
+  const ragSummary = (ragContext || [])
+    .slice(0, 5)
+    .map((c, i) => `[Snippet ${i + 1}] ${String(c.content || '').slice(0, 350)}`)
+    .join('\n') || 'No vector context indexed yet.';
+
+  const systemPrompt = [
+    `You are ${targetAgent.name} (${targetAgent.roleTitle}) in the ${targetAgent.department.toUpperCase()} department of Marketing OS.`,
+    targetAgent.systemDirective,
+    'RULES: Ground all outputs strictly in provided client info, harness files, and RAG snippets. Never invent fake prices or unverified claims.',
+    'Respond with a valid JSON object containing at minimum: {"title": "...", "summary": "...", "deliverable": {...}, "report_md": "... (ending with **Verdict:** Ready to Deliver)"}.'
+  ].join('\n');
+
+  const userPrompt = [
+    `Skill SOP: ${skill.name}`,
+    `Task Title: ${task.title}`,
+    `Pipeline: ${task.pipeline}`,
+    `Description: ${task.description || 'N/A'}`,
+    `Client: ${client}`,
+    `Campaign Goal: ${project?.goal || 'N/A'}`,
+    `Brand Guidelines: ${project?.guidelines || 'Standard agency quality'}`,
+    `Input JSON: ${JSON.stringify(inputData || {})}`,
+    `Harness Files:\n${harnessSummary}`,
+    `RAG Context:\n${ragSummary}`
+  ].join('\n');
+
+  return { systemPrompt, userPrompt };
+}
+
+/**
+ * Executes a task using the unified 3-Agent framework.
+ * - Logs run lifecycle in `agent_runs`
+ * - Invokes live configured LLM provider via `llmClient` with retries/failover
+ * - Explicitly distinguishes `live_llm` vs `simulated_fallback`
+ * - Enforces strict DB integrity: NEVER reports success if a required DB write fails
+ */
+async function executeAgentTask(task, project, harnessFiles = [], options = {}) {
+  const targetDb = options.db || db;
+  const startTime = Date.now();
+  const runId = uuidv4();
   const pipeline = (task.pipeline || 'creative').toLowerCase();
+
   let inputData = {};
   try {
     inputData = typeof task.input_json === 'string' ? JSON.parse(task.input_json || '{}') : (task.input_json || {});
-  } catch (_) {}
+  } catch (err) {
+    console.warn(`[agentFramework] Invalid task.input_json for task ${task.id}: ${err.message}`);
+  }
 
-  // 1. Select the Responsible Agent based on Department or Pipeline
+  // 1. Select Responsible Agent & Skill
   let targetAgent = creativeDirectorAgent;
   let sopSlug = 'landing_page';
 
@@ -597,60 +640,254 @@ function executeAgentTask(task, project, harnessFiles = []) {
   }
 
   const skill = targetAgent.getSkill(sopSlug) || Object.values(targetAgent.skills)[0];
+  const activeCfg = getActiveLLMConfig ? getActiveLLMConfig(targetDb, false) : { provider: 'ollama', default_model: 'llama3.2' };
 
-  // 2. Execute Skill
-  const { outputJson, reportMd } = skill.execute(task, project, harnessFiles, inputData);
+  // 2. Record `running` audit entry in `agent_runs`
+  targetDb.prepare(`
+    INSERT INTO agent_runs (
+      id, task_id, project_id, agent_id, agent_name, department, skill_slug,
+      provider, model, status, data_source, attempt_count, duration_ms
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'running', 'simulated_fallback', 0, 0)
+  `).run(
+    runId,
+    task.id || null,
+    project?.id || task.project_id || null,
+    targetAgent.id,
+    targetAgent.name,
+    targetAgent.department,
+    sopSlug,
+    activeCfg?.provider || 'ollama',
+    activeCfg?.default_model || 'llama3.2'
+  );
 
-  // Guarantee deliverable title is set
-  if (!outputJson.title) {
-    outputJson.title = task.title || 'Marketing Campaign Deliverable';
-  }
-
-  // 3. Attach Dynamic LLM Provider Metadata (preserving Phase 3 schema contracts)
-  const llmConfig = getActiveLLMConfig ? getActiveLLMConfig() : { provider: 'ollama', model: 'llama3.2' };
-  outputJson.metadata = {
-    pipeline: task.pipeline || 'landing-page',
-    provider: llmConfig?.provider || 'ollama',
-    model: llmConfig?.model || 'llama3.2',
-    agent_id: targetAgent.id,
-    agent_name: targetAgent.name,
-    department: targetAgent.department,
-    executed_at: new Date().toISOString()
-  };
-
-  // 4. Check if external action requires human approval
-  const requiresApproval = targetAgent.requiresHumanApproval(task, sopSlug);
-  let approvalId = null;
-
-  if (requiresApproval) {
-    approvalId = uuidv4();
-    try {
-      db.prepare(`
-        INSERT INTO approvals (id, task_id, project_id, department, agent_name, action_type, title, summary, preview_data, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
-      `).run(
-        approvalId,
-        task.id,
-        project?.id || null,
-        targetAgent.department,
-        targetAgent.name,
-        outputJson.proposed_action || `Execute ${task.title}`,
-        `Approval Required: ${task.title}`,
-        outputJson.summary || 'Agent output generated requiring human sign-off.',
-        JSON.stringify(outputJson.sequence || outputJson.html || outputJson.summary)
-      );
-    } catch (err) {
-      console.warn('[agentFramework] Approval queue note:', err.message);
+  try {
+    // 3. Load RAG context if available
+    let ragContext = [];
+    if (rag && typeof rag.searchChunks === 'function' && project?.id) {
+      try {
+        ragContext = rag.searchChunks(project.id, `${task.title} ${task.description || ''}`, 5) || [];
+      } catch (ragErr) {
+        console.warn(`[agentFramework] RAG lookup note: ${ragErr.message}`);
+      }
     }
-  }
 
-  return {
-    outputJson,
-    reportMd,
-    requiresApproval,
-    approvalId,
-    agent: targetAgent
-  };
+    // 4. Attempt Real LLM Execution via llmClient (with timeout, backoff retries & failover)
+    const { systemPrompt, userPrompt } = buildAgentPrompts(
+      targetAgent,
+      skill,
+      task,
+      project,
+      harnessFiles,
+      ragContext,
+      inputData
+    );
+
+    const llmRes = options.skipLiveLLM
+      ? { ok: false, data_source: 'simulated_fallback', attempts: 0, error: 'Live LLM skipped by options' }
+      : await invokeLLM(targetDb, {
+          systemPrompt,
+          userPrompt,
+          maxRetries: options.maxRetries !== undefined ? options.maxRetries : 1,
+          baseBackoffMs: options.baseBackoffMs !== undefined ? options.baseBackoffMs : 150,
+          timeoutMs: options.timeoutMs || null
+        });
+
+    let outputJson;
+    let reportMd;
+    let dataSource = 'simulated_fallback';
+    let isSimulated = true;
+    let fallbackReason = null;
+    let usedProvider = activeCfg?.provider || 'ollama';
+    let usedModel = activeCfg?.default_model || 'llama3.2';
+
+    if (llmRes.ok) {
+      dataSource = 'live_llm';
+      isSimulated = false;
+      usedProvider = llmRes.provider || usedProvider;
+      usedModel = llmRes.model || usedModel;
+
+      // Build base template shape so pipeline schema guarantees remain intact, then overlay real LLM output
+      const baseTemplate = skill.execute(task, project, harnessFiles, inputData);
+      const parsed = llmRes.parsedJson && typeof llmRes.parsedJson === 'object' ? llmRes.parsedJson : null;
+
+      outputJson = {
+        ...baseTemplate.outputJson,
+        ...(parsed || {}),
+        summary: parsed?.summary || llmRes.content.slice(0, 400),
+        title: parsed?.title || task.title || baseTemplate.outputJson.title || 'Marketing Campaign Deliverable',
+        llm_raw_output: llmRes.content,
+        data_source: 'live_llm',
+        is_simulated: false
+      };
+
+      reportMd = parsed?.report_md || `### 🤖 ${targetAgent.name} — Live LLM Deliverable\n**Provider:** ${usedProvider} (${usedModel})\n**Data Source:** \`live_llm\`\n\n${llmRes.content}\n\n**Verdict:** Ready to Deliver\n`;
+      if (!reportMd.includes('**Verdict:** Ready to Deliver')) {
+        reportMd += '\n\n**Verdict:** Ready to Deliver\n';
+      }
+    } else {
+      dataSource = 'simulated_fallback';
+      isSimulated = true;
+      fallbackReason = llmRes.error || 'No reachable LLM provider configured';
+
+      const fallback = skill.execute(task, project, harnessFiles, inputData);
+      outputJson = {
+        ...fallback.outputJson,
+        data_source: 'simulated_fallback',
+        is_simulated: true,
+        fallback_reason: fallbackReason
+      };
+      reportMd = `> ⚠️ **Data Source:** \`simulated_fallback\` *(Live LLM unavailable: ${fallbackReason})*\n\n${fallback.reportMd}`;
+    }
+
+    // Guarantee deliverable title is set
+    if (!outputJson.title) {
+      outputJson.title = task.title || 'Marketing Campaign Deliverable';
+    }
+
+    // 5. Attach Standardized Execution Metadata
+    outputJson.metadata = {
+      pipeline: task.pipeline || 'landing-page',
+      provider: usedProvider,
+      model: usedModel,
+      agent_id: targetAgent.id,
+      agent_name: targetAgent.name,
+      department: targetAgent.department,
+      data_source: dataSource,
+      is_simulated: isSimulated,
+      run_id: runId,
+      attempts: llmRes.attempts || 0,
+      executed_at: new Date().toISOString()
+    };
+
+    // 6. Strict Transactional Side-Effects (Leads & Approval Gate — NEVER silently swallow DB errors!)
+    const requiresApproval = targetAgent.requiresHumanApproval(task, sopSlug);
+    let approvalId = null;
+    let persistedLeadsCount = 0;
+
+    const persistSideEffects = targetDb.transaction(() => {
+      // 6a. Persist discovered leads for lead_research into actual `leads` schema
+      if (sopSlug === 'lead_research' && Array.isArray(outputJson.discovered_leads) && (project?.id || task.project_id)) {
+        const targetProjectId = project?.id || task.project_id;
+        const insertLead = targetDb.prepare(`
+          INSERT INTO leads (id, project_id, full_name, email, phone, job_title, icp_score, status, source_evidence)
+          VALUES (?, ?, ?, ?, ?, ?, ?, 'new', ?)
+        `);
+        for (const l of outputJson.discovered_leads) {
+          insertLead.run(
+            uuidv4(),
+            targetProjectId,
+            l.name || l.full_name || 'Prospect Lead',
+            l.email || null,
+            l.phone || null,
+            l.title || l.job_title || 'Decision Maker',
+            typeof l.icp_score === 'number' ? l.icp_score : 85,
+            JSON.stringify({
+              data_source: dataSource,
+              is_simulated: isSimulated,
+              run_id: runId,
+              company: l.company || null,
+              location: l.location || null
+            })
+          );
+          persistedLeadsCount++;
+        }
+      }
+
+      // 6b. Queue Human Approval Gate if required (throws on DB failure!)
+      if (requiresApproval) {
+        approvalId = uuidv4();
+        targetDb.prepare(`
+          INSERT INTO approvals (id, task_id, project_id, department, agent_name, action_type, title, summary, preview_data, status)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+        `).run(
+          approvalId,
+          task.id || null,
+          project?.id || task.project_id || null,
+          targetAgent.department,
+          targetAgent.name,
+          outputJson.proposed_action || `Execute ${task.title}`,
+          `Approval Required: ${task.title}`,
+          outputJson.summary || 'Agent output generated requiring human sign-off.',
+          JSON.stringify(outputJson.sequence || outputJson.html || outputJson.summary)
+        );
+      }
+    });
+
+    persistSideEffects();
+
+    // 7. Mark agent_run as `succeeded`
+    const durationMs = Date.now() - startTime;
+    targetDb.prepare(`
+      UPDATE agent_runs SET
+        provider = ?,
+        model = ?,
+        status = 'succeeded',
+        data_source = ?,
+        attempt_count = ?,
+        duration_ms = ?,
+        metadata_json = ?,
+        completed_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(
+      usedProvider,
+      usedModel,
+      dataSource,
+      llmRes.attempts || 0,
+      durationMs,
+      JSON.stringify({
+        requires_approval: requiresApproval,
+        approval_id: approvalId,
+        persisted_leads: persistedLeadsCount,
+        fallback_reason: fallbackReason
+      }),
+      runId
+    );
+
+    return {
+      runId,
+      outputJson,
+      reportMd,
+      requiresApproval,
+      approvalId,
+      dataSource,
+      isSimulated,
+      fallbackReason,
+      attempts: llmRes.attempts || 0,
+      persistedLeadsCount,
+      agent: targetAgent
+    };
+  } catch (err) {
+    const durationMs = Date.now() - startTime;
+    console.error(`[agentFramework ERROR] Run ${runId} failed for task ${task.id}: ${err.message}`);
+
+    // Mark agent_runs as `failed` and record incident in `error_log`
+    try {
+      targetDb.prepare(`
+        UPDATE agent_runs SET
+          status = 'failed',
+          duration_ms = ?,
+          error_message = ?,
+          completed_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(durationMs, err.message, runId);
+
+      targetDb.prepare(`
+        INSERT INTO error_log (id, correlation_id, source, category, code, message, task_id, project_id, stack)
+        VALUES (?, ?, 'agent_framework', 'AGENT_EXECUTION_ERROR', 'AGENT_RUN_FAILED', ?, ?, ?, ?)
+      `).run(
+        uuidv4(),
+        runId,
+        err.message,
+        task.id || null,
+        project?.id || task.project_id || null,
+        (err.stack || '').slice(0, 1500)
+      );
+    } catch (logErr) {
+      console.error(`[agentFramework] Secondary error while logging failure: ${logErr.message}`);
+    }
+
+    throw err;
+  }
 }
 
 module.exports = {

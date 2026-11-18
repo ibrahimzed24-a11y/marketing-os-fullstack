@@ -527,6 +527,10 @@ try {
     summary TEXT,
     preview_data TEXT,
     status TEXT DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected','revision_requested')),
+    execution_status TEXT DEFAULT 'not_executed' CHECK(execution_status IN ('not_executed','staged','dispatched','externally_executed','execution_failed')),
+    idempotency_key TEXT,
+    executed_at DATETIME,
+    execution_receipt TEXT,
     reviewer_id TEXT,
     reviewer_notes TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -535,6 +539,31 @@ try {
     FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
   );
   CREATE INDEX IF NOT EXISTS idx_approvals_status ON approvals(status, department);
+
+  -- 31. Agent Runs (Observable Execution Ledger for the 3 Core Agents)
+  CREATE TABLE IF NOT EXISTS agent_runs (
+    id TEXT PRIMARY KEY,
+    task_id TEXT,
+    project_id TEXT,
+    agent_id TEXT NOT NULL,
+    agent_name TEXT NOT NULL,
+    department TEXT NOT NULL CHECK(department IN ('research','sales','creative')),
+    skill_slug TEXT NOT NULL,
+    provider TEXT,
+    model TEXT,
+    status TEXT NOT NULL CHECK(status IN ('running','succeeded','failed')),
+    data_source TEXT NOT NULL CHECK(data_source IN ('live_llm','simulated_fallback')),
+    attempt_count INTEGER DEFAULT 1,
+    duration_ms INTEGER DEFAULT 0,
+    error_message TEXT,
+    metadata_json TEXT DEFAULT '{}',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    completed_at DATETIME,
+    FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE SET NULL,
+    FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_agent_runs_task ON agent_runs(task_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_agent_runs_agent ON agent_runs(agent_id, status, created_at DESC);
   `);
 
   // Safe runtime migrations for customizable guidelines and multi-format files
@@ -556,6 +585,21 @@ try {
     const pragmaTasks = db.prepare("PRAGMA table_info(tasks)").all();
     if (!pragmaTasks.some(c => c.name === 'department')) {
       db.prepare("ALTER TABLE tasks ADD COLUMN department TEXT DEFAULT 'creative'").run();
+    }
+
+    // Phase 4 Governance Migration: separate approval_status from execution_status
+    const pragmaApprovals = db.prepare("PRAGMA table_info(approvals)").all();
+    if (!pragmaApprovals.some(c => c.name === 'execution_status')) {
+      db.prepare("ALTER TABLE approvals ADD COLUMN execution_status TEXT DEFAULT 'not_executed'").run();
+    }
+    if (!pragmaApprovals.some(c => c.name === 'idempotency_key')) {
+      db.prepare("ALTER TABLE approvals ADD COLUMN idempotency_key TEXT").run();
+    }
+    if (!pragmaApprovals.some(c => c.name === 'executed_at')) {
+      db.prepare("ALTER TABLE approvals ADD COLUMN executed_at DATETIME").run();
+    }
+    if (!pragmaApprovals.some(c => c.name === 'execution_receipt')) {
+      db.prepare("ALTER TABLE approvals ADD COLUMN execution_receipt TEXT").run();
     }
 
     const pragmaHarness = db.prepare("PRAGMA table_info(harness_files)").all();

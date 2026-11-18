@@ -2,7 +2,26 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const db = require('./db');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me';
+const IS_PROD = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
+
+function resolveJwtSecret() {
+  const configured = (process.env.JWT_SECRET || '').trim();
+  if (IS_PROD) {
+    if (!configured || configured === 'dev-secret-change-me' || configured.length < 32) {
+      throw new Error(
+        '[FATAL SECURITY] JWT_SECRET must be set to a strong secret (>= 32 chars) in production.'
+      );
+    }
+    return configured;
+  }
+  if (!configured || configured === 'dev-secret-change-me') {
+    console.warn('[SECURITY WARN] Using development JWT_SECRET fallback (blocked in production).');
+    return 'local-dev-only-jwt-secret-not-for-production';
+  }
+  return configured;
+}
+
+const JWT_SECRET = resolveJwtSecret();
 
 function signToken(user) {
   return jwt.sign(
@@ -39,15 +58,17 @@ function authMiddleware(req, res, next) {
     }
   }
 
-  // Dev mode local fallback (only enabled if explicitly opted-in via environment variable)
-  if (process.env.ALLOW_ANONYMOUS_DEV_ADMIN === 'true') {
+  // Dev mode local fallback (strictly disabled in production; must be explicitly opted-in locally)
+  if (!IS_PROD && process.env.ALLOW_ANONYMOUS_DEV_ADMIN === 'true') {
     try {
       const defaultUser = db.prepare('SELECT id, name, email, role, department FROM users WHERE role = ? LIMIT 1').get('super_admin');
       if (defaultUser) {
         req.user = defaultUser;
         return next();
       }
-    } catch (err) {}
+    } catch (err) {
+      console.error('[auth] Dev fallback lookup failed:', err.message);
+    }
   }
 
   return res.status(401).json({ error: 'No token or authorized session found' });

@@ -23,8 +23,8 @@ const { v4: uuidv4 } = require('uuid');
 const db = require('./db');
 const { signToken, authMiddleware, requireRole, hashPassword, verifyPassword } = require('./auth');
 const { triggerN8n } = require('./n8n');
-const { generateLocalDeliverable } = require('./localRunner');
 const { executeAgentTask, researchAgent, salesAgent, creativeDirectorAgent } = require('./agentFramework');
+const { POLICY_MATRIX, evaluatePolicy, dispatchExternalAction } = require('./approvalPolicy');
 const {
   startWatchdog,
   stopWatchdog,
@@ -34,6 +34,7 @@ const {
 } = require('./watchdog');
 const rag = require('./rag');
 const { AGENTS_CATALOG } = require('./agentsData');
+const { encryptSecret, decryptSecret } = require('./cryptoVault');
 const {
   SUPPORTED_PROVIDERS,
   PROVIDER_METADATA,
@@ -63,6 +64,30 @@ app.use(cors({ origin: process.env.CORS_ORIGIN || true }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(correlationMiddleware);
+
+// Serverless Durability Guard: On Vercel (or when TURSO_AWAIT_WRITES=true),
+// await all in-flight Turso cloud writes BEFORE finalizing mutating HTTP responses
+// so Serverless execution freeze never drops writes.
+app.use((req, res, next) => {
+  const shouldFlush = (process.env.VERCEL === '1' || process.env.TURSO_AWAIT_WRITES === 'true')
+    && turso.isConfigured()
+    && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method);
+  if (!shouldFlush) return next();
+
+  const origJson = res.json.bind(res);
+  res.json = function(body) {
+    turso.flushPendingWrites(4000)
+      .then((flushRes) => {
+        if (!flushRes.ok) {
+          console.error('[Turso Flush WARN] Incomplete cloud mirror flush before HTTP response:', flushRes);
+        }
+      })
+      .catch((err) => console.error('[Turso Flush ERROR]:', err.message))
+      .finally(() => origJson(body));
+    return res;
+  };
+  next();
+});
 
 // Uploads configuration
 const uploadDir = process.env.UPLOAD_DIR || (process.env.VERCEL ? '/tmp/uploads' : path.join(__dirname, '..', 'uploads'));
@@ -199,10 +224,19 @@ app.post('/api/auth/login', asyncHandler(async (req, res) => {
 }));
 
 app.post('/api/auth/reset-password-dev', asyncHandler(async (req, res) => {
+  const isProd = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
+  if (isProd || process.env.ALLOW_DEV_PASSWORD_RESET !== 'true') {
+    return res.status(404).json({ error: 'Endpoint disabled' });
+  }
+  const expectedKey = (process.env.OS_API_KEY || '').trim();
+  if (!expectedKey || expectedKey === 'local-dev-key-change-me' || expectedKey.length < 16) {
+    return res.status(503).json({ error: 'Dev password reset misconfigured: explicit OS_API_KEY (>= 16 chars) required' });
+  }
   const { email, newPassword, devKey } = req.body;
-  const expectedKey = process.env.OS_API_KEY || 'local-dev-key-change-me';
-  if (devKey !== expectedKey) return res.status(401).json({ error: 'Unauthorized: Invalid devKey' });
-  if (!email || !newPassword) return res.status(400).json({ error: 'email and newPassword required' });
+  if (!devKey || devKey !== expectedKey) return res.status(401).json({ error: 'Unauthorized: Invalid devKey' });
+  if (!email || !newPassword || String(newPassword).trim().length < 8) {
+    return res.status(400).json({ error: 'email and newPassword (>= 8 chars) required' });
+  }
 
   const user = db.prepare('SELECT id FROM users WHERE email=?').get(email.trim().toLowerCase());
   if (!user) return res.status(404).json({ error: 'User not found' });
@@ -619,7 +653,7 @@ app.post('/api/agents/dispatch', authMiddleware, requireRole('super_admin', 'adm
     finalOutput = n8nData.deliverable || n8nData.output || n8nData;
     finalReport = n8nData.report || '';
   } else {
-    const local = generateLocalDeliverable(primaryPipeline, taskObj, proj, harness, n8nResult.error);
+    const local = await executeAgentTask({ ...taskObj, pipeline: primaryPipeline }, proj, harness);
     finalOutput = local.outputJson;
     finalReport = local.reportMd;
   }
@@ -740,7 +774,7 @@ app.post('/api/seo/execute', authMiddleware, asyncHandler(async (req, res) => {
     finalOutput = resultData.deliverable || resultData.output || resultData;
     finalReport = resultData.report || '';
   } else {
-    const local = generateLocalDeliverable(pipeline, task, proj, harness, result.error);
+    const local = await executeAgentTask({ ...task, pipeline }, proj, harness);
     finalOutput = local.outputJson;
     finalReport = local.reportMd;
   }
@@ -831,23 +865,54 @@ app.post('/api/tasks/:id/run', authMiddleware, asyncHandler(async (req, res) => 
 
   // 2. Execute via Unified 3-Agent Framework (Research, Sales, Creative)
   console.log(`[task-runner] n8n offline (${result.error}). Executing task via Unified Agent Framework...`);
-  const { outputJson, reportMd, requiresApproval, approvalId, agent } = executeAgentTask(task, project, harness);
+  let execResult;
+  try {
+    execResult = await executeAgentTask(task, project, harness);
 
-  db.prepare("UPDATE tasks SET status='in_review', output_json=?, report_md=?, updated_at=CURRENT_TIMESTAMP WHERE id=?")
-    .run(JSON.stringify(outputJson), reportMd, task.id);
+    db.transaction(() => {
+      db.prepare("UPDATE tasks SET status='in_review', output_json=?, report_md=?, updated_at=CURRENT_TIMESTAMP WHERE id=?")
+        .run(JSON.stringify(execResult.outputJson), execResult.reportMd, task.id);
 
-  db.prepare('INSERT INTO reports (id,task_id,project_id,title,content_md,verdict,created_by) VALUES (?,?,?,?,?,?,?)')
-    .run(uuidv4(), task.id, task.project_id, `Admin Report - ${task.title}`, reportMd, 'pending', agent.name);
+      db.prepare('INSERT INTO reports (id,task_id,project_id,title,content_md,verdict,created_by) VALUES (?,?,?,?,?,?,?)')
+        .run(uuidv4(), task.id, task.project_id, `Admin Report - ${task.title}`, execResult.reportMd, 'pending', execResult.agent.name);
 
-  db.prepare('INSERT INTO activity (id,project_id,task_id,user_id,action) VALUES (?,?,?,?,?)')
-    .run(uuidv4(), task.project_id, task.id, req.user.id, `executed_${agent.department}:${task.pipeline}`);
+      db.prepare('INSERT INTO activity (id,project_id,task_id,user_id,action,meta) VALUES (?,?,?,?,?,?)')
+        .run(
+          uuidv4(),
+          task.project_id,
+          task.id,
+          req.user.id,
+          `executed_${execResult.agent.department}:${task.pipeline}`,
+          JSON.stringify({ run_id: execResult.runId, data_source: execResult.dataSource, is_simulated: execResult.isSimulated })
+        );
+    })();
+  } catch (agentErr) {
+    console.error(`[task-runner ERROR] Agent execution or DB persistence failed for task ${task.id}: ${agentErr.message}`);
+    try {
+      db.prepare("UPDATE tasks SET status='needs_attention', updated_at=CURRENT_TIMESTAMP WHERE id=?").run(task.id);
+    } catch (updErr) {
+      console.error(`[task-runner ERROR] Failed marking task needs_attention: ${updErr.message}`);
+    }
+    return res.status(500).json({
+      ok: false,
+      error: `Agent execution failed: ${agentErr.message}`,
+      task_id: task.id,
+      status: 'needs_attention'
+    });
+  }
 
+  const { runId, requiresApproval, approvalId, agent, dataSource, isSimulated, fallbackReason, persistedLeadsCount } = execResult;
   const updatedTask = db.prepare('SELECT * FROM tasks WHERE id=?').get(task.id);
   return res.json({
     ok: true,
-    mode: 'local',
-    execution_mode: 'local_fallback',
-    message: 'Executed LOCALLY - n8n offline',
+    mode: dataSource === 'live_llm' ? 'live_llm' : 'local',
+    execution_mode: dataSource === 'live_llm' ? 'live_llm' : 'local_fallback',
+    data_source: dataSource,
+    is_simulated: isSimulated,
+    fallback_reason: fallbackReason,
+    run_id: runId,
+    persisted_leads: persistedLeadsCount,
+    message: dataSource === 'live_llm' ? `Executed via live LLM (${execResult.outputJson.metadata.provider})` : 'Executed LOCALLY (simulated fallback - live LLM unavailable)',
     task_id: task.id,
     task: updatedTask,
     agent: {
@@ -911,8 +976,10 @@ app.get('/api/tasks/:id', authMiddleware, asyncHandler(async (req, res) => {
 }));
 
 app.post('/api/webhooks/n8n', asyncHandler(async (req, res) => {
+  const isProd = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
+  const expectedKey = (process.env.OS_API_KEY || '').trim() || (isProd ? '' : 'local-dev-key-change-me');
   const apiKey = req.headers['x-os-api-key'] || req.body.api_key;
-  if (apiKey !== (process.env.OS_API_KEY || 'local-dev-key-change-me')) {
+  if (!expectedKey || apiKey !== expectedKey) {
     return res.status(401).json({ error: 'Bad API key' });
   }
 
@@ -1085,16 +1152,98 @@ app.post('/api/projects/:id/deals', authMiddleware, asyncHandler(async (req, res
   res.json({ id, title, stage, value });
 }));
 
-app.patch('/api/deals/:id', authMiddleware, asyncHandler(async (req, res) => {
-  const { stage, value, probability } = req.body;
+app.patch('/api/deals/:id', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager', 'member'), asyncHandler(async (req, res) => {
+  const existing = db.prepare('SELECT * FROM deals WHERE id=?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Deal not found' });
+  if (!canAccessProject(req.user, existing.project_id)) return res.status(403).json({ error: 'No access' });
+
+  const { title, stage, value, probability, expected_close } = req.body;
   db.prepare(`
-    UPDATE deals SET 
+    UPDATE deals SET
+      title=COALESCE(?, title),
       stage=COALESCE(?, stage),
       value=COALESCE(?, value),
-      probability=COALESCE(?, probability)
+      probability=COALESCE(?, probability),
+      expected_close=COALESCE(?, expected_close)
     WHERE id=?
-  `).run(stage, value, probability, req.params.id);
+  `).run(title ?? null, stage ?? null, value ?? null, probability ?? null, expected_close ?? null, req.params.id);
+
+  const updated = db.prepare('SELECT * FROM deals WHERE id=?').get(req.params.id);
+  res.json({ ok: true, deal: updated });
+}));
+
+app.delete('/api/deals/:id', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager'), asyncHandler(async (req, res) => {
+  const existing = db.prepare('SELECT * FROM deals WHERE id=?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Deal not found' });
+  if (!canAccessProject(req.user, existing.project_id)) return res.status(403).json({ error: 'No access' });
+  db.prepare('DELETE FROM deals WHERE id=?').run(req.params.id);
   res.json({ ok: true });
+}));
+
+app.patch('/api/leads/:id', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager', 'member'), asyncHandler(async (req, res) => {
+  const existing = db.prepare('SELECT * FROM leads WHERE id=?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Lead not found' });
+  if (!canAccessProject(req.user, existing.project_id)) return res.status(403).json({ error: 'No access' });
+
+  const { full_name, email, phone, job_title, icp_score, status } = req.body;
+  db.prepare(`
+    UPDATE leads SET
+      full_name=COALESCE(?, full_name),
+      email=COALESCE(?, email),
+      phone=COALESCE(?, phone),
+      job_title=COALESCE(?, job_title),
+      icp_score=COALESCE(?, icp_score),
+      status=COALESCE(?, status)
+    WHERE id=?
+  `).run(full_name ?? null, email ?? null, phone ?? null, job_title ?? null, icp_score ?? null, status ?? null, req.params.id);
+
+  const updated = db.prepare('SELECT * FROM leads WHERE id=?').get(req.params.id);
+  res.json({ ok: true, lead: updated });
+}));
+
+app.delete('/api/leads/:id', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager'), asyncHandler(async (req, res) => {
+  const existing = db.prepare('SELECT * FROM leads WHERE id=?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'Lead not found' });
+  if (!canAccessProject(req.user, existing.project_id)) return res.status(403).json({ error: 'No access' });
+  db.prepare('DELETE FROM leads WHERE id=?').run(req.params.id);
+  res.json({ ok: true });
+}));
+
+// Global Sales CRM Pipeline Overview (Phase 2/3 real backend hydration)
+app.get('/api/crm/pipeline', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager', 'member'), asyncHandler(async (req, res) => {
+  const { project_id } = req.query;
+  const whereClause = project_id ? 'WHERE l.project_id = ?' : '';
+  const dealWhere = project_id ? 'WHERE d.project_id = ?' : '';
+  const params = project_id ? [project_id] : [];
+
+  const leads = db.prepare(`
+    SELECT l.*, p.name as project_name, p.client_name
+    FROM leads l
+    LEFT JOIN projects p ON p.id = l.project_id
+    ${whereClause}
+    ORDER BY l.icp_score DESC, l.created_at DESC
+    LIMIT 100
+  `).all(...params);
+
+  const deals = db.prepare(`
+    SELECT d.*, p.name as project_name, p.client_name, l.full_name as lead_name
+    FROM deals d
+    LEFT JOIN projects p ON p.id = d.project_id
+    LEFT JOIN leads l ON l.id = d.lead_id
+    ${dealWhere}
+    ORDER BY d.created_at DESC
+    LIMIT 100
+  `).all(...params);
+
+  const stageCounts = {
+    discovered: leads.filter(l => l.status === 'new' || l.status === 'enriched').length,
+    outreach_drafted: leads.filter(l => l.status === 'contacted').length + deals.filter(d => d.stage === 'lead' || d.stage === 'discovery').length,
+    qualified: leads.filter(l => l.status === 'qualified').length + deals.filter(d => d.stage === 'demo').length,
+    proposal: deals.filter(d => d.stage === 'proposal' || d.stage === 'negotiation').length,
+    won: deals.filter(d => d.stage === 'closed_won').length
+  };
+
+  res.json({ ok: true, leads, deals, stage_counts: stageCounts });
 }));
 
 // =============================================================================
@@ -1281,11 +1430,20 @@ app.get('/api/saved-logins', authMiddleware, asyncHandler(async (req, res) => {
   const rows = db.prepare(sql).all(...params);
   const canReveal = ['super_admin', 'admin'].includes(req.user.role) && reveal === 'true';
 
-  const sanitized = rows.map(r => ({
-    ...r,
-    password: canReveal ? r.password : (r.password ? '••••••••••••' : ''),
-    api_key: canReveal ? r.api_key : (r.api_key ? `${r.api_key.slice(0, 6)}••••••••` : null)
-  }));
+  const safeDecrypt = (val) => {
+    if (!val) return val;
+    try { return decryptSecret(val); } catch (e) { console.error('[vault] Decrypt error:', e.message); return ''; }
+  };
+
+  const sanitized = rows.map(r => {
+    const plainPass = safeDecrypt(r.password);
+    const plainKey = safeDecrypt(r.api_key);
+    return {
+      ...r,
+      password: canReveal ? plainPass : (plainPass ? '••••••••••••' : ''),
+      api_key: canReveal ? plainKey : (plainKey ? `${plainKey.slice(0, 6)}••••••••` : null)
+    };
+  });
 
   res.json({ logins: sanitized, total: rows.length });
 }));
@@ -1296,11 +1454,13 @@ app.get('/api/saved-logins/:id', authMiddleware, asyncHandler(async (req, res) =
   if (!row) return res.status(404).json({ error: 'Tool login not found' });
 
   const canReveal = ['super_admin', 'admin'].includes(req.user.role);
+  const plainPass = row.password ? decryptSecret(row.password) : '';
+  const plainKey = row.api_key ? decryptSecret(row.api_key) : null;
   res.json({
     login: {
       ...row,
-      password: canReveal ? row.password : '••••••••••••',
-      api_key: canReveal ? row.api_key : (row.api_key ? `${row.api_key.slice(0, 6)}••••••••` : null)
+      password: canReveal ? plainPass : (plainPass ? '••••••••••••' : ''),
+      api_key: canReveal ? plainKey : (plainKey ? `${plainKey.slice(0, 6)}••••••••` : null)
     }
   });
 }));
@@ -1313,11 +1473,13 @@ app.post('/api/saved-logins', authMiddleware, requireRole('super_admin', 'admin'
 
   const id = uuidv4();
   const slug = (req.body.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-')) + '-' + id.slice(0, 6);
+  const encPass = encryptSecret(password);
+  const encKey = api_key ? encryptSecret(api_key) : null;
 
   db.prepare(`
     INSERT INTO saved_logins (id, name, slug, category, website_url, username, password, api_key, notes, status, is_active, metadata, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'connected', 1, ?, CURRENT_TIMESTAMP)
-  `).run(id, name, slug, category, website_url, username, password, api_key, notes, typeof metadata === 'object' ? JSON.stringify(metadata) : metadata);
+  `).run(id, name, slug, category, website_url, username, encPass, encKey, notes, typeof metadata === 'object' ? JSON.stringify(metadata) : metadata);
 
   res.status(201).json({ id, name, slug, category, website_url, username, status: 'connected' });
 }));
@@ -1327,6 +1489,8 @@ app.put('/api/saved-logins/:id', authMiddleware, requireRole('super_admin', 'adm
   if (!existing) return res.status(404).json({ error: 'Tool login not found' });
 
   const { name, category, website_url, username, password, api_key, notes, status, metadata } = req.body;
+  const encPass = password !== undefined && password !== null && !String(password).includes('••••') ? encryptSecret(password) : null;
+  const encKey = api_key !== undefined && api_key !== null && !String(api_key).includes('••••') ? encryptSecret(api_key) : null;
 
   db.prepare(`
     UPDATE saved_logins SET
@@ -1341,7 +1505,7 @@ app.put('/api/saved-logins/:id', authMiddleware, requireRole('super_admin', 'adm
       metadata = COALESCE(?, metadata),
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
-  `).run(name, category, website_url, username, password, api_key, notes, status, typeof metadata === 'object' ? JSON.stringify(metadata) : metadata, req.params.id);
+  `).run(name, category, website_url, username, encPass, encKey, notes, status, typeof metadata === 'object' ? JSON.stringify(metadata) : metadata, req.params.id);
 
   res.json({ ok: true, message: 'Saved login updated successfully' });
 }));
@@ -1354,7 +1518,7 @@ app.delete('/api/saved-logins/:id', authMiddleware, requireRole('super_admin', '
   res.json({ ok: true, message: 'Saved login removed' });
 }));
 
-app.post('/api/saved-logins/:id/test', authMiddleware, asyncHandler(async (req, res) => {
+app.post('/api/saved-logins/:id/test', authMiddleware, requireRole('super_admin', 'admin', 'manager', 'member'), asyncHandler(async (req, res) => {
   const row = db.prepare('SELECT id, website_url FROM saved_logins WHERE id = ?').get(req.params.id);
   if (!row) return res.status(404).json({ error: 'Tool login not found' });
 
@@ -1472,13 +1636,13 @@ app.post('/api/admin/llm-config', authMiddleware, requireRole('super_admin', 'ad
     }
 
     // Determine API key update logic:
-    // If incoming api_key is masked or undefined, preserve existing stored key
-    let finalApiKey = existing.api_key;
+    // If incoming api_key is masked or undefined, preserve existing stored key (ensuring it is encrypted at rest)
+    let finalApiKey = existing.api_key ? encryptSecret(existing.api_key) : null;
     if (item.api_key !== undefined) {
       if (item.api_key === null || item.api_key === '') {
         finalApiKey = null;
       } else if (!isMaskedKey(item.api_key)) {
-        finalApiKey = String(item.api_key).trim();
+        finalApiKey = encryptSecret(String(item.api_key).trim());
       }
     }
 
@@ -1588,12 +1752,12 @@ const testPingHandler = asyncHandler(async (req, res) => {
     ? req.body.base_url.trim()
     : (saved ? saved.base_url : PROVIDER_METADATA[provider].default_base_url);
 
-  // Determine api_key: use provided if unmasked; otherwise fall back to saved key
+  // Determine api_key: use provided if unmasked; otherwise fall back to saved key (decrypted)
   let apiKey = null;
   if (req.body.api_key && !isMaskedKey(req.body.api_key)) {
     apiKey = req.body.api_key.trim();
   } else if (saved && saved.api_key) {
-    apiKey = saved.api_key;
+    apiKey = decryptSecret(saved.api_key);
   }
 
   const timeoutMs = req.body.timeout_ms || (saved ? saved.timeout_ms : 6000);
@@ -1698,7 +1862,7 @@ app.post('/api/admin/clean-slate', authMiddleware, requireRole('super_admin'), a
 // =============================================================================
 
 // 1. Unified Overview Stats
-app.get('/api/overview/stats', authMiddleware, asyncHandler(async (req, res) => {
+app.get('/api/overview/stats', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager', 'member'), asyncHandler(async (req, res) => {
   // Active Clients (distinct client names from active projects or companies)
   const clientsRow = db.prepare(`
     SELECT COUNT(DISTINCT client_name) as count FROM projects WHERE client_name IS NOT NULL AND client_name != ''
@@ -1761,7 +1925,7 @@ app.get('/api/overview/stats', authMiddleware, asyncHandler(async (req, res) => 
 }));
 
 // 2. Approvals List
-app.get('/api/approvals', authMiddleware, asyncHandler(async (req, res) => {
+app.get('/api/approvals', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager', 'member'), asyncHandler(async (req, res) => {
   const { department, status } = req.query;
   let sql = `
     SELECT a.*, p.name as project_name, p.client_name, t.title as task_title
@@ -1786,6 +1950,7 @@ app.get('/api/approvals', authMiddleware, asyncHandler(async (req, res) => {
 }));
 
 // 3. Approval Decision (Approve / Reject / Request Revision)
+// 3. Submit Human Approval Decision (strictly separates approval_status from execution_status)
 app.post('/api/approvals/:id/decision', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager'), asyncHandler(async (req, res) => {
   const { decision, notes } = req.body;
   const approval = db.prepare('SELECT * FROM approvals WHERE id = ?').get(req.params.id);
@@ -1796,21 +1961,26 @@ app.post('/api/approvals/:id/decision', authMiddleware, requireRole('owner', 'su
   }
 
   const newStatus = decision === 'approve' ? 'approved' : (decision === 'reject' ? 'rejected' : 'revision_requested');
+  const policyRule = evaluatePolicy(approval.action_type || approval.title);
+  // Approving a draft NEVER marks it externally_executed; website changes stage first, others remain not_executed until explicitly executed.
+  const nextExecutionStatus = decision === 'approve'
+    ? (policyRule.initialExecutionStatus === 'staged' ? 'staged' : 'not_executed')
+    : 'not_executed';
   const now = new Date().toISOString();
 
   db.transaction(() => {
     db.prepare(`
-      UPDATE approvals 
-      SET status = ?, reviewer_id = ?, reviewer_notes = ?, reviewed_at = ?
+      UPDATE approvals
+      SET status = ?, execution_status = ?, reviewer_id = ?, reviewer_notes = ?, reviewed_at = ?
       WHERE id = ?
-    `).run(newStatus, req.user.id, notes || '', now, approval.id);
+    `).run(newStatus, nextExecutionStatus, req.user.id, notes || '', now, approval.id);
 
-    // Update the linked task status if present
+    // Update the linked task status if present (task completion/sign-off != external execution)
     if (approval.task_id) {
       let taskStatus = 'delivered';
       if (decision === 'reject') taskStatus = 'needs_attention';
       if (decision === 'revision_requested') taskStatus = 'needs_fix';
-      
+
       db.prepare(`
         UPDATE tasks SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
       `).run(taskStatus, approval.task_id);
@@ -1826,15 +1996,114 @@ app.post('/api/approvals/:id/decision', authMiddleware, requireRole('owner', 'su
       approval.task_id,
       req.user.id,
       `approval_${decision}`,
-      JSON.stringify({ approval_id: approval.id, title: approval.title, notes })
+      JSON.stringify({
+        approval_id: approval.id,
+        title: approval.title,
+        approval_status: newStatus,
+        execution_status: nextExecutionStatus,
+        notes
+      })
     );
   })();
 
-  res.json({ ok: true, approval_id: approval.id, status: newStatus, decision });
+  res.json({
+    ok: true,
+    approval_id: approval.id,
+    status: newStatus,
+    approval_status: newStatus,
+    execution_status: nextExecutionStatus,
+    externally_executed: false,
+    decision
+  });
+}));
+
+// 3b. Execute Approved External Action (Requires approval_status='approved' + Idempotency Key)
+app.post('/api/approvals/:id/execute', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager'), asyncHandler(async (req, res) => {
+  const approval = db.prepare('SELECT * FROM approvals WHERE id = ?').get(req.params.id);
+  if (!approval) return res.status(404).json({ error: 'Approval request not found' });
+
+  if (approval.status !== 'approved') {
+    return res.status(409).json({
+      ok: false,
+      error: `Cannot execute action: approval status is '${approval.status}' (must be 'approved' first).`,
+      approval_status: approval.status,
+      execution_status: approval.execution_status || 'not_executed'
+    });
+  }
+
+  const idempotencyKey = (req.headers['idempotency-key'] || req.body.idempotency_key || `exec-${approval.id}`).trim();
+
+  // Idempotency replay protection: never double-dispatch an already executed external action!
+  if (approval.execution_status === 'externally_executed' || (approval.idempotency_key && approval.idempotency_key === idempotencyKey && approval.execution_status === 'staged')) {
+    let parsedReceipt = null;
+    try { parsedReceipt = JSON.parse(approval.execution_receipt || 'null'); } catch (_) {}
+    return res.json({
+      ok: true,
+      idempotent_replay: true,
+      approval_id: approval.id,
+      approval_status: approval.status,
+      execution_status: approval.execution_status,
+      externally_executed: approval.execution_status === 'externally_executed',
+      idempotency_key: approval.idempotency_key,
+      executed_at: approval.executed_at,
+      execution_receipt: parsedReceipt
+    });
+  }
+
+  const dispatchRes = await dispatchExternalAction(approval, {
+    idempotencyKey,
+    connectorUrlOverride: process.env.NODE_ENV !== 'production' ? (req.body.connector_url_override || null) : null
+  });
+
+  const executedAt = dispatchRes.externally_executed ? new Date().toISOString() : null;
+  const receiptJson = JSON.stringify(dispatchRes.receipt || {});
+
+  db.transaction(() => {
+    db.prepare(`
+      UPDATE approvals
+      SET execution_status = ?, idempotency_key = ?, executed_at = COALESCE(?, executed_at), execution_receipt = ?
+      WHERE id = ?
+    `).run(dispatchRes.execution_status, idempotencyKey, executedAt, receiptJson, approval.id);
+
+    db.prepare(`
+      INSERT INTO activity (id, project_id, task_id, user_id, action, meta)
+      VALUES (?, ?, ?, ?, 'approval_external_execute', ?)
+    `).run(
+      uuidv4(),
+      approval.project_id,
+      approval.task_id,
+      req.user.id,
+      JSON.stringify({
+        approval_id: approval.id,
+        idempotency_key: idempotencyKey,
+        execution_status: dispatchRes.execution_status,
+        externally_executed: dispatchRes.externally_executed
+      })
+    );
+  })();
+
+  const httpStatus = dispatchRes.ok ? 200 : 502;
+  return res.status(httpStatus).json({
+    ok: dispatchRes.ok,
+    idempotent_replay: false,
+    approval_id: approval.id,
+    approval_status: approval.status,
+    execution_status: dispatchRes.execution_status,
+    externally_executed: dispatchRes.externally_executed,
+    idempotency_key: idempotencyKey,
+    executed_at: executedAt,
+    execution_receipt: dispatchRes.receipt,
+    error: dispatchRes.error || null
+  });
+}));
+
+// 3c. Autonomy & Approval Policy Matrix Endpoint
+app.get('/api/governance/policy', authMiddleware, asyncHandler(async (req, res) => {
+  res.json({ ok: true, policy_matrix: POLICY_MATRIX });
 }));
 
 // 4. Create Approval Request
-app.post('/api/approvals', authMiddleware, asyncHandler(async (req, res) => {
+app.post('/api/approvals', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager', 'member'), asyncHandler(async (req, res) => {
   const { task_id, project_id, department, agent_name, action_type, title, summary, preview_data } = req.body;
   if (!department || !agent_name || !action_type || !title) {
     return res.status(400).json({ error: 'department, agent_name, action_type, and title are required' });
@@ -1875,64 +2144,147 @@ app.post('/api/auth/change-password', authMiddleware, asyncHandler(async (req, r
 // PHASE 3: CROSS-DEPARTMENT HANDOFFS (Seamless Pipeline Transitions)
 // =============================================================================
 
-// 6. Handoff: Research -> Sales (Import Discovered Leads into Sales CRM Pipeline)
-app.post('/api/handoff/research-to-sales', authMiddleware, asyncHandler(async (req, res) => {
-  const { project_id, leads = [], deal_title = 'Q4 Target Outbound Pipeline', estimated_value = 25000 } = req.body;
+// 6. Handoff: Research -> Sales (Promote Verified Research Leads into Sales CRM Pipeline)
+app.post('/api/handoff/research-to-sales', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager'), asyncHandler(async (req, res) => {
+  const {
+    project_id,
+    lead_ids = [],
+    leads = [],
+    origin_research_task_id = null,
+    deal_title = 'Target Outbound Pipeline',
+    estimated_value = 25000
+  } = req.body;
   if (!project_id) return res.status(400).json({ error: 'project_id required' });
 
   const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(project_id);
   if (!project) return res.status(404).json({ error: 'Project not found' });
 
+  let promotedCount = 0;
   let insertedCount = 0;
+  let primaryLeadId = null;
+  const handedOffLeadIds = [];
   const dealId = uuidv4();
 
   db.transaction(() => {
-    // 1. Insert leads into leads table
-    const insertLead = db.prepare(`
-      INSERT INTO leads (id, project_id, full_name, email, job_title, icp_score)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
+    // 1a. Promote existing discovered leads (no duplication!)
+    if (Array.isArray(lead_ids) && lead_ids.length > 0) {
+      const promoteStmt = db.prepare(`
+        UPDATE leads SET status = 'qualified'
+        WHERE id = ? AND project_id = ?
+      `);
+      for (const lid of lead_ids) {
+        const info = promoteStmt.run(lid, project_id);
+        if (info.changes > 0) {
+          promotedCount++;
+          handedOffLeadIds.push(lid);
+          if (!primaryLeadId) primaryLeadId = lid;
+        }
+      }
+    }
 
-    leads.forEach(l => {
-      const leadId = uuidv4();
-      insertLead.run(leadId, project_id, l.name || l.full_name || 'Prospect Lead', l.email || '', l.title || l.job_title || 'Decision Maker', l.icp_score || 85);
-      insertedCount++;
-    });
+    // 1b. Insert any newly supplied lead objects (avoiding duplicate email within project)
+    if (Array.isArray(leads) && leads.length > 0) {
+      const findByEmail = db.prepare('SELECT id FROM leads WHERE project_id = ? AND email = ? LIMIT 1');
+      const insertLead = db.prepare(`
+        INSERT INTO leads (id, project_id, full_name, email, phone, job_title, icp_score, status, source_evidence)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'qualified', ?)
+      `);
+      for (const l of leads) {
+        if (l.email) {
+          const existing = findByEmail.get(project_id, l.email);
+          if (existing) {
+            db.prepare("UPDATE leads SET status = 'qualified' WHERE id = ?").run(existing.id);
+            promotedCount++;
+            handedOffLeadIds.push(existing.id);
+            if (!primaryLeadId) primaryLeadId = existing.id;
+            continue;
+          }
+        }
+        const leadId = uuidv4();
+        insertLead.run(
+          leadId,
+          project_id,
+          l.name || l.full_name || 'Prospect Lead',
+          l.email || '',
+          l.phone || null,
+          l.title || l.job_title || 'Decision Maker',
+          typeof l.icp_score === 'number' ? l.icp_score : 85,
+          JSON.stringify({ origin_research_task_id, handoff_source: 'research_to_sales' })
+        );
+        insertedCount++;
+        handedOffLeadIds.push(leadId);
+        if (!primaryLeadId) primaryLeadId = leadId;
+      }
+    }
 
-    // 2. Create high-intent deal opportunity in Sales CRM
+    // 1c. If neither lead_ids nor leads were explicitly passed, promote all 'new'/'enriched' leads in the project
+    if (handedOffLeadIds.length === 0) {
+      const projectLeads = db.prepare("SELECT id FROM leads WHERE project_id = ? AND status IN ('new','enriched')").all(project_id);
+      for (const pl of projectLeads) {
+        db.prepare("UPDATE leads SET status = 'qualified' WHERE id = ?").run(pl.id);
+        promotedCount++;
+        handedOffLeadIds.push(pl.id);
+        if (!primaryLeadId) primaryLeadId = pl.id;
+      }
+    }
+
+    // 2. Create high-intent deal opportunity linked to primary lead in Sales CRM
     db.prepare(`
-      INSERT INTO deals (id, project_id, title, stage, value, probability)
-      VALUES (?, ?, ?, 'lead', ?, 30)
-    `).run(dealId, project_id, `${project.client_name || project.name} - ${deal_title}`, estimated_value);
+      INSERT INTO deals (id, project_id, lead_id, title, stage, value, probability)
+      VALUES (?, ?, ?, ?, 'lead', ?, 30)
+    `).run(dealId, project_id, primaryLeadId, `${project.client_name || project.name} - ${deal_title}`, estimated_value);
 
-    // 3. Log handoff in activity
+    // 3. Log handoff lineage in activity
     db.prepare(`
-      INSERT INTO activity (id, project_id, user_id, action, meta)
-      VALUES (?, ?, ?, 'handoff_research_to_sales', ?)
+      INSERT INTO activity (id, project_id, task_id, user_id, action, meta)
+      VALUES (?, ?, ?, ?, 'handoff_research_to_sales', ?)
     `).run(
       uuidv4(),
       project_id,
+      origin_research_task_id || null,
       req.user.id,
-      JSON.stringify({ imported_leads: insertedCount, deal_id: dealId, target_project: project.name })
+      JSON.stringify({
+        imported_leads: insertedCount + promotedCount,
+        inserted_leads: insertedCount,
+        promoted_leads: promotedCount,
+        lead_ids: handedOffLeadIds,
+        deal_id: dealId,
+        origin_research_task_id,
+        target_project: project.name
+      })
     );
   })();
 
+  const totalHandled = insertedCount + promotedCount;
   res.json({
     ok: true,
-    message: `Successfully handed off ${insertedCount} leads to Sales CRM`,
-    imported_leads: insertedCount,
+    message: `Successfully handed off ${totalHandled} leads to Sales CRM`,
+    imported_leads: totalHandled,
+    inserted_leads: insertedCount,
+    promoted_leads: promotedCount,
+    lead_ids: handedOffLeadIds,
+    primary_lead_id: primaryLeadId,
     deal_id: dealId
   });
 }));
 
 // 7. Handoff: Sales -> Creative Studio (Client Onboarding to Production)
-app.post('/api/handoff/sales-to-creative', authMiddleware, asyncHandler(async (req, res) => {
+app.post('/api/handoff/sales-to-creative', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager'), asyncHandler(async (req, res) => {
   const { deal_id, client_name, project_name, goal, guidelines, services = ['landing-page', 'social-content', 'ads-creative'] } = req.body;
-  
-  const targetClient = client_name || 'New Onboarded Client';
+
+  let sourceDeal = null;
+  if (deal_id) {
+    sourceDeal = db.prepare('SELECT * FROM deals WHERE id = ?').get(deal_id);
+    if (!sourceDeal) {
+      return res.status(404).json({ error: 'Source deal not found' });
+    }
+  }
+
+  const targetClient = client_name || sourceDeal?.title || 'New Onboarded Client';
   const targetProjectName = project_name || `${targetClient} Growth Campaign`;
   const targetGoal = goal || 'Produce high-converting multi-channel marketing assets';
   const newProjectId = uuidv4();
+  const initializedTaskIds = [];
 
   db.transaction(() => {
     // 1. If deal exists, mark it as 'closed_won'
@@ -1952,25 +2304,33 @@ app.post('/api/handoff/sales-to-creative', authMiddleware, asyncHandler(async (r
       VALUES (?, ?, ?, 'manager')
     `).run(uuidv4(), newProjectId, req.user.id);
 
-    // 4. Creative Director auto-deconstructs client brief into initial WBS tasks
+    // 4. Creative Director auto-deconstructs client brief into initial WBS tasks with lineage in input_json
     const insertTask = db.prepare(`
-      INSERT INTO tasks (id, project_id, title, pipeline, description, status, priority, created_by)
-      VALUES (?, ?, ?, ?, ?, 'draft', 'high', ?)
+      INSERT INTO tasks (id, project_id, title, pipeline, description, status, priority, input_json, created_by)
+      VALUES (?, ?, ?, ?, ?, 'draft', 'high', ?, ?)
     `);
 
     services.forEach(srv => {
+      const tid = uuidv4();
       const srvTitle = srv.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ');
       insertTask.run(
-        uuidv4(),
+        tid,
         newProjectId,
         `${srvTitle} Production Package`,
         srv,
         `Creative Studio production package for ${targetClient}: ${targetGoal}`,
+        JSON.stringify({
+          origin_deal_id: deal_id || null,
+          origin_project_id: sourceDeal?.project_id || null,
+          origin_lead_id: sourceDeal?.lead_id || null,
+          service_category: srv
+        }),
         req.user.id
       );
+      initializedTaskIds.push(tid);
     });
 
-    // 5. Log handoff in activity
+    // 5. Log onboarding lineage in activity
     db.prepare(`
       INSERT INTO activity (id, project_id, user_id, action, meta)
       VALUES (?, ?, ?, 'handoff_sales_to_creative', ?)
@@ -1978,7 +2338,14 @@ app.post('/api/handoff/sales-to-creative', authMiddleware, asyncHandler(async (r
       uuidv4(),
       newProjectId,
       req.user.id,
-      JSON.stringify({ client: targetClient, project_id: newProjectId, services_count: services.length })
+      JSON.stringify({
+        client: targetClient,
+        project_id: newProjectId,
+        origin_deal_id: deal_id || null,
+        origin_project_id: sourceDeal?.project_id || null,
+        services_count: services.length,
+        task_ids: initializedTaskIds
+      })
     );
   })();
 
@@ -1987,8 +2354,26 @@ app.post('/api/handoff/sales-to-creative', authMiddleware, asyncHandler(async (r
     message: `Client ${targetClient} successfully onboarded into Creative Studio!`,
     project_id: newProjectId,
     project_name: targetProjectName,
-    services_initialized: services.length
+    origin_deal_id: deal_id || null,
+    services_initialized: services.length,
+    task_ids: initializedTaskIds
   });
+}));
+
+// 8. Agent Execution Ledger (Phase 1 Observability)
+app.get('/api/agent-runs', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager', 'member'), asyncHandler(async (req, res) => {
+  const { agent_id, department, status, task_id, limit = 50 } = req.query;
+  let sql = 'SELECT * FROM agent_runs WHERE 1=1';
+  const params = [];
+  if (agent_id) { sql += ' AND agent_id = ?'; params.push(agent_id); }
+  if (department) { sql += ' AND department = ?'; params.push(department); }
+  if (status) { sql += ' AND status = ?'; params.push(status); }
+  if (task_id) { sql += ' AND task_id = ?'; params.push(task_id); }
+  sql += ' ORDER BY created_at DESC LIMIT ?';
+  params.push(Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200));
+
+  const runs = db.prepare(sql).all(...params);
+  res.json({ ok: true, runs, total: runs.length });
 }));
 
 // SPA Fallback

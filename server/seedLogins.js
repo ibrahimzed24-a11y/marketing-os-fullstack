@@ -14,8 +14,8 @@ const SEEDED_LOGINS = [
     category: 'Email & Outreach',
     website_url: 'https://mail.hostinger.com',
     username: 'outreach@valioz.com',
-    password: 'Hostinger#Secure2026!',
-    api_key: 'smtp_auth_token_465_ssl',
+    password: '',
+    api_key: null,
     notes: 'Used in Module 08 email sequence dispatch & cold outbound outreach. Host: smtp.hostinger.com (Port 465 SSL), IMAP: imap.hostinger.com (Port 993).',
     status: 'connected',
     metadata: JSON.stringify({
@@ -34,8 +34,8 @@ const SEEDED_LOGINS = [
     category: 'Google Workspace',
     website_url: 'https://mail.google.com',
     username: 'ibrahim.zed24@gmail.com',
-    password: 'GSuite#IbrahimPass2026',
-    api_key: 'google_oauth2_app_token_placeholder',
+    password: '',
+    api_key: null,
     notes: 'Primary operator communication, client inbound alert forwarding, and OAuth2 token delivery for Google Workspace integrations.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -50,8 +50,8 @@ const SEEDED_LOGINS = [
     category: 'Email & Outreach',
     website_url: 'https://hunter.io',
     username: 'outreach@valioz.com',
-    password: 'Hunter#OutreachKey2026',
-    api_key: 'hunt_live_8390bcaefd91',
+    password: '',
+    api_key: null,
     notes: 'Domain search and deliverability verification for Canadian clinic directors and healthcare founders.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -66,8 +66,8 @@ const SEEDED_LOGINS = [
     category: 'PR & Link Building',
     website_url: 'https://app.connectively.us',
     username: 'media@valioz.com',
-    password: 'Connectively#PR2026',
-    api_key: 'haro_media_tok_9918',
+    password: '',
+    api_key: null,
     notes: 'High-authority media pitch dispatch to journalists from Forbes, Healthline, and Canadian business press for DR 70+ backlinks.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -81,8 +81,8 @@ const SEEDED_LOGINS = [
     category: 'PR & Link Building',
     website_url: 'https://app.buzzstream.com',
     username: 'outreach@valioz.com',
-    password: 'Buzz#StreamLink2026',
-    api_key: 'bz_api_token_valioz_core',
+    password: '',
+    api_key: null,
     notes: 'Manages publisher relationship pipelines, unlinked brand mention claims, and guest post editorial tracking.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -96,8 +96,8 @@ const SEEDED_LOGINS = [
     category: 'PR & Link Building',
     website_url: 'https://pitchbox.com',
     username: 'outreach@valioz.com',
-    password: 'Pitchbox#MasterKey2026',
-    api_key: 'pb_enterprise_token_4819',
+    password: '',
+    api_key: null,
     notes: 'Enterprise outreach personalization, automatic follow-ups, and link prospect prospecting for high-DR sites.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -113,8 +113,8 @@ const SEEDED_LOGINS = [
     category: 'SEO & Search',
     website_url: 'https://search.google.com/search-console',
     username: 'ibrahim.zed24@gmail.com',
-    password: 'SearchConsole#Auth2026',
-    api_key: 'gsc_api_read_write_v3',
+    password: '',
+    api_key: null,
     notes: 'Organic search performance monitoring, index coverage audits, click-through analysis, and sitemap crawling for client domains.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -128,8 +128,8 @@ const SEEDED_LOGINS = [
     category: 'SEO & Search',
     website_url: 'https://ads.google.com/aw/keywordplanner',
     username: 'ibrahim.zed24@gmail.com',
-    password: 'GoogleAds#Planner2026!',
-    api_key: 'gads_dev_token_8892',
+    password: '',
+    api_key: null,
     notes: 'Authoritative monthly search volume estimates (e.g. 1K-10K Canadian dentist searches), CPC bids, and high-yield treatment keyword extraction.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -144,8 +144,8 @@ const SEEDED_LOGINS = [
     category: 'Google Workspace',
     website_url: 'https://calendar.google.com',
     username: 'ibrahim.zed24@gmail.com',
-    password: 'Calendar#SyncSecure2026',
-    api_key: 'gcal_oauth_refresh_token_v4',
+    password: '',
+    api_key: null,
     notes: 'Automated consultation scheduling for qualified clinic leads who reply YES to email campaigns. Embeds meeting links via n8n webhook.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -161,8 +161,8 @@ const SEEDED_LOGINS = [
     category: 'Google Workspace',
     website_url: 'https://docs.google.com/spreadsheets',
     username: 'ibrahim.zed24@gmail.com',
-    password: 'Sheets#SyncKey2026',
-    api_key: 'gsheet_service_acc_key_json',
+    password: '',
+    api_key: null,
     notes: 'Bidirectional sync for raw lead datasets (Priority_A_Outreach_Email_Merge_Fields.csv, Clinic Intelligence) and executive reporting sheets.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -176,8 +176,8 @@ const SEEDED_LOGINS = [
     category: 'Analytics & Measurement',
     website_url: 'https://analytics.google.com',
     username: 'ibrahim.zed24@gmail.com',
-    password: 'GA4#AnalyticsToken2026',
-    api_key: 'G-MEASUREMENT_ID_9901',
+    password: '',
+    api_key: null,
     notes: 'Conversion tracking, visitor event telemetry, landing page bounce rate analysis, and UTM attribution across campaigns.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -191,8 +191,8 @@ const SEEDED_LOGINS = [
     category: 'SEO & Search',
     website_url: 'https://business.google.com',
     username: 'ibrahim.zed24@gmail.com',
-    password: 'GBP#VerifiedAdmin2026',
-    api_key: 'gbp_mybusiness_api_v4',
+    password: '',
+    api_key: null,
     notes: 'Local 3-Pack Maps rankings, review management, geo-tagged photo uploads, and clinic address verification.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -206,8 +206,8 @@ const SEEDED_LOGINS = [
     category: 'Technical & Web Vitals',
     website_url: 'https://pagespeed.web.dev',
     username: 'ibrahim.zed24@gmail.com',
-    password: 'PageSpeed#ApiAccess2026',
-    api_key: 'google_pagespeed_api_key_placeholder',
+    password: '',
+    api_key: null,
     notes: 'Core Web Vitals measurement: LCP (< 2.5s), INP (< 200ms), and CLS (< 0.1) for desktop and mobile performance.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -221,8 +221,8 @@ const SEEDED_LOGINS = [
     category: 'Analytics & Measurement',
     website_url: 'https://lookerstudio.google.com',
     username: 'ibrahim.zed24@gmail.com',
-    password: 'Looker#ExecutiveReports2026',
-    api_key: 'looker_dashboard_embed_key',
+    password: '',
+    api_key: null,
     notes: 'Automated executive monthly SEO & revenue attribution dashboards combining GSC, GA4, and CRM deal value.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -238,8 +238,8 @@ const SEEDED_LOGINS = [
     category: 'SEO & Search',
     website_url: 'https://app.ahrefs.com',
     username: 'seo-lead@valioz.com',
-    password: 'Ahrefs#EnterprisePass2026',
-    api_key: 'ahrefs_api_v3_token_8820',
+    password: '',
+    api_key: null,
     notes: 'Backlink profile auditing, Domain Rating (DR) inspection, Keyword Gap tearing, and Site Explorer live crawls.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -254,8 +254,8 @@ const SEEDED_LOGINS = [
     category: 'SEO & Search',
     website_url: 'https://www.semrush.com',
     username: 'semrush@valioz.com',
-    password: 'SEMrush#Visibility2026',
-    api_key: 'semrush_live_api_key_4490',
+    password: '',
+    api_key: null,
     notes: 'Competitor organic research, position tracking, PLA advertising spy, and historical SERP feature volatility tracking.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -270,8 +270,8 @@ const SEEDED_LOGINS = [
     category: 'Technical & Web Vitals',
     website_url: 'https://www.screamingfrog.co.uk',
     username: 'devops@valioz.com',
-    password: 'Frog#HeadlessSpider2026',
-    api_key: 'sf_license_key_corporate_992',
+    password: '',
+    api_key: null,
     notes: 'Full technical website crawls: broken links, redirect chains, canonical anomalies, orphan pages, and hreflang tag validation.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -286,8 +286,8 @@ const SEEDED_LOGINS = [
     category: 'Content & Copywriting',
     website_url: 'https://app.surferseo.com',
     username: 'copy@valioz.com',
-    password: 'Surfer#ContentEditor2026',
-    api_key: 'surfer_guidelines_api_token',
+    password: '',
+    api_key: null,
     notes: 'Real-time NLP term frequency, structural heading length recommendations, and Content Score 85+ optimization.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -302,8 +302,8 @@ const SEEDED_LOGINS = [
     category: 'Content & Copywriting',
     website_url: 'https://www.clearscope.io',
     username: 'copy@valioz.com',
-    password: 'Clearscope#Editorial2026',
-    api_key: 'cs_api_token_enterprise_91',
+    password: '',
+    api_key: null,
     notes: 'Semantic entity grading (A++ to F), readability benchmarks, and search intent alignment for pillar articles.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -317,8 +317,8 @@ const SEEDED_LOGINS = [
     category: 'Content & Copywriting',
     website_url: 'https://www.frase.io',
     username: 'copy@valioz.com',
-    password: 'Frase#BriefMaster2026',
-    api_key: 'frase_ai_token_7721',
+    password: '',
+    api_key: null,
     notes: 'Automated 1-click SEO content briefs, People-Also-Ask question harvesting, and heading architecture outlines.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -332,8 +332,8 @@ const SEEDED_LOGINS = [
     category: 'SEO & Search',
     website_url: 'https://lowfruits.io',
     username: 'seo-lead@valioz.com',
-    password: 'LowFruits#KGRPass2026',
-    api_key: 'lf_kgr_token_49182',
+    password: '',
+    api_key: null,
     notes: 'Keyword Golden Ratio (< 0.25) query discovery where low-DA or UGC forums rank, allowing instant page 1 ranking.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -347,8 +347,8 @@ const SEEDED_LOGINS = [
     category: 'SEO & Search',
     website_url: 'https://answerthepublic.com',
     username: 'seo-lead@valioz.com',
-    password: 'ATP#SearchIntent2026',
-    api_key: 'atp_intent_api_591',
+    password: '',
+    api_key: null,
     notes: 'Raw customer search intent visualizer: What, Why, How, Cost, Where questions for FAQs and PAA rich snippets.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -364,8 +364,8 @@ const SEEDED_LOGINS = [
     category: 'AI & LLM Engines',
     website_url: 'https://chatgpt.com',
     username: 'ai-ops@valioz.com',
-    password: 'OpenAI#EnterprisePass2026',
-    api_key: 'sk-proj-9948190248102830192',
+    password: '',
+    api_key: null,
     notes: 'Powers AI Search Visibility audits, SearchGPT citation targeting, and semantic synthesis across marketing funnels.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -380,8 +380,8 @@ const SEEDED_LOGINS = [
     category: 'AI & LLM Engines',
     website_url: 'https://claude.ai',
     username: 'ai-ops@valioz.com',
-    password: 'Claude#ThinkingPro2026',
-    api_key: 'sk-ant-api03-opus-5-5-preview',
+    password: '',
+    api_key: null,
     notes: 'Deep reasoning, complex copywriting, tone matching, and multi-turn architectural planning.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -395,8 +395,8 @@ const SEEDED_LOGINS = [
     category: 'AI & LLM Engines',
     website_url: 'https://gemini.google.com',
     username: 'ibrahim.zed24@gmail.com',
-    password: 'Gemini#AdvancedStudio2026',
-    api_key: 'gemini_pro_vision_key_placeholder',
+    password: '',
+    api_key: null,
     notes: 'Google AI Overviews (SGE) optimization, multimodal harness parsing, and local entity vectorization.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -410,8 +410,8 @@ const SEEDED_LOGINS = [
     category: 'AI & LLM Engines',
     website_url: 'https://www.perplexity.ai',
     username: 'research@valioz.com',
-    password: 'Perplexity#ResearchPro2026',
-    api_key: 'pplx-889102481029102',
+    password: '',
+    api_key: null,
     notes: 'Real-time citation tracking, brand mention queries in Perplexity answers, and competitive source analysis.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -425,8 +425,8 @@ const SEEDED_LOGINS = [
     category: 'Content & Copywriting',
     website_url: 'https://app.jasper.ai',
     username: 'copy@valioz.com',
-    password: 'Jasper#BrandVoice2026',
-    api_key: 'jas_api_token_brand_voice_88',
+    password: '',
+    api_key: null,
     notes: 'Brand Voice enforcement, multi-channel promotional copywriting, and email hook generation.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -440,8 +440,8 @@ const SEEDED_LOGINS = [
     category: 'Content & Copywriting',
     website_url: 'https://app.copy.ai',
     username: 'copy@valioz.com',
-    password: 'CopyAI#GTMWorkflows2026',
-    api_key: 'copy_jwt_token_99182',
+    password: '',
+    api_key: null,
     notes: 'Generates programmatic ad copy, cold email angles, and sales sequence messaging.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -454,8 +454,8 @@ const SEEDED_LOGINS = [
     category: 'Content & Copywriting',
     website_url: 'https://app.grammarly.com',
     username: 'editorial@valioz.com',
-    password: 'Grammarly#Enterprise2026',
-    api_key: 'gram_sdk_enterprise_token',
+    password: '',
+    api_key: null,
     notes: 'Ensures clinical accuracy, zero grammatical errors, clarity, and tone consistency across all client deliverables.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -471,8 +471,8 @@ const SEEDED_LOGINS = [
     category: 'Technical & Web Vitals',
     website_url: 'https://validator.schema.org',
     username: 'dev@valioz.com',
-    password: 'Schema#ValidatorKey2026',
-    api_key: 'schema_linter_token_v1',
+    password: '',
+    api_key: null,
     notes: 'Validates JSON-LD schema syntax for MedicalBusiness, Dentist, LocalBusiness, FAQPage, and Review snippets.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -486,8 +486,8 @@ const SEEDED_LOGINS = [
     category: 'Technical & Web Vitals',
     website_url: 'https://tinypng.com',
     username: 'design@valioz.com',
-    password: 'TinyPNG#ImageEngine2026',
-    api_key: 'tp_api_key_compression_8819',
+    password: '',
+    api_key: null,
     notes: 'Automated lossy and lossless image compression to WebP and AVIF formats with EXIF preservation for local GEO tagging.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -502,8 +502,8 @@ const SEEDED_LOGINS = [
     category: 'Technical & Web Vitals',
     website_url: 'https://www.bing.com/webmasters',
     username: 'seo-lead@valioz.com',
-    password: 'Bing#WebmasterKey2026',
-    api_key: 'bing_indexnow_api_tok_772',
+    password: '',
+    api_key: null,
     notes: 'Instant URL indexing via IndexNow protocol for Bing and Yahoo search results, plus Bing Copilot visibility tracking.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -517,8 +517,8 @@ const SEEDED_LOGINS = [
     category: 'Content & Copywriting',
     website_url: 'https://www.deepl.com',
     username: 'intl-seo@valioz.com',
-    password: 'DeepL#EnterprisePro2026',
-    api_key: 'deepl_auth_key_v2_unlimited',
+    password: '',
+    api_key: null,
     notes: 'High-accuracy French (Canadian) and multilingual content translation preserving technical SEO tags and hreflang anchors.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -532,8 +532,8 @@ const SEEDED_LOGINS = [
     category: 'Automation & AI',
     website_url: 'https://app.whalesync.com',
     username: 'dev@valioz.com',
-    password: 'Whalesync#Programmatic2026',
-    api_key: 'ws_api_token_sync_99182',
+    password: '',
+    api_key: null,
     notes: 'Two-way sync between Postgres/SQLite lead databases and Webflow/WordPress CMS to generate 500+ localized landing pages.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -547,8 +547,8 @@ const SEEDED_LOGINS = [
     category: 'SEO & Search',
     website_url: 'https://lookup.icann.org',
     username: 'domains@valioz.com',
-    password: 'Whois#IntelTool2026',
-    api_key: 'whois_xml_api_token_4810',
+    password: '',
+    api_key: null,
     notes: 'Audits competitor domain age, ownership history, historical DNS records, and evaluates expired high-DR domains for 301 redirects.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -564,8 +564,8 @@ const SEEDED_LOGINS = [
     category: 'Design & Visuals',
     website_url: 'https://www.canva.com',
     username: 'design@valioz.com',
-    password: 'Canva#EnterpriseBrand2026',
-    api_key: 'canva_connect_api_tok_991',
+    password: '',
+    api_key: null,
     notes: 'Automated brand kit generation, social media share preview images (OG:Image 1200x630), and infographic design assets.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -579,8 +579,8 @@ const SEEDED_LOGINS = [
     category: 'Automation & AI',
     website_url: 'https://github.com',
     username: 'ibrahimzid',
-    password: 'GitHub#DevOpsPass2026',
-    api_key: 'github_automation_runner_key_placeholder',
+    password: '',
+    api_key: null,
     notes: 'Automated CI/CD workflows for scheduled Screaming Frog crawls, sitemap re-generation, and Lighthouse performance checks.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -597,8 +597,8 @@ const SEEDED_LOGINS = [
     category: 'Advertising',
     website_url: 'https://adsmanager.facebook.com',
     username: 'ibrahim.zed24@gmail.com',
-    password: 'Meta#AdsManagerSecure2026',
-    api_key: 'EAABwz..._meta_graph_system_user_token',
+    password: '',
+    api_key: null,
     notes: 'B2B lead generation ads, local radius retargeting, and carousel creatives (Module 04 Ads Creative).',
     status: 'connected',
     metadata: JSON.stringify({
@@ -612,8 +612,8 @@ const SEEDED_LOGINS = [
     category: 'Advertising',
     website_url: 'https://www.linkedin.com/campaignmanager',
     username: 'ibrahim.zed24@gmail.com',
-    password: 'LinkedIn#AdsAccount2026!',
-    api_key: 'li_oauth_marketing_dev_v2',
+    password: '',
+    api_key: null,
     notes: 'Account-Based Marketing (ABM) targeting clinic directors, practice principals, and healthcare procurement leaders.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -627,8 +627,8 @@ const SEEDED_LOGINS = [
     category: 'Automation & AI',
     website_url: 'http://localhost:5678',
     username: 'admin',
-    password: 'n8n#LocalMasterPassword2026',
-    api_key: 'mos_live_98a7bc65d4e3f210',
+    password: '',
+    api_key: null,
     notes: 'Local autonomous pipeline execution engine (:5678), webhook dispatch, and multi-agent coordination.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -643,8 +643,8 @@ const SEEDED_LOGINS = [
     category: 'Hosting & Infrastructure',
     website_url: 'https://app.supabase.com',
     username: 'ibrahim.zed24@gmail.com',
-    password: 'Supabase#CloudDBPass2026',
-    api_key: 'supabase_personal_token_placeholder',
+    password: '',
+    api_key: null,
     notes: 'Primary cloud database for Workforce OS documents, project vectors, and agent handovers.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -658,8 +658,8 @@ const SEEDED_LOGINS = [
     category: 'Hosting & Infrastructure',
     website_url: 'https://vercel.com',
     username: 'ibrahim.zed24@gmail.com',
-    password: 'Vercel#DeployToken2026',
-    api_key: 'vercel_cli_deploy_tok_8991',
+    password: '',
+    api_key: null,
     notes: 'Production deployment host for Sovereign Workforce OS (personal-ai-workforce-os-pi.vercel.app).',
     status: 'connected',
     metadata: JSON.stringify({
@@ -673,8 +673,8 @@ const SEEDED_LOGINS = [
     category: 'Hosting & Infrastructure',
     website_url: 'https://dash.cloudflare.com',
     username: 'ibrahim.zed24@gmail.com',
-    password: 'Cloudflare#EdgePass2026',
-    api_key: 'cf_global_api_token_valioz',
+    password: '',
+    api_key: null,
     notes: 'DNS records, SSL/TLS certificates, SPF/DKIM TXT records for Hostinger webmail, and DDoS edge protection.',
     status: 'connected',
     metadata: JSON.stringify({
@@ -684,7 +684,15 @@ const SEEDED_LOGINS = [
   }
 ];
 
+const { encryptSecret } = require('./cryptoVault');
+
 function seedLogins(customDb) {
+  const isProd = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
+  if (isProd && process.env.ALLOW_DEV_SEED !== 'true') {
+    console.log('[seedLogins] Production mode: skipping sample tool catalog seed.');
+    return;
+  }
+
   const activeDb = customDb || getDb();
   const insertStmt = activeDb.prepare(`
     INSERT INTO saved_logins (
@@ -697,8 +705,6 @@ function seedLogins(customDb) {
       category = excluded.category,
       website_url = excluded.website_url,
       username = excluded.username,
-      password = excluded.password,
-      api_key = excluded.api_key,
       notes = excluded.notes,
       status = excluded.status,
       metadata = excluded.metadata,
@@ -708,6 +714,8 @@ function seedLogins(customDb) {
   let count = 0;
   for (const l of SEEDED_LOGINS) {
     const id = uuidv4();
+    const encPass = l.password ? encryptSecret(l.password) : '';
+    const encKey = l.api_key ? encryptSecret(l.api_key) : null;
     insertStmt.run(
       id,
       l.name,
@@ -715,16 +723,16 @@ function seedLogins(customDb) {
       l.category,
       l.website_url,
       l.username,
-      l.password,
-      l.api_key || null,
+      encPass,
+      encKey,
       l.notes || '',
-      l.status || 'connected',
+      l.status || 'disconnected',
       l.metadata || '{}'
     );
     count++;
   }
 
-  console.log(`✅ Seeded ${count} saved logins & tool credentials into SQLite marketing-os.db`);
+  console.log(`✅ Seeded ${count} tool catalog entries (zero plaintext credentials) into SQLite`);
 }
 
 if (require.main === module) {

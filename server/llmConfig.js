@@ -356,6 +356,8 @@ function initLLMDatabase(db) {
   }
 }
 
+const { decryptSecret } = require('./cryptoVault');
+
 /**
  * Format a database row into a safe API response, masking sensitive keys.
  */
@@ -364,15 +366,27 @@ function sanitizeConfigRow(row, reveal = false) {
   let availableModels = [];
   try {
     availableModels = JSON.parse(row.available_models || '[]');
-  } catch (_) {
+  } catch (err) {
+    console.warn(`[llmConfig] Invalid available_models JSON for ${row.provider}: ${err.message}`);
     availableModels = [];
   }
 
   let extraHeaders = {};
   try {
     extraHeaders = JSON.parse(row.extra_headers || '{}');
-  } catch (_) {
+  } catch (err) {
+    console.warn(`[llmConfig] Invalid extra_headers JSON for ${row.provider}: ${err.message}`);
     extraHeaders = {};
+  }
+
+  let plainKey = null;
+  if (row.api_key && String(row.api_key).trim().length > 0) {
+    try {
+      plainKey = decryptSecret(row.api_key);
+    } catch (err) {
+      console.error(`[llmConfig] Failed to decrypt api_key for provider ${row.provider}: ${err.message}`);
+      plainKey = null;
+    }
   }
 
   return {
@@ -381,8 +395,8 @@ function sanitizeConfigRow(row, reveal = false) {
     display_name: row.display_name,
     provider_type: row.provider_type,
     base_url: row.base_url,
-    api_key: reveal ? row.api_key : maskApiKey(row.api_key),
-    has_api_key: Boolean(row.api_key && row.api_key.trim().length > 0),
+    api_key: reveal ? plainKey : maskApiKey(plainKey),
+    has_api_key: Boolean(plainKey && plainKey.trim().length > 0),
     default_model: row.default_model,
     available_models: availableModels,
     is_active: Boolean(row.is_active),
@@ -406,15 +420,16 @@ function sanitizeConfigRow(row, reveal = false) {
  * @param {Object} [customDb] Optional custom better-sqlite3 instance
  * @returns {Object|null} Sanitized configuration row
  */
-function getActiveLLMConfig(customDb = null) {
+function getActiveLLMConfig(customDb = null, reveal = false) {
   try {
     const targetDb = customDb || require('./db');
     const row = targetDb.prepare('SELECT * FROM admin_llm_configs WHERE is_default = 1 LIMIT 1').get()
       || targetDb.prepare('SELECT * FROM admin_llm_configs WHERE is_active = 1 LIMIT 1').get()
       || targetDb.prepare("SELECT * FROM admin_llm_configs WHERE provider = 'ollama' LIMIT 1").get();
     if (!row) return null;
-    return sanitizeConfigRow(row, false);
-  } catch (_) {
+    return sanitizeConfigRow(row, reveal);
+  } catch (err) {
+    console.warn(`[llmConfig] getActiveLLMConfig error: ${err.message}`);
     return null;
   }
 }

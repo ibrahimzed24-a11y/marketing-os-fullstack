@@ -704,12 +704,7 @@ function buildDefaultState() {
     execStep: 0,
     execProgress: 0,
     savedLogins: [],
-    users: [
-      { id: 'u-super', name: 'Ibrahim Zid', email: 'admin@marketingos.local', role: 'super_admin', dept: 'Leadership', status: 'active', initials: 'IZ' },
-      { id: 'u-admin', name: 'Nadia Hassan', email: 'ops@marketingos.local', role: 'admin', dept: 'Ops', status: 'active', initials: 'NH' },
-      { id: 'u-manager', name: 'Sara Manager', email: 'manager@marketingos.local', role: 'manager', dept: 'Growth', status: 'active', initials: 'SM' },
-      { id: 'u-member', name: 'Omar Member', email: 'member@marketingos.local', role: 'member', dept: 'Content', status: 'active', initials: 'OM' }
-    ],
+    users: [],
     projects: [],
     tasks: [],
     telemetryLogs: []
@@ -846,13 +841,6 @@ function closeAuthModal() {
   }
   const modal = document.getElementById('authModal');
   if (modal) modal.classList.add('hidden');
-}
-
-function autofillLogin(email, pass) {
-  const emailInput = document.getElementById('loginEmailInput');
-  const passInput = document.getElementById('loginPassInput');
-  if (emailInput) emailInput.value = email;
-  if (passInput) passInput.value = pass;
 }
 
 async function submitLoginForm() {
@@ -1051,6 +1039,8 @@ function switchMainView(view) {
     fetchOverviewStats();
   } else if (view === 'approvals') {
     fetchApprovals();
+  } else if (view === 'research' || view === 'sales') {
+    fetchSalesCrmData();
   } else if (view === 'adminSettings') {
     fetchAdminSettingsData().then(renderAdminSettingsView);
   }
@@ -3670,7 +3660,8 @@ function renderApprovalsView() {
         <div class="min-w-0 flex-1">
           <div class="flex items-center gap-2 mb-1.5 flex-wrap">
             <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase border bg-[var(--bg-soft)] text-[var(--text-soft)]">${escapeHtml(app.department)}</span>
-            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${statusClass}">${escapeHtml(app.status)}</span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${statusClass}">Approval: ${escapeHtml(app.status)}</span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${app.execution_status === 'externally_executed' ? 'text-blue-400 bg-blue-500/10 border-blue-500/30' : 'text-[var(--text-soft)] bg-[var(--bg-soft)] border-[var(--border)]'}">Exec: ${escapeHtml(app.execution_status || 'not_executed')}</span>
             <span class="text-xs font-semibold text-[var(--text-soft)]">${escapeHtml(app.agent_name)}</span>
             <span class="text-[11px] text-[var(--text-faint)]">${new Date(app.created_at).toLocaleString()}</span>
           </div>
@@ -3700,6 +3691,11 @@ function renderApprovalsView() {
             <button onclick="openApprovalModal('${app.id}')" class="btn-outline px-3 py-1.5 rounded-xl text-xs font-semibold" title="View details">
               <span>🔍</span> <span>View Deliverable</span>
             </button>
+            ${app.status === 'approved' && app.execution_status !== 'externally_executed' ? `
+              <button onclick="executeApprovedAction('${app.id}')" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition">
+                ⚡ Execute Externally
+              </button>
+            ` : ''}
             <span class="text-[11px] text-[var(--text-faint)] italic">
               Reviewed at ${app.reviewed_at ? new Date(app.reviewed_at).toLocaleDateString() : 'N/A'}
             </span>
@@ -3708,6 +3704,28 @@ function renderApprovalsView() {
       </div>
     `;
   }).join('');
+}
+
+async function executeApprovedAction(approvalId) {
+  try {
+    const res = await apiFetch(`/api/approvals/${approvalId}/execute`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': `exec-${approvalId}`
+      },
+      body: JSON.stringify({})
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      showToast(data.externally_executed ? 'External action executed & verified!' : `Action staged (${data.execution_status}): no external connector configured.`);
+      await fetchApprovals();
+    } else {
+      showToast(`Execution blocked: ${data.error || 'Unknown error'}`);
+    }
+  } catch (err) {
+    showToast(`Network error: ${err.message}`);
+  }
 }
 
 async function submitApprovalDecision(approvalId, decision, notes = '') {
@@ -3785,7 +3803,86 @@ async function executeModalDecision(decision) {
   await submitApprovalDecision(currentReviewApprovalId, decision, notes);
 }
 
-// Cross-Department Handoffs:
+let crmPipelineCache = { leads: [], deals: [], stage_counts: {} };
+
+async function fetchSalesCrmData() {
+  try {
+    const res = await apiFetch('/api/crm/pipeline');
+    if (res.ok) {
+      crmPipelineCache = await res.json();
+      renderSalesAndResearchData();
+    }
+  } catch (err) {
+    console.warn('[crm] Fetch pipeline error:', err.message);
+  }
+}
+
+function renderSalesAndResearchData() {
+  const { leads = [], deals = [], stage_counts = {} } = crmPipelineCache || {};
+
+  const setCount = (id, val) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val || 0;
+  };
+  setCount('salesCountDiscovered', stage_counts.discovered);
+  setCount('salesCountDrafted', stage_counts.outreach_drafted);
+  setCount('salesCountQualified', stage_counts.qualified);
+  setCount('salesCountProposal', stage_counts.proposal);
+  setCount('salesCountWon', stage_counts.won);
+
+  const researchLeadsEl = document.getElementById('researchLeadsContainer');
+  if (researchLeadsEl) {
+    if (leads.length === 0) {
+      researchLeadsEl.innerHTML = '<div class="p-4 text-center rounded-xl border border-dashed border-[var(--border)]">No discovered leads in database yet. Run a <strong>Lead Research</strong> task in Workbench to discover and persist prospects.</div>';
+    } else {
+      researchLeadsEl.innerHTML = leads.slice(0, 15).map(l => `
+        <div class="p-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] flex items-center justify-between gap-3">
+          <div class="min-w-0">
+            <div class="font-bold text-[var(--text)] truncate">${escapeHtml(l.full_name || 'Prospect')} <span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-400">ICP ${l.icp_score || 0}%</span></div>
+            <div class="text-[11px] text-[var(--text-soft)] truncate">${escapeHtml(l.job_title || '')} ${l.email ? '· ' + escapeHtml(l.email) : ''} ${l.project_name ? '· ' + escapeHtml(l.project_name) : ''}</div>
+          </div>
+          <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase border border-[var(--border)]">${escapeHtml(l.status || 'new')}</span>
+        </div>
+      `).join('');
+    }
+  }
+
+  const salesDealsEl = document.getElementById('salesDealsContainer');
+  if (salesDealsEl) {
+    if (deals.length === 0) {
+      salesDealsEl.innerHTML = '<div class="p-4 text-center rounded-xl border border-dashed border-[var(--border)]">No active deals yet. Handoff verified leads from Research to open a Sales CRM deal.</div>';
+    } else {
+      salesDealsEl.innerHTML = deals.slice(0, 15).map(d => `
+        <div class="p-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] flex items-center justify-between gap-3">
+          <div class="min-w-0">
+            <div class="font-bold text-[var(--text)] truncate">${escapeHtml(d.title)}</div>
+            <div class="text-[11px] text-[var(--text-soft)]">$${Number(d.value || 0).toLocaleString()} · Stage: <span class="uppercase font-bold text-emerald-400">${escapeHtml(d.stage)}</span> ${d.lead_name ? '· Lead: ' + escapeHtml(d.lead_name) : ''}</div>
+          </div>
+          ${d.stage !== 'closed_won' ? `<button onclick="handoffSalesToCreative('${d.id}', '${escapeHtml((d.client_name || d.title || '').replace(/'/g, ''))}')" class="btn-outline px-2.5 py-1 text-[11px] font-bold text-emerald-400 shrink-0">🚀 Win & Onboard</button>` : '<span class="text-[10px] font-bold text-emerald-500">✓ ONBOARDED</span>'}
+        </div>
+      `).join('');
+    }
+  }
+
+  const salesLeadsEl = document.getElementById('salesLeadsContainer');
+  if (salesLeadsEl) {
+    if (leads.length === 0) {
+      salesLeadsEl.innerHTML = '<div class="p-4 text-center rounded-xl border border-dashed border-[var(--border)]">No CRM leads yet.</div>';
+    } else {
+      salesLeadsEl.innerHTML = leads.slice(0, 15).map(l => `
+        <div class="p-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] flex items-center justify-between gap-2">
+          <div class="min-w-0">
+            <div class="font-bold text-[var(--text)] truncate">${escapeHtml(l.full_name)}</div>
+            <div class="text-[11px] text-[var(--text-soft)] truncate">${escapeHtml(l.email || 'No email')} · ICP ${l.icp_score || 0}%</div>
+          </div>
+          <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-[var(--bg-soft)]">${escapeHtml(l.status)}</span>
+        </div>
+      `).join('');
+    }
+  }
+}
+
+// Cross-Department Handoffs (Wired 100% to Real DB Records — Zero Hardcoded Leads):
 async function handoffResearchToSales(projectId) {
   if (!projectId) {
     projectId = state.selectedProjectId || (state.projects[0] ? state.projects[0].id : null);
@@ -3796,24 +3893,31 @@ async function handoffResearchToSales(projectId) {
   }
 
   try {
-    showToast('Initiating Research -> Sales handoff...');
+    showToast('Loading verified research leads for handoff...');
+    const leadsRes = await apiFetch(`/api/projects/${projectId}/leads`);
+    const leadsData = leadsRes.ok ? await leadsRes.json() : { leads: [] };
+    const discoveredLeads = (leadsData.leads || []).filter(l => l.status === 'new' || l.status === 'enriched');
+
+    if (discoveredLeads.length === 0) {
+      showToast('No new discovered leads found for this project. Run Research Agent (lead-research) first.');
+      return;
+    }
+
     const res = await apiFetch('/api/handoff/research-to-sales', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         project_id: projectId,
-        leads: [
-          { name: 'Dr. Michael Vance', email: 'm.vance@dentalcare.ca', title: 'Managing Clinical Director', icp_score: 92 },
-          { name: 'Sarah Jenkins', email: 's.jenkins@apexclinics.com', title: 'VP Growth & Operations', icp_score: 88 }
-        ]
+        lead_ids: discoveredLeads.map(l => l.id)
       })
     });
 
     if (res.ok) {
       const data = await res.json();
-      showToast(`Handoff complete! ${data.imported_leads} leads added to Sales CRM.`);
+      showToast(`Handoff complete! ${data.imported_leads} real leads promoted to Sales CRM.`);
       switchMainView('sales');
       await syncFromBackend();
+      await fetchSalesCrmData();
     } else {
       const err = await res.json().catch(() => ({}));
       showToast(`Handoff failed: ${err.error || 'Unknown error'}`);
@@ -3823,8 +3927,8 @@ async function handoffResearchToSales(projectId) {
   }
 }
 
-async function handoffSalesToCreative(dealId) {
-  const clientName = prompt('Enter the Onboarded Client Name:') || 'Onboarded Enterprise Client';
+async function handoffSalesToCreative(dealId, suggestedClientName = '') {
+  const clientName = suggestedClientName || prompt('Enter the Onboarded Client Name:');
   if (!clientName) return;
 
   try {
@@ -3835,16 +3939,16 @@ async function handoffSalesToCreative(dealId) {
       body: JSON.stringify({
         deal_id: dealId || null,
         client_name: clientName,
-        project_name: `${clientName} Q4 Growth Campaign`,
+        project_name: `${clientName} Production Campaign`,
         goal: 'Produce landing page, high-intent Google ads, and 30-day social calendar',
         services: ['landing-page', 'ads-creative', 'social-content']
       })
     });
 
     if (res.ok) {
-      const data = await res.json();
       showToast(`Client ${clientName} onboarded into Creative Studio!`);
       await syncFromBackend();
+      await fetchSalesCrmData();
       switchMainView('creative');
     } else {
       const err = await res.json().catch(() => ({}));

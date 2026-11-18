@@ -132,13 +132,18 @@ REUPDATE_RES=$(curl -s -X POST "$BASE_URL/api/admin/llm-config" \
 MODEL_AFTER=$(echo "$REUPDATE_RES" | node -e "let d=JSON.parse(require('fs').readFileSync(0)); console.log(d.config.default_model);")
 echo "Updated model: $MODEL_AFTER (Expected: gpt-4o-mini)"
 
-# Verify stored DB value is still the real secret!
-DB_STORED_KEY=$(node -e "const db = require('./server/db'); const r = db.prepare('SELECT api_key FROM admin_llm_configs WHERE provider = ?').get('openai'); console.log(r.api_key);")
-if [ "$DB_STORED_KEY" != "sk-proj-supersecretkey1234567890abcdef9999" ]; then
-  echo "FAILED: Stored DB key was corrupted by masked input: $DB_STORED_KEY"
+# Verify stored DB value is encrypted at rest AND decrypts to the real preserved secret!
+DB_RAW_KEY=$(node -e "const db = require('./server/db'); const r = db.prepare('SELECT api_key FROM admin_llm_configs WHERE provider = ?').get('openai'); console.log(r.api_key);")
+if [[ "$DB_RAW_KEY" != enc:v1:* ]]; then
+  echo "FAILED: Stored DB key is NOT encrypted at rest: $DB_RAW_KEY"
   exit 1
 fi
-echo "Verified: Stored secret preserved in database without corruption."
+DB_DECRYPTED_KEY=$(node -e "const db = require('./server/db'); const { decryptSecret } = require('./server/cryptoVault'); const r = db.prepare('SELECT api_key FROM admin_llm_configs WHERE provider = ?').get('openai'); console.log(decryptSecret(r.api_key));")
+if [ "$DB_DECRYPTED_KEY" != "sk-proj-supersecretkey1234567890abcdef9999" ]; then
+  echo "FAILED: Decrypted DB key was corrupted by masked input: $DB_DECRYPTED_KEY"
+  exit 1
+fi
+echo "Verified: Stored secret encrypted at rest (AES-256-GCM) and preserved without corruption."
 
 echo ""
 echo "=== 8. Switching Primary Routing Provider ==="
