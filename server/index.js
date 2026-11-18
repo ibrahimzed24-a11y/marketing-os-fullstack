@@ -199,10 +199,19 @@ app.post('/api/auth/login', asyncHandler(async (req, res) => {
 }));
 
 app.post('/api/auth/reset-password-dev', asyncHandler(async (req, res) => {
+  const isProd = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
+  if (isProd || process.env.ALLOW_DEV_PASSWORD_RESET !== 'true') {
+    return res.status(404).json({ error: 'Endpoint disabled' });
+  }
+  const expectedKey = (process.env.OS_API_KEY || '').trim();
+  if (!expectedKey || expectedKey === 'local-dev-key-change-me' || expectedKey.length < 16) {
+    return res.status(503).json({ error: 'Dev password reset misconfigured: explicit OS_API_KEY (>= 16 chars) required' });
+  }
   const { email, newPassword, devKey } = req.body;
-  const expectedKey = process.env.OS_API_KEY || 'local-dev-key-change-me';
-  if (devKey !== expectedKey) return res.status(401).json({ error: 'Unauthorized: Invalid devKey' });
-  if (!email || !newPassword) return res.status(400).json({ error: 'email and newPassword required' });
+  if (!devKey || devKey !== expectedKey) return res.status(401).json({ error: 'Unauthorized: Invalid devKey' });
+  if (!email || !newPassword || String(newPassword).trim().length < 8) {
+    return res.status(400).json({ error: 'email and newPassword (>= 8 chars) required' });
+  }
 
   const user = db.prepare('SELECT id FROM users WHERE email=?').get(email.trim().toLowerCase());
   if (!user) return res.status(404).json({ error: 'User not found' });

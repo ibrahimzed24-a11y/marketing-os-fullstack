@@ -848,13 +848,6 @@ function closeAuthModal() {
   if (modal) modal.classList.add('hidden');
 }
 
-function autofillLogin(email, pass) {
-  const emailInput = document.getElementById('loginEmailInput');
-  const passInput = document.getElementById('loginPassInput');
-  if (emailInput) emailInput.value = email;
-  if (passInput) passInput.value = pass;
-}
-
 async function submitLoginForm() {
   const emailInput = document.getElementById('loginEmailInput');
   const passInput = document.getElementById('loginPassInput');
