@@ -21,6 +21,7 @@ const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
 
 const db = require('./db');
+const turso = require('./turso');
 const { signToken, authMiddleware, requireRole, hashPassword, verifyPassword } = require('./auth');
 const { triggerN8n } = require('./n8n');
 const { executeAgentTask, researchAgent, salesAgent, creativeDirectorAgent } = require('./agentFramework');
@@ -1868,7 +1869,6 @@ app.post('/api/admin/watchdog/scan', authMiddleware, requireRole('super_admin', 
 // =============================================================================
 // TURSO (LIBSQL) CLOUD PERSISTENCE & SYNCHRONIZATION
 // =============================================================================
-const turso = require('./turso');
 
 // Turso Cloud Persistence Status
 app.get('/api/admin/turso/status', authMiddleware, requireRole('super_admin', 'admin'), asyncHandler(async (req, res) => {
