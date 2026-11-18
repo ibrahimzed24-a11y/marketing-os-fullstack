@@ -165,6 +165,24 @@ async function ensureTursoSchema(db, c) {
         }
       }
     }
+    // Ensure incremental column migrations exist on Turso Cloud tables
+    const columnMigrations = [
+      "ALTER TABLE approvals ADD COLUMN execution_status TEXT DEFAULT 'not_executed'",
+      'ALTER TABLE approvals ADD COLUMN idempotency_key TEXT',
+      'ALTER TABLE approvals ADD COLUMN executed_at DATETIME',
+      'ALTER TABLE approvals ADD COLUMN execution_receipt TEXT',
+      "ALTER TABLE tasks ADD COLUMN department TEXT DEFAULT 'creative'"
+    ];
+    for (const alterSql of columnMigrations) {
+      try {
+        await c.execute(alterSql);
+      } catch (alterErr) {
+        if (!String(alterErr.message || '').toLowerCase().includes('duplicate column')) {
+          console.warn(`[Turso] Column migration note: ${alterErr.message}`);
+        }
+      }
+    }
+
     console.log(`[Turso] Verified cloud database schema (${tableDefs.length} tables, ${errors.length} warnings).`);
   } catch (err) {
     console.error(`[Turso] Schema verification error: ${err.message}`);
