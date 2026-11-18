@@ -3,63 +3,139 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Marketing OS — Marketing Operations Platform</title>
+  <title>helm — Marketing Operations Platform</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="manifest" href="/site.webmanifest" />
   <script src="https://cdn.tailwindcss.com/3.4.17"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            ivory: '#FAF7F2',
+            surface: '#FFFFFF',
+            plum: '#2D223A',
+            cobalt: '#4C6EF5',
+            peach: '#FF9E6D',
+            sage: '#4F8A62',
+            amber: '#D9822B',
+            line: '#E8E1D5',
+            muted: '#6C6478',
+            helm: {
+              ivory: '#FAF7F2',
+              surface: '#FFFFFF',
+              'surface-soft': '#F4EFE6',
+              line: '#E8E1D5',
+              plum: '#2D223A',
+              cobalt: '#4C6EF5',
+              'cobalt-soft': '#EEF2FF',
+              peach: '#FF9E6D',
+              'peach-soft': '#FFF1EA',
+              sage: '#4F8A62',
+              'sage-soft': '#EAF5EE',
+              amber: '#D9822B',
+              'amber-soft': '#FFF5E6',
+              coral: '#D9534F',
+              'coral-soft': '#FDECEC',
+              muted: '#6C6478',
+              'soft-muted': '#9890A4'
+            }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+            mono: ['"DM Mono"', 'monospace']
+          }
+        }
+      }
+    };
+  </script>
   <style>
     :root {
-      --bg: #f8fafc;
-      --bg-soft: #f1f5f9;
-      --surface: #ffffff;
-      --surface-2: #f8fafc;
-      --surface-glass: rgba(255, 255, 255, 0.92);
-      --border: #e2e8f0;
-      --border-strong: #cbd5e1;
-      --text: #0f172a;
-      --text-soft: #475569;
-      --text-faint: #64748b;
-      --primary: #4f46e5;
-      --primary-2: #7c3aed;
-      --primary-soft: #eef2ff;
-      --lime: #c8f904;
-      --lime-soft: #f2ffcc;
-      --success: #10b981;
-      --warn: #f59e0b;
-      --danger: #ef4444;
-      --shadow-soft: 0 1px 3px 0 rgba(15, 23, 42, 0.05), 0 1px 2px -1px rgba(15, 23, 42, 0.05);
-      --shadow-card: 0 4px 6px -1px rgba(15, 23, 42, 0.05), 0 2px 4px -2px rgba(15, 23, 42, 0.05);
-      --shadow-elevated: 0 10px 15px -3px rgba(15, 23, 42, 0.06), 0 4px 6px -4px rgba(15, 23, 42, 0.04);
+      /* Helm Warm Minimal Light Theme */
+      --helm-ivory: #FAF7F2;
+      --helm-surface: #FFFFFF;
+      --helm-surface-soft: #F4EFE6;
+      --helm-line: #E8E1D5;
+
+      /* Core Brand Colors */
+      --helm-plum: #2D223A;
+      --helm-cobalt: #4C6EF5;
+      --helm-cobalt-soft: #EEF2FF;
+      --helm-peach: #FF9E6D;
+      --helm-peach-soft: #FFF1EA;
+
+      /* Supporting Semantic Colors */
+      --helm-sage: #4F8A62;
+      --helm-sage-soft: #EAF5EE;
+      --helm-amber: #D9822B;
+      --helm-amber-soft: #FFF5E6;
+      --helm-coral: #D9534F;
+      --helm-coral-soft: #FDECEC;
+      --helm-muted: #6C6478;
+      --helm-soft-muted: #9890A4;
+
+      /* Semantic Mappings */
+      --bg: #FAF7F2;
+      --bg-soft: #F4EFE6;
+      --surface: #FFFFFF;
+      --surface-2: #FAF7F2;
+      --surface-glass: rgba(250, 247, 242, 0.94);
+      --border: #E8E1D5;
+      --border-strong: #D5CCBE;
+      --text: #2D223A;
+      --text-soft: #6C6478;
+      --text-faint: #9890A4;
+      --primary: #4C6EF5;
+      --primary-2: #2D223A;
+      --primary-soft: #EEF2FF;
+      --lime: #4F8A62;
+      --lime-soft: #EAF5EE;
+      --sage: #4F8A62;
+      --sage-soft: #EAF5EE;
+      --peach: #FF9E6D;
+      --peach-soft: #FFF1EA;
+      --success: #4F8A62;
+      --warn: #D9822B;
+      --danger: #D9534F;
+      --shadow-soft: 0 1px 3px 0 rgba(45, 34, 58, 0.04), 0 1px 2px -1px rgba(45, 34, 58, 0.04);
+      --shadow-card: 0 4px 14px -2px rgba(45, 34, 58, 0.05), 0 2px 4px -2px rgba(45, 34, 58, 0.04);
+      --shadow-elevated: 0 12px 28px -4px rgba(45, 34, 58, 0.08), 0 4px 8px -4px rgba(45, 34, 58, 0.04);
     }
     html.dark {
-      --bg: #0b0c10;
-      --bg-soft: #12141c;
-      --surface: #161822;
-      --surface-2: #1d1f2e;
-      --surface-glass: rgba(22, 24, 34, 0.86);
-      --border: #262938;
-      --border-strong: #34384c;
-      --text: #f3f4f8;
-      --text-soft: #a0a4b8;
-      --text-faint: #6c7086;
-      --primary: #6366f1;
-      --primary-2: #8b5cf6;
-      --primary-soft: #1f213d;
-      --lime-soft: #232b12;
-      --shadow-soft: 0 8px 30px -10px rgba(0, 0, 0, 0.55);
+      --bg: #1B1424;
+      --bg-soft: #231B2E;
+      --surface: #2D223A;
+      --surface-2: #382B48;
+      --surface-glass: rgba(45, 34, 58, 0.92);
+      --border: #443557;
+      --border-strong: #5A4773;
+      --text: #FAF7F2;
+      --text-soft: #D2C8DE;
+      --text-faint: #9E91B0;
+      --primary: #6B8AFF;
+      --primary-2: #FF9E6D;
+      --primary-soft: #382B48;
+      --lime-soft: #2E3E34;
+      --peach: #FF9E6D;
+      --peach-soft: #382B48;
+      --shadow-soft: 0 8px 30px -10px rgba(0, 0, 0, 0.65);
     }
     * {
-      font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       box-sizing: border-box;
       letter-spacing: -0.01em;
     }
     h1, h2, h3, h4 {
-      letter-spacing: -0.025em;
+      letter-spacing: -0.03em;
       font-weight: 700;
+      color: var(--text);
     }
     .mono {
-      font-family: 'Geist Mono', ui-monospace, SFMono-Regular, monospace;
+      font-family: 'DM Mono', ui-monospace, SFMono-Regular, monospace;
       letter-spacing: -0.02em;
     }
     body {
@@ -69,14 +145,14 @@
     }
     .gradient-mesh {
       background:
-        radial-gradient(760px 480px at 8% -8%, rgba(79, 70, 229, 0.08), transparent 60%),
-        radial-gradient(640px 420px at 92% 0%, rgba(124, 58, 237, 0.07), transparent 60%),
+        radial-gradient(760px 480px at 8% -8%, rgba(76, 110, 245, 0.05), transparent 60%),
+        radial-gradient(640px 420px at 92% 0%, rgba(255, 158, 109, 0.06), transparent 60%),
         linear-gradient(180deg, var(--bg), var(--bg-soft));
     }
     .card-surface {
-      background: #ffffff;
+      background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 20px;
+      border-radius: 18px;
       box-shadow: var(--shadow-card);
     }
     html.dark .card-surface {
@@ -96,8 +172,9 @@
     .btn-primary {
       background: var(--primary);
       color: #ffffff;
-      border-radius: 9999px;
-      font-weight: 600;
+      border-radius: 10px;
+      font-weight: 700;
+      box-shadow: 0 6px 16px rgba(76, 110, 245, 0.22);
       transition: all 0.15s ease;
     }
     .btn-primary:hover:not(:disabled) {
@@ -105,30 +182,33 @@
       transform: translateY(-1px);
     }
     .btn-ink {
-      background: var(--text);
-      color: var(--surface);
-      border-radius: 9999px;
-      font-weight: 600;
+      background: var(--helm-plum);
+      color: #ffffff;
+      border-radius: 10px;
+      font-weight: 700;
       transition: all 0.15s ease;
     }
     .btn-ink:hover:not(:disabled) {
-      opacity: 0.9;
+      opacity: 0.92;
+      transform: translateY(-1px);
     }
     .btn-outline {
       background: var(--surface);
       color: var(--text);
-      border: 1px solid var(--border-strong);
-      border-radius: 9999px;
-      font-weight: 500;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-weight: 600;
       transition: all 0.15s ease;
     }
     .btn-outline:hover:not(:disabled) {
       border-color: var(--primary);
+      color: var(--primary);
+      transform: translateY(-1px);
     }
     .input-field {
       background: var(--surface);
       color: var(--text);
-      border: 1px solid var(--border-strong);
+      border: 1px solid var(--border);
       border-radius: 12px;
       padding: 9px 12px;
       font-size: 13px;
@@ -137,7 +217,7 @@
     }
     .input-field:focus {
       border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+      box-shadow: 0 0 0 3px rgba(76, 110, 245, 0.18);
     }
     @keyframes skeleton-shimmer {
       0% { opacity: 0.55; }
@@ -153,22 +233,30 @@
     ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; }
   </style>
 </head>
-<body class="min-h-screen gradient-mesh antialiased selection:bg-indigo-500 selection:text-white">
+<body class="min-h-screen gradient-mesh antialiased selection:bg-[#4C6EF5] selection:text-white">
 
   <!-- TOP STICKY NAVIGATION & ROLE SWITCHER -->
   <header class="sticky top-0 z-40 glass-bar">
     <div class="max-w-[1600px] mx-auto px-3 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-2">
       <!-- Brand Identity -->
-      <div class="flex items-center gap-2.5 min-w-0">
-        <img src="/assets/branding/logo.webp" alt="Marketing OS Logo" class="w-9 h-9 rounded-xl object-cover border border-[#F2E6DB] shadow-xs shrink-0" onerror="this.onerror=null;this.src='';this.className='w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 to-pink-500 text-white flex items-center justify-center font-extrabold text-sm';" />
+      <a href="javascript:void(0)" onclick="switchMainView('overview')" class="flex items-center gap-2.5 min-w-0 cursor-pointer no-underline select-none">
+        <div class="w-9 h-9 rounded-xl bg-[#2D223A] flex items-center justify-center p-1.5 shadow-sm border border-[#E8E1D5] shrink-0">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 92" fill="none" class="w-full h-full">
+            <path d="M24 54 A36 36 0 0 1 96 54" stroke="#6B8AFF" stroke-width="8" stroke-linecap="round"/>
+            <path d="M43 54 A17 17 0 0 1 77 54" stroke="#FF9E6D" stroke-width="7.5" stroke-linecap="round"/>
+            <rect x="16" y="61" width="88" height="6" rx="3" fill="#FF9E6D"/>
+            <rect x="30" y="72" width="60" height="6" rx="3" fill="#FF9E6D"/>
+            <rect x="44" y="83" width="32" height="6" rx="3" fill="#FF9E6D"/>
+          </svg>
+        </div>
         <div class="min-w-0">
           <div class="flex items-center gap-2 flex-wrap">
-            <span class="font-extrabold text-sm tracking-tight">Marketing <span class="text-[#FF7A68]">OS</span></span>
-            <span class="text-[11px] px-2 py-0.5 rounded-full bg-[#FFE7E2] dark:bg-indigo-500/15 text-[#E85A48] dark:text-indigo-300 font-bold border border-[#F2E6DB] dark:border-indigo-500/20">Marketing Operations</span>
+            <span class="font-extrabold text-base tracking-tight text-[#2D223A] dark:text-[#FAF7F2] lowercase leading-none">helm</span>
+            <span class="text-[11px] px-2 py-0.5 rounded-full bg-[#FFF1EA] dark:bg-[#382B48] text-[#C2592A] dark:text-[#FF9E6D] font-bold border border-[#FFD9C7] dark:border-[#5A4773]">operations workspace</span>
           </div>
-          <div class="text-[11px] text-[var(--text-faint)] truncate">Internal Marketing Operations</div>
+          <div class="text-[11px] text-[#6C6478] dark:text-[#9E91B0] truncate font-medium">research &bull; sales &bull; creative</div>
         </div>
-      </div>
+      </a>
 
       <!-- Authenticated User Profile & Sign Out (Standard Secure Auth) -->
       <div id="authHeaderControls" class="flex items-center gap-2 shrink-0">
@@ -360,20 +448,20 @@
     <div id="view-overview" class="space-y-6">
       
       <!-- Welcome & Agency Operations Health Banner -->
-      <section class="card-surface p-6 rounded-3xl bg-gradient-to-r from-indigo-900/40 via-purple-900/20 to-[var(--surface)] border border-indigo-500/20 shadow-sm">
+      <section class="card-surface p-6 sm:p-7 rounded-3xl bg-gradient-to-r from-[#FFF1EA]/60 via-[#FAF7F2] to-[var(--surface)] dark:from-[#382B48]/50 dark:via-[#2D223A] dark:to-[var(--surface)] border border-[#E8E1D5] dark:border-[#443557] shadow-sm">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div class="flex items-center gap-2 mb-1.5">
-              <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-500/20 text-indigo-400 border border-indigo-500/30">Marketing OS V1</span>
-              <span class="text-xs text-[var(--text-soft)]">Central Marketing Operations Platform</span>
+            <div class="flex items-center gap-2 mb-2">
+              <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#FFF1EA] dark:bg-[#382B48] text-[#C2592A] dark:text-[#FF9E6D] border border-[#FFD9C7] dark:border-[#5A4773]">helm · warm minimal workspace</span>
+              <span class="text-xs text-[var(--text-soft)]">research &bull; sales &bull; creative</span>
             </div>
-            <h1 class="text-2xl font-extrabold tracking-tight">Agency Operations Command</h1>
-            <p class="text-xs text-[var(--text-soft)] mt-1 max-w-2xl">
-              Internal Team Workspace · 3 Core Departments (Research, Sales, Creative) · Unified Execution with Human-in-the-Loop Governance.
+            <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-[var(--text)]">Make the next move obvious.</h1>
+            <p class="text-xs sm:text-sm text-[var(--text-soft)] mt-1 max-w-2xl">
+              Agents prepare the work. Humans decide what ships. Unified operations across research, sales pipeline, and creative studio.
             </p>
           </div>
           <div class="flex items-center gap-2 shrink-0">
-            <button onclick="switchMainView('workbench')" class="btn-primary text-xs px-4 py-2 font-bold flex items-center gap-1.5">
+            <button onclick="switchMainView('workbench')" class="btn-primary text-xs px-4 py-2 font-bold flex items-center gap-1.5 shadow-sm">
               <span>+</span> <span>New Campaign Task</span>
             </button>
             <button onclick="refreshOverviewStats()" class="btn-outline text-xs px-3 py-2 font-semibold" title="Refresh Live Metrics">
@@ -684,6 +772,23 @@
           </div>
         </div>
       </section>
+
+      <!-- Research Department Scoped Projects & Tasks -->
+      <section id="researchProjectsTasksSection" class="card-surface p-5 rounded-2xl border border-[var(--border)] space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-sm font-extrabold">Research Projects &amp; Tasks</h2>
+              <span id="researchTasksCountBadge" class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-blue-500/15 text-blue-500 border border-blue-500/30">0</span>
+            </div>
+            <p class="text-[11px] text-[var(--text-soft)] mt-0.5">Tasks scoped strictly to the Research Department, synced bi-directionally with the Workbench.</p>
+          </div>
+          <button onclick="openCreateTaskModal('research')" class="btn-primary text-xs px-3.5 py-1.5 font-bold flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500">
+            <span>+</span> <span>New Research Task</span>
+          </button>
+        </div>
+        <div id="researchProjectsTasksContainer" class="space-y-2"></div>
+      </section>
     </div>
 
     <!-- ===================================================================== -->
@@ -846,6 +951,83 @@
           </div>
         </section>
       </div>
+
+      <!-- Relocated Email Sequence Campaign Pipeline & 5-Tab Live Deliverable Output -->
+      <section id="salesEmailCampaignRelocatedSection" class="card-surface p-5 rounded-2xl border border-[var(--border)] space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--border)] pb-3">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Sales Pipeline</span>
+              <h2 class="text-sm font-extrabold">Email Sequence Campaign Pipeline</h2>
+              <span class="text-[10px] mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">Dual-Branded HTML + Merge Tags + Gate G2</span>
+            </div>
+            <p class="text-[11px] text-[var(--text-soft)] mt-0.5">Executes multi-touch dual-branded email sequences grounded in verified leads and clinic assets.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span id="salesPipelineSquadBadge" class="text-[11px] text-[var(--text-soft)] mono">Squad: CO, BR, SE, MR</span>
+          </div>
+        </div>
+
+        <!-- Command input and launch -->
+        <div class="rounded-xl border border-[var(--border-strong)] bg-[var(--bg-soft)] p-3.5 space-y-2">
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-end gap-2">
+            <textarea id="salesCommandInput" rows="2" class="input-field mono text-xs flex-1" placeholder="/assign Craft dual-branded email sequence with personalized merge fields, compelling value proposition, and instant booking CTA.">/assign Craft dual-branded email sequence with personalized merge fields, compelling value proposition, and instant booking CTA.</textarea>
+            <button id="salesRunBtn" onclick="executeSalesEmailCampaign()" class="btn-primary px-5 py-2.5 text-xs shrink-0 inline-flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500">
+              <span>▶ Launch Email Sequence</span>
+            </button>
+          </div>
+
+          <!-- Live 5-Stage Execution Stepper & Telemetry Log for Sales -->
+          <div id="salesExecBox" class="mt-2 rounded-xl bg-[var(--surface)] border border-[var(--border)] p-3">
+            <div class="flex items-center justify-between text-xs font-semibold">
+              <span id="salesExecStatusText">5-Stage Campaign Workflow (Plan → Assign → Execute → Verify → Final Report)</span>
+              <span id="salesExecPct" class="mono text-emerald-600 dark:text-emerald-400">0%</span>
+            </div>
+            <div class="mt-2 h-1.5 rounded-full bg-[var(--bg-soft)] overflow-hidden">
+              <div id="salesExecBar" class="h-full bg-gradient-to-r from-emerald-600 via-teal-500 to-indigo-500 transition-all duration-300" style="width: 0%"></div>
+            </div>
+            <div id="salesExecStepsRow" class="mt-2.5 grid grid-cols-2 sm:grid-cols-5 gap-1.5 text-[10px]"></div>
+            <div id="salesTelemetryLog" class="mt-2.5 mono text-[11px] text-[var(--text-soft)] bg-[var(--bg-soft)] rounded-lg p-2 max-h-24 overflow-y-auto"></div>
+          </div>
+        </div>
+
+        <!-- Relocated 5-Tab Live Deliverable Inspector -->
+        <div class="mt-4 pt-4 border-t border-[var(--border)]">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <div class="flex flex-wrap items-center gap-2 min-w-0">
+              <h3 class="text-xs font-bold">Live Deliverable Output</h3>
+              <span id="outputPipelineBadge" class="text-[10px] mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">Verified Against Campaign Assets</span>
+            </div>
+            <div class="flex flex-wrap items-center gap-1 bg-[var(--bg-soft)] p-1 rounded-2xl sm:rounded-full border border-[var(--border)] max-w-full">
+              <button id="outTab-Preview" onclick="switchOutputTab('Preview')" class="px-2.5 sm:px-3 py-1 rounded-full text-[11px] font-semibold transition bg-indigo-600 text-white">Live Preview</button>
+              <button id="outTab-Code" onclick="switchOutputTab('Code')" class="px-2.5 sm:px-3 py-1 rounded-full text-[11px] font-semibold transition text-[var(--text-soft)]">Raw Deliverable & Payload</button>
+              <button id="outTab-Data" onclick="switchOutputTab('Data')" class="px-2.5 sm:px-3 py-1 rounded-full text-[11px] font-semibold transition text-[var(--text-soft)]">Campaign Assets</button>
+              <button id="outTab-RAG" onclick="switchOutputTab('RAG')" class="px-2.5 sm:px-3 py-1 rounded-full text-[11px] font-semibold transition text-[var(--text-soft)]">Knowledge Base</button>
+              <button id="outTab-Report" onclick="switchOutputTab('Report')" class="px-2.5 sm:px-3 py-1 rounded-full text-[11px] font-semibold transition text-[var(--text-soft)]">Executive Report</button>
+            </div>
+          </div>
+
+          <!-- Dynamic Output Viewport Container -->
+          <div id="wbOutputViewport" class="rounded-2xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden min-h-[160px]"></div>
+        </div>
+      </section>
+
+      <!-- Sales & CRM Department Scoped Projects & Tasks -->
+      <section id="salesProjectsTasksSection" class="card-surface p-5 rounded-2xl border border-[var(--border)] space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-sm font-extrabold">Sales &amp; CRM Projects &amp; Tasks</h2>
+              <span id="salesTasksCountBadge" class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">0</span>
+            </div>
+            <p class="text-[11px] text-[var(--text-soft)] mt-0.5">Tasks scoped strictly to the Sales &amp; CRM Department, synced bi-directionally with the Workbench.</p>
+          </div>
+          <button onclick="openCreateTaskModal('sales')" class="btn-primary text-xs px-3.5 py-1.5 font-bold flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500">
+            <span>+</span> <span>New Sales Task</span>
+          </button>
+        </div>
+        <div id="salesProjectsTasksContainer" class="space-y-2"></div>
+      </section>
 
       <!-- Smart Calendar & Timezone-Aware Email Campaign Auto-Scheduler -->
       <section class="card-surface p-5 rounded-2xl border border-[var(--border)] space-y-4">
@@ -1014,6 +1196,23 @@
           <div class="text-[10px] text-[var(--text-soft)]">Budget & Reporting</div>
         </div>
       </div>
+
+      <!-- Creative Studio Department Scoped Projects & Tasks -->
+      <section id="creativeProjectsTasksSection" class="card-surface p-5 rounded-2xl border border-[var(--border)] space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-sm font-extrabold">Creative Studio Projects &amp; Tasks</h2>
+              <span id="creativeTasksCountBadge" class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-purple-500/15 text-purple-400 border border-purple-500/30">0</span>
+            </div>
+            <p class="text-[11px] text-[var(--text-soft)] mt-0.5">Tasks scoped strictly to the Creative Studio Department, synced bi-directionally with the Workbench.</p>
+          </div>
+          <button onclick="openCreateTaskModal('creative')" class="btn-primary text-xs px-3.5 py-1.5 font-bold flex items-center gap-1.5 bg-purple-600 hover:bg-purple-500">
+            <span>+</span> <span>New Creative Task</span>
+          </button>
+        </div>
+        <div id="creativeProjectsTasksContainer" class="space-y-2"></div>
+      </section>
     </div>
 
     <!-- ===================================================================== -->
@@ -1155,24 +1354,30 @@
               </div>
             </div>
 
-            <!-- 5-Tab Live Deliverable Inspector -->
-            <div class="mt-5">
-              <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
-                <div class="flex flex-wrap items-center gap-2 min-w-0">
-                  <h3 class="text-xs font-bold">Live Deliverable Output</h3>
-                  <span id="outputPipelineBadge" class="text-[10px] mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">Verified Against Campaign Assets</span>
+            <!-- Unified Workbench Tasks Management (Cross-Department Sync) -->
+            <div id="wbTasksSection" class="mt-5 card-surface p-5 rounded-2xl border border-[var(--border)] space-y-3">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div>
+                  <h3 class="text-xs font-bold flex items-center gap-2">
+                    <span>📋</span>
+                    <span>All Projects & Tasks</span>
+                    <span id="wbTasksCountBadge" class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-indigo-500/15 text-indigo-500 border border-indigo-500/30">0</span>
+                  </h3>
+                  <p class="text-[11px] text-[var(--text-soft)]">Real-time bi-directional task sync across Research, Sales, and Creative departments.</p>
                 </div>
-                <div class="flex flex-wrap items-center gap-1 bg-[var(--bg-soft)] p-1 rounded-2xl sm:rounded-full border border-[var(--border)] max-w-full">
-                  <button id="outTab-Preview" onclick="switchOutputTab('Preview')" class="px-2.5 sm:px-3 py-1 rounded-full text-[11px] font-semibold transition">Live Preview</button>
-                  <button id="outTab-Code" onclick="switchOutputTab('Code')" class="px-2.5 sm:px-3 py-1 rounded-full text-[11px] font-semibold transition">Raw Deliverable & Payload</button>
-                  <button id="outTab-Data" onclick="switchOutputTab('Data')" class="px-2.5 sm:px-3 py-1 rounded-full text-[11px] font-semibold transition">Campaign Assets</button>
-                  <button id="outTab-RAG" onclick="switchOutputTab('RAG')" class="px-2.5 sm:px-3 py-1 rounded-full text-[11px] font-semibold transition">Knowledge Base</button>
-                  <button id="outTab-Report" onclick="switchOutputTab('Report')" class="px-2.5 sm:px-3 py-1 rounded-full text-[11px] font-semibold transition">Executive Report</button>
+                <div class="flex items-center gap-2">
+                  <div class="flex items-center gap-1 bg-[var(--bg-soft)] p-1 rounded-xl border border-[var(--border)] text-xs">
+                    <button type="button" onclick="filterWorkbenchTasks('all')" id="wbTaskTab-all" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-indigo-600 text-white shadow-xs">All</button>
+                    <button type="button" onclick="filterWorkbenchTasks('research')" id="wbTaskTab-research" class="px-2.5 py-1 rounded-lg text-[11px] font-bold text-[var(--text-soft)] hover:text-[var(--text)]">Research</button>
+                    <button type="button" onclick="filterWorkbenchTasks('sales')" id="wbTaskTab-sales" class="px-2.5 py-1 rounded-lg text-[11px] font-bold text-[var(--text-soft)] hover:text-[var(--text)]">Sales</button>
+                    <button type="button" onclick="filterWorkbenchTasks('creative')" id="wbTaskTab-creative" class="px-2.5 py-1 rounded-lg text-[11px] font-bold text-[var(--text-soft)] hover:text-[var(--text)]">Creative</button>
+                  </div>
+                  <button type="button" onclick="openCreateTaskModal()" class="btn-primary text-xs px-3 py-1.5 font-bold flex items-center gap-1">
+                    <span>+</span> <span>New Task</span>
+                  </button>
                 </div>
               </div>
-
-              <!-- Dynamic Output Container -->
-              <div id="wbOutputViewport" class="rounded-2xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden"></div>
+              <div id="wbTasksListContainer" class="space-y-2 max-h-96 overflow-y-auto pr-1"></div>
             </div>
           </div>
         </section>
@@ -1809,7 +2014,7 @@
           <h3 class="text-sm font-bold flex items-center gap-2">
             <span>🔐 Account Security & Change Password</span>
           </h3>
-          <p class="text-xs text-[var(--text-soft)]">Update your Marketing OS account password. Minimum 8 characters required.</p>
+          <p class="text-xs text-[var(--text-soft)]">Update your helm account password. Minimum 8 characters required.</p>
         </div>
         <div id="cpStatusMessage" class="hidden p-3 rounded-xl text-xs font-medium"></div>
         <form id="changePasswordForm" onsubmit="event.preventDefault(); submitChangePassword();" class="grid sm:grid-cols-4 gap-3 items-end">
@@ -1913,9 +2118,19 @@
         <button onclick="closeTaskModal()" class="text-xs text-[var(--text-faint)] hover:text-[var(--text)]">✕</button>
       </div>
       <div class="space-y-3">
-        <div>
-          <label class="block text-[11px] font-medium text-[var(--text-soft)] mb-1">Target Project</label>
-          <select id="modalTaskProject" class="input-field"></select>
+        <div class="grid sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-medium text-[var(--text-soft)] mb-1">Target Project</label>
+            <select id="modalTaskProject" class="input-field"></select>
+          </div>
+          <div>
+            <label class="block text-[11px] font-medium text-[var(--text-soft)] mb-1">Department</label>
+            <select id="modalTaskDepartment" class="input-field" onchange="onModalDepartmentChange()">
+              <option value="research">Research</option>
+              <option value="sales">Sales & CRM</option>
+              <option value="creative">Creative Studio</option>
+            </select>
+          </div>
         </div>
         <div class="grid sm:grid-cols-2 gap-3">
           <div>
@@ -2404,9 +2619,9 @@ config = LocalOpenAIAgentConfig(
     base_url="http://localhost:11435/v1"
 )
 agent = Agent(
-    name="marketing_os_coordinator",
+    name="helm_coordinator",
     config=config,
-    instructions="Execute Marketing OS pipelines from /uploads harness."
+    instructions="Execute helm pipelines from /uploads harness."
 )</pre>
           <button onclick="copySnippetText('ollamaPySnippet')" class="btn-outline px-3 py-1 text-[11px] mt-2">Copy Python SDK Config</button>
         </div>
@@ -2424,10 +2639,18 @@ agent = Agent(
     <div class="card-surface w-full max-w-md p-6 sm:p-7 space-y-5 rounded-2xl shadow-2xl border border-[var(--border-strong)]">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2.5">
-          <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-600 text-white flex items-center justify-center font-extrabold text-sm shadow-md">AG</div>
+          <div class="w-9 h-9 rounded-xl bg-[#2D223A] flex items-center justify-center p-1.5 shadow-sm border border-[#E8E1D5] shrink-0">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 92" fill="none" class="w-full h-full">
+              <path d="M24 54 A36 36 0 0 1 96 54" stroke="#6B8AFF" stroke-width="8" stroke-linecap="round"/>
+              <path d="M43 54 A17 17 0 0 1 77 54" stroke="#FF9E6D" stroke-width="7.5" stroke-linecap="round"/>
+              <rect x="16" y="61" width="88" height="6" rx="3" fill="#FF9E6D"/>
+              <rect x="30" y="72" width="60" height="6" rx="3" fill="#FF9E6D"/>
+              <rect x="44" y="83" width="32" height="6" rx="3" fill="#FF9E6D"/>
+            </svg>
+          </div>
           <div>
-            <h3 class="text-base font-bold">Marketing OS &bull; Team Login</h3>
-            <p class="text-xs text-[var(--text-soft)]">Internal Workforce Operating System</p>
+            <h3 class="text-base font-bold lowercase tracking-tight">helm &bull; Workspace Login</h3>
+            <p class="text-xs text-[var(--text-soft)]">Operations Command Center</p>
           </div>
         </div>
         <button id="authModalCloseBtn" onclick="closeAuthModal()" class="hidden text-xs text-[var(--text-faint)] hover:text-[var(--text)] w-7 h-7 rounded-full bg-[var(--bg-soft)] grid place-items-center">✕</button>
@@ -2444,12 +2667,12 @@ agent = Agent(
           <label class="block text-xs font-bold text-[var(--text)] mb-1">Password</label>
           <input id="loginPassInput" type="password" required class="input-field" placeholder="••••••••••••" autocomplete="current-password" />
         </div>
-        <button type="submit" id="loginSubmitBtn" class="btn-primary w-full py-2.5 text-xs font-bold shadow-md hover:shadow-lg transition">Sign In to Workspace</button>
+        <button type="submit" id="loginSubmitBtn" class="btn-primary w-full py-2.5 text-xs font-bold shadow-md hover:shadow-lg transition">Sign In to helm</button>
       </form>
 
       <div class="card-subtle p-3 rounded-xl text-[11px] text-[var(--text-soft)] border border-[var(--border)] flex items-center gap-2">
         <span>🛡️</span>
-        <span>Sign in with your authorized Marketing OS workspace credentials. Contact your workspace administrator for account provisioning or password resets.</span>
+        <span>Sign in with your authorized helm workspace credentials. Contact your workspace administrator for account provisioning or password resets.</span>
       </div>
     </div>
   </div>

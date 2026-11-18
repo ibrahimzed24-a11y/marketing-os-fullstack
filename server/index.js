@@ -384,17 +384,32 @@ app.patch('/api/users/:id', authMiddleware, requireRole('super_admin', 'admin'),
 // PROJECTS & DATA HARNESS (Module 01 & 04)
 // =============================================================================
 app.get('/api/projects', authMiddleware, asyncHandler(async (req, res) => {
+  const { department } = req.query;
   let projects;
   if (['super_admin', 'admin'].includes(req.user.role)) {
-    projects = db.prepare('SELECT * FROM projects ORDER BY created_at DESC').all();
+    if (department) {
+      projects = db.prepare('SELECT * FROM projects WHERE department=? ORDER BY created_at DESC').all(department);
+    } else {
+      projects = db.prepare('SELECT * FROM projects ORDER BY created_at DESC').all();
+    }
   } else {
-    projects = db.prepare(`
-      SELECT p.* FROM projects p 
-      JOIN project_members pm ON pm.project_id=p.id 
-      WHERE pm.user_id=? 
-      GROUP BY p.id 
-      ORDER BY p.created_at DESC
-    `).all(req.user.id);
+    if (department) {
+      projects = db.prepare(`
+        SELECT p.* FROM projects p 
+        JOIN project_members pm ON pm.project_id=p.id 
+        WHERE pm.user_id=? AND p.department=?
+        GROUP BY p.id 
+        ORDER BY p.created_at DESC
+      `).all(req.user.id, department);
+    } else {
+      projects = db.prepare(`
+        SELECT p.* FROM projects p 
+        JOIN project_members pm ON pm.project_id=p.id 
+        WHERE pm.user_id=? 
+        GROUP BY p.id 
+        ORDER BY p.created_at DESC
+      `).all(req.user.id);
+    }
   }
 
   projects = projects.map(p => ({
@@ -402,19 +417,23 @@ app.get('/api/projects', authMiddleware, asyncHandler(async (req, res) => {
     task_count: db.prepare('SELECT COUNT(*) c FROM tasks WHERE project_id=?').get(p.id).c,
     delivered: db.prepare("SELECT COUNT(*) c FROM tasks WHERE project_id=? AND status='delivered'").get(p.id).c
   }));
-  res.json({ projects });
+  res.json({ ok: true, projects });
 }));
 
 app.post('/api/projects', authMiddleware, requireRole('super_admin', 'admin', 'manager'), asyncHandler(async (req, res) => {
-  const { name, client_name = '', goal = '', type = 'content-seo' } = req.body;
+  let { name, client_name = '', goal = '', type = 'content-seo', department = 'creative' } = req.body;
   if (!name) return res.status(400).json({ error: 'name required' });
+  if (department && !['research', 'sales', 'creative'].includes(department)) {
+    return res.status(400).json({ error: 'Invalid department' });
+  }
+  department = department || 'creative';
 
   const id = uuidv4();
-  db.prepare('INSERT INTO projects (id,name,client_name,goal,type,owner_id,status) VALUES (?,?,?,?,?,?,?)')
-    .run(id, name, client_name, goal, type, req.user.id, 'draft');
+  db.prepare('INSERT INTO projects (id,name,client_name,goal,type,owner_id,status,department) VALUES (?,?,?,?,?,?,?,?)')
+    .run(id, name, client_name, goal, type, req.user.id, 'draft', department);
   db.prepare('INSERT INTO project_members (id,project_id,user_id,role_in_project) VALUES (?,?,?,?)')
     .run(uuidv4(), id, req.user.id, 'owner');
-  res.json({ id, name, status: 'draft' });
+  res.json({ ok: true, id, name, department, status: 'draft' });
 }));
 
 app.get('/api/projects/:id', authMiddleware, asyncHandler(async (req, res) => {
@@ -1006,7 +1025,9 @@ app.post('/api/agents/dispatch', authMiddleware, requireRole('super_admin', 'adm
       });
     }
 
-    const local = await executeAgentTask({ ...taskObj, pipeline: primaryPipeline }, proj, harness);
+    const local = await executeAgentTask({ ...taskObj, pipeline: primaryPipeline }, proj, harness, {
+      skipLiveLLM: process.env.SKIP_LIVE_LLM === 'true' || process.env.FAST_TEST_MODE === 'true'
+    });
     finalOutput = local.outputJson;
     finalReport = local.reportMd;
   }
@@ -1127,7 +1148,9 @@ app.post('/api/seo/execute', authMiddleware, asyncHandler(async (req, res) => {
     finalOutput = resultData.deliverable || resultData.output || resultData;
     finalReport = resultData.report || '';
   } else {
-    const local = await executeAgentTask({ ...task, pipeline }, proj, harness);
+    const local = await executeAgentTask({ ...task, pipeline }, proj, harness, {
+      skipLiveLLM: process.env.SKIP_LIVE_LLM === 'true' || process.env.FAST_TEST_MODE === 'true'
+    });
     finalOutput = local.outputJson;
     finalReport = local.reportMd;
   }
@@ -1166,22 +1189,115 @@ const PIPELINES = {
 
 app.get('/api/pipelines', authMiddleware, (req, res) => res.json({ pipelines: PIPELINES }));
 
+// Standalone tasks listing and department filtering
+app.get('/api/tasks', authMiddleware, asyncHandler(async (req, res) => {
+  const { department, project_id, status } = req.query;
+
+  let query = 'SELECT t.*, p.name as project_name FROM tasks t JOIN projects p ON p.id=t.project_id';
+  const conditions = [];
+  const params = [];
+
+  // Scoping: client role restricted to status='delivered'
+  if (req.user.role === 'client') {
+    conditions.push("t.status = 'delivered'");
+  } else if (status) {
+    conditions.push('t.status = ?');
+    params.push(status);
+  }
+
+  // Project membership access restriction for non-admins
+  if (!['super_admin', 'admin', 'manager', 'owner'].includes(req.user.role)) {
+    conditions.push(`(
+      EXISTS (SELECT 1 FROM project_members pm WHERE pm.project_id=t.project_id AND pm.user_id=?)
+      OR p.owner_id=?
+    )`);
+    params.push(req.user.id, req.user.id);
+  }
+
+  if (department) {
+    conditions.push('t.department = ?');
+    params.push(department);
+  }
+
+  if (project_id) {
+    if (!canAccessProject(req.user, project_id)) {
+      return res.status(403).json({ error: 'No access to project' });
+    }
+    conditions.push('t.project_id = ?');
+    params.push(project_id);
+  }
+
+  if (conditions.length > 0) {
+    query += ' WHERE ' + conditions.join(' AND ');
+  }
+  query += ' ORDER BY t.created_at DESC';
+
+  const tasks = db.prepare(query).all(...params);
+  res.json({ ok: true, tasks });
+}));
+
+function inferDepartmentFromPipeline(pipeline) {
+  if (['market-intel', 'lead-research', 'content-seo'].includes(pipeline)) {
+    return 'research';
+  } else if (['email-campaign', 'lead_qualification', 'deal_proposal'].includes(pipeline)) {
+    return 'sales';
+  }
+  return 'creative';
+}
+
 app.post('/api/projects/:id/tasks', authMiddleware, asyncHandler(async (req, res) => {
-  const proj = db.prepare('SELECT id FROM projects WHERE id=?').get(req.params.id);
+  const proj = db.prepare('SELECT id, department FROM projects WHERE id=?').get(req.params.id);
   if (!proj) return res.status(404).json({ error: 'Project not found' });
   if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
 
-  const { title, pipeline = 'content-seo', description = '', assignee_id = null, priority = 'medium', input = {} } = req.body;
+  let { title, pipeline = 'content-seo', description = '', assignee_id = null, priority = 'medium', input = {}, department } = req.body;
   if (!title) return res.status(400).json({ error: 'title required' });
   if (!PIPELINES[pipeline]) return res.status(400).json({ error: 'Unknown pipeline' });
 
+  if (department) {
+    if (!['research', 'sales', 'creative'].includes(department)) {
+      return res.status(400).json({ error: 'Invalid department' });
+    }
+  } else {
+    department = inferDepartmentFromPipeline(pipeline);
+  }
+
   const id = uuidv4();
-  db.prepare('INSERT INTO tasks (id,project_id,title,pipeline,description,assignee_id,created_by,priority,input_json,status) VALUES (?,?,?,?,?,?,?,?,?,?)')
-    .run(id, req.params.id, title, pipeline, description, assignee_id, req.user.id, priority, JSON.stringify(input), 'draft');
+  db.prepare('INSERT INTO tasks (id,project_id,title,pipeline,description,assignee_id,created_by,priority,input_json,status,department) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
+    .run(id, req.params.id, title, pipeline, description, assignee_id, req.user.id, priority, JSON.stringify(input), 'draft', department);
   db.prepare('INSERT INTO activity (id,project_id,task_id,user_id,action) VALUES (?,?,?,?,?)')
     .run(uuidv4(), req.params.id, id, req.user.id, 'task_created');
 
-  res.json({ id, title, pipeline, status: 'draft' });
+  res.json({ ok: true, id, title, pipeline, department, status: 'draft', priority });
+}));
+
+app.post('/api/tasks', authMiddleware, asyncHandler(async (req, res) => {
+  const projectId = req.body.project_id;
+  if (!projectId) return res.status(400).json({ error: 'project_id required' });
+  req.params.id = projectId;
+  const proj = db.prepare('SELECT id, department FROM projects WHERE id=?').get(projectId);
+  if (!proj) return res.status(404).json({ error: 'Project not found' });
+  if (!canAccessProject(req.user, projectId)) return res.status(403).json({ error: 'No access' });
+
+  let { title, pipeline = 'content-seo', description = '', assignee_id = null, priority = 'medium', input = {}, department } = req.body;
+  if (!title) return res.status(400).json({ error: 'title required' });
+  if (!PIPELINES[pipeline]) return res.status(400).json({ error: 'Unknown pipeline' });
+
+  if (department) {
+    if (!['research', 'sales', 'creative'].includes(department)) {
+      return res.status(400).json({ error: 'Invalid department' });
+    }
+  } else {
+    department = inferDepartmentFromPipeline(pipeline);
+  }
+
+  const id = uuidv4();
+  db.prepare('INSERT INTO tasks (id,project_id,title,pipeline,description,assignee_id,created_by,priority,input_json,status,department) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
+    .run(id, projectId, title, pipeline, description, assignee_id, req.user.id, priority, JSON.stringify(input), 'draft', department);
+  db.prepare('INSERT INTO activity (id,project_id,task_id,user_id,action) VALUES (?,?,?,?,?)')
+    .run(uuidv4(), projectId, id, req.user.id, 'task_created');
+
+  res.json({ ok: true, id, title, pipeline, department, status: 'draft', priority });
 }));
 
 app.post('/api/tasks/:id/run', authMiddleware, asyncHandler(async (req, res) => {
@@ -1261,9 +1377,16 @@ app.post('/api/tasks/:id/run', authMiddleware, asyncHandler(async (req, res) => 
 
   // 3. Execute via Unified 3-Agent Framework (Research, Sales, Creative)
   console.log(`[task-runner] n8n offline (${result.error}). Executing task via Unified Agent Framework...`);
+  try {
+    db.prepare("UPDATE tasks SET status='running', updated_at=CURRENT_TIMESTAMP WHERE id=?").run(task.id);
+  } catch (markErr) {
+    console.warn(`[task-runner] Could not update task ${task.id} to running: ${markErr.message}`);
+  }
   let execResult;
   try {
-    execResult = await executeAgentTask(task, project, harness);
+    execResult = await executeAgentTask(task, project, harness, {
+      skipLiveLLM: process.env.SKIP_LIVE_LLM === 'true' || process.env.FAST_TEST_MODE === 'true'
+    });
 
     db.transaction(() => {
       db.prepare("UPDATE tasks SET status='in_review', output_json=?, report_md=?, updated_at=CURRENT_TIMESTAMP WHERE id=?")
@@ -1336,8 +1459,8 @@ app.patch('/api/tasks/:id', authMiddleware, asyncHandler(async (req, res) => {
   if (!task) return res.status(404).json({ error: 'Not found' });
   if (!canAccessProject(req.user, task.project_id)) return res.status(403).json({ error: 'No access' });
 
-  let { status, report_md } = req.body;
-  const ALLOWED_STATUSES = ['draft', 'queued', 'running', 'in_review', 'delivered', 'needs_fix', 'needs_attention'];
+  let { status, report_md, title, description, department, priority } = req.body;
+  const ALLOWED_STATUSES = ['draft', 'queued', 'running', 'in_progress', 'in_review', 'delivered', 'needs_fix', 'needs_attention'];
   if (status !== undefined) {
     if (typeof status !== 'string' || !ALLOWED_STATUSES.includes(status.trim().toLowerCase())) {
       return res.status(400).json({ error: 'Invalid status value' });
@@ -1345,14 +1468,64 @@ app.patch('/api/tasks/:id', authMiddleware, asyncHandler(async (req, res) => {
     status = status.trim().toLowerCase();
   }
 
+  if (department !== undefined) {
+    if (typeof department !== 'string' || !['research', 'sales', 'creative'].includes(department.trim().toLowerCase())) {
+      return res.status(400).json({ error: 'Invalid department' });
+    }
+    department = department.trim().toLowerCase();
+  }
+
+  if (priority !== undefined) {
+    if (typeof priority !== 'string' || !['low', 'medium', 'high', 'urgent'].includes(priority.trim().toLowerCase())) {
+      return res.status(400).json({ error: 'Invalid priority' });
+    }
+    priority = priority.trim().toLowerCase();
+  }
+
+  if (title !== undefined) {
+    if (typeof title !== 'string' || !title.trim()) {
+      return res.status(400).json({ error: 'Title must be non-empty string' });
+    }
+    title = title.trim();
+  }
+
   // Strict RBAC Gate G2: Only super_admin, admin, manager can approve & deliver
   if (status === 'delivered' && !['super_admin', 'admin', 'manager'].includes(req.user.role)) {
     return res.status(403).json({ error: 'Only admin/manager can deliver' });
   }
 
-  if (status) {
-    db.prepare('UPDATE tasks SET status=?, report_md=COALESCE(?,report_md), updated_at=CURRENT_TIMESTAMP WHERE id=?')
-      .run(status, (typeof report_md === 'string' ? report_md : null), task.id);
+  const updates = [];
+  const params = [];
+
+  if (status !== undefined) {
+    updates.push('status = ?');
+    params.push(status);
+  }
+  if (report_md !== undefined && typeof report_md === 'string') {
+    updates.push('report_md = ?');
+    params.push(report_md);
+  }
+  if (title !== undefined) {
+    updates.push('title = ?');
+    params.push(title);
+  }
+  if (description !== undefined && typeof description === 'string') {
+    updates.push('description = ?');
+    params.push(description);
+  }
+  if (department !== undefined) {
+    updates.push('department = ?');
+    params.push(department);
+  }
+  if (priority !== undefined) {
+    updates.push('priority = ?');
+    params.push(priority);
+  }
+
+  if (updates.length > 0) {
+    updates.push('updated_at = CURRENT_TIMESTAMP');
+    params.push(task.id);
+    db.prepare(`UPDATE tasks SET ${updates.join(', ')} WHERE id = ?`).run(...params);
 
     if (status === 'delivered') {
       db.prepare("UPDATE reports SET verdict='approved' WHERE task_id=?").run(task.id);
@@ -1360,7 +1533,23 @@ app.patch('/api/tasks/:id', authMiddleware, asyncHandler(async (req, res) => {
         .run(uuidv4(), task.project_id, task.id, req.user.id, 'task_approved_delivered');
     }
   }
-  res.json({ ok: true, status, task: { id: task.id, status } });
+
+  const updatedTask = db.prepare('SELECT * FROM tasks WHERE id=?').get(task.id);
+  res.json({ ok: true, status: updatedTask.status, task: updatedTask });
+}));
+
+app.delete('/api/tasks/:id', authMiddleware, asyncHandler(async (req, res) => {
+  const task = db.prepare('SELECT * FROM tasks WHERE id=?').get(req.params.id);
+  if (!task) return res.status(404).json({ error: 'Task not found' });
+  if (!canAccessProject(req.user, task.project_id)) return res.status(403).json({ error: 'No access' });
+
+  db.transaction(() => {
+    db.prepare('DELETE FROM reports WHERE task_id=?').run(task.id);
+    db.prepare('DELETE FROM activity WHERE task_id=?').run(task.id);
+    db.prepare('DELETE FROM tasks WHERE id=?').run(task.id);
+  })();
+
+  res.json({ ok: true, deleted_id: req.params.id });
 }));
 
 app.get('/api/tasks/:id', authMiddleware, asyncHandler(async (req, res) => {

@@ -14,6 +14,7 @@
     "seed": "node server/seed.js",
     "reset": "rm -rf data/marketing-os.db && node server/seed.js",
     "test": "./test-all-e2e.sh",
+    "test:departments": "./test-department-scoping-e2e.sh",
     "test:e2e": "./test-all-e2e.sh",
     "test:flow": "./test-flow.sh",
     "test:ui": "./test-frontend-ui.sh",

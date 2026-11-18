@@ -1,0 +1,26 @@
+:root {
+  /* Helm Warm Minimal Light Theme */
+  --helm-ivory: #FAF7F2;
+  --helm-surface: #FFFFFF;
+  --helm-surface-soft: #F4EFE6;
+  --helm-line: #E8E1D5;
+
+  /* Core Brand Colors */
+  --helm-plum: #2D223A;
+  --helm-cobalt: #4C6EF5;
+  --helm-cobalt-soft: #EEF2FF;
+  --helm-peach: #FF9E6D;
+  --helm-peach-soft: #FFF1EA;
+
+  /* Supporting Semantic Colors */
+  --helm-sage: #4F8A62;
+  --helm-sage-soft: #EAF5EE;
+  --helm-amber: #D9822B;
+  --helm-amber-soft: #FFF5E6;
+  --helm-muted: #6C6478;
+  --helm-soft-muted: #9890A4;
+
+  /* Typography */
+  --helm-font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --helm-font-mono: 'DM Mono', ui-monospace, monospace;
+}

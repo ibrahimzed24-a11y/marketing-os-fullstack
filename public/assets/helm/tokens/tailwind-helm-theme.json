@@ -1,0 +1,25 @@
+{
+  "brand": "helm",
+  "theme": "warm-minimal-light",
+  "colors": {
+    "ivory": "#FAF7F2",
+    "surface": "#FFFFFF",
+    "plum": "#2D223A",
+    "cobalt": "#4C6EF5",
+    "peach": "#FF9E6D",
+    "sage": "#4F8A62",
+    "line": "#E8E1D5",
+    "muted": "#6C6478"
+  },
+  "fonts": {
+    "sans": [
+      "Plus Jakarta Sans",
+      "system-ui",
+      "sans-serif"
+    ],
+    "mono": [
+      "DM Mono",
+      "monospace"
+    ]
+  }
+}

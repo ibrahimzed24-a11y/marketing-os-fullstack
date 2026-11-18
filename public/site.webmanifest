@@ -1,0 +1,16 @@
+{
+  "name": "helm \u2014 Marketing Command Center",
+  "short_name": "helm",
+  "description": "A warm, human-governed workspace for research, sales, and creative operations.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAF7F2",
+  "theme_color": "#2D223A",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

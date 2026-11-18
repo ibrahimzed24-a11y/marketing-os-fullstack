@@ -18,6 +18,9 @@ cd "$SCRIPT_DIR"
 
 # Offline local test harness only (blocked automatically in production/Vercel)
 export ALLOW_SIMULATED_FALLBACK=true
+export SKIP_LIVE_LLM=true
+export N8N_WEBHOOK_TASK="http://127.0.0.1:59999/offline"
+export PORT=3033
 export TURSO_DATABASE_URL=""
 export TURSO_AUTH_TOKEN=""
 export LIBSQL_URL=""
@@ -54,6 +57,7 @@ SUITES=(
   "test-frontend-ui.sh:Frontend UX & Workbench Integration:DOM Elements, Async API Dispatch, Role Boundaries"
   "test-handoffs.sh:Cross-Dept Handoffs & Approvals:Research->Sales, Sales->Creative, Human Approval Gate"
   "test-phase4-walkthrough.sh:Phase 4 Real Agency Lifecycle:End-to-End Walkthrough A-Z"
+  "test-department-scoping-e2e.sh:Department Scoping & UI Relocation:R1 Sales Relocation, R2 Dept Scoping, R3 Bi-Directional Sync"
 )
 
 TOTAL_START=$(date +%s)

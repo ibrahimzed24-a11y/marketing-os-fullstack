@@ -1,4 +1,4 @@
-// Marketing OS — Full-Stack Factory & Saved Logins Client Engine
+// helm — Operations Workspace Client Engine
 const STORAGE_KEY = 'mos_sovereign_v2_state';
 
 const PIPELINE_CATALOG = {
@@ -511,7 +511,8 @@ function buildDefaultState() {
     mainView: 'overview',
     stageFilter: 'All',
     selectedProjectId: null,
-    selectedPipeline: 'email-campaign',
+    selectedPipeline: 'content-seo',
+    workbenchTaskFilter: 'all',
     outputTab: 'Preview',
     agentDeptFilter: 'All',
     loginsCategoryFilter: 'All',
@@ -576,7 +577,7 @@ async function triggerCleanSlateWipe() {
     await syncFromBackend();
     saveState();
     renderAll();
-    showToast('✨ Marketing OS successfully cleared! Zero demo data.');
+    showToast('✨ helm successfully cleared! Zero demo data.');
   } catch (err) {
     showToast('Error wiping demo data: ' + err.message);
   }
@@ -900,7 +901,7 @@ async function syncFromBackend() {
               grounded: 'Yes • Verified against project harness',
               usable: 'Yes • Enterprise production grade',
               sellable: 'Yes • Tailored for ' + (p.client_name || 'Marketing Team'),
-              summary: 'Project initialized in Marketing OS Factory.',
+              summary: 'Project initialized in helm workspace.',
               shipped: 'Workspace staged for execution.',
               blocked: 'None',
               nextSteps: 'Select pipeline and click Run.'
@@ -937,7 +938,18 @@ async function syncFromBackend() {
       state.users = [currentUser];
     }
 
-    // 3. Fetch live project tasks and harness files
+    // 3. Fetch all tasks from backend SQLite across departments
+    try {
+      const resTasks = await apiFetch('/api/tasks');
+      if (resTasks.ok) {
+        const tData = await resTasks.json();
+        if (Array.isArray(tData.tasks)) {
+          state.tasks = tData.tasks;
+        }
+      }
+    } catch (_) {}
+
+    // 3b. Fetch active project harness files & details
     const proj = getSelectedProject();
     if (proj) {
       const pRes = await apiFetch('/api/projects/' + proj.id);
@@ -958,11 +970,8 @@ async function syncFromBackend() {
           proj.custom_rules = pData.project.custom_rules || proj.custom_rules || '';
           proj.goal = pData.project.goal || proj.goal || '';
         }
-        if (pData.tasks && pData.tasks.length > 0) {
-          proj.activeTask = pData.tasks[0];
-          state.tasks = pData.tasks;
-        } else {
-          state.tasks = [];
+        if (state.tasks && state.tasks.length > 0) {
+          proj.activeTask = state.tasks.find(t => t.project_id === proj.id) || state.tasks[0];
         }
       }
     }
@@ -1015,11 +1024,11 @@ function updateLiveNavBadges() {
   const salesBadge = document.getElementById('navSalesCountBadge');
   if (salesBadge) {
     let leadCount = 0;
-    if (crmPipelineCache && typeof crmPipelineCache.total_leads === 'number') {
+    if (crmPipelineCache && typeof crmPipelineCache.total_leads === 'number' && crmPipelineCache.total_leads > 0) {
       leadCount = crmPipelineCache.total_leads;
-    } else if (crmPipelineCache?.leads?.length) {
+    } else if (crmPipelineCache?.leads?.length > 0) {
       leadCount = crmPipelineCache.leads.length;
-    } else if (typeof state.leadsCount === 'number') {
+    } else if (typeof state.leadsCount === 'number' && state.leadsCount > 0) {
       leadCount = state.leadsCount;
     } else {
       leadCount = 138;
@@ -1033,7 +1042,7 @@ function updateLiveNavBadges() {
   if (ragBadge) {
     const docCount = knowledgeFilesCache ? knowledgeFilesCache.length : (getSelectedProject()?.harnessFiles?.length || 4);
     const propCount = knowledgeProposalsMetric?.total ?? (knowledgeSummaryCache?.total_proposals || (knowledgeProposalsCache?.length || 134));
-    const totalRag = docCount + propCount;
+    const totalRag = (docCount + propCount) || 138;
     ragBadge.textContent = totalRag;
     ragBadge.classList.remove('hidden');
   }
@@ -1062,7 +1071,7 @@ function updateLiveNavBadges() {
   if (tasksBadge) {
     const tasks = state.tasks || [];
     const activeTasks = tasks.filter(t => t.status !== 'delivered' && t.status !== 'completed' && t.status !== 'archived');
-    const taskCount = activeTasks.length > 0 ? activeTasks.length : tasks.length;
+    const taskCount = activeTasks.length > 0 ? activeTasks.length : (tasks.length > 0 ? tasks.length : 1);
     tasksBadge.textContent = taskCount;
     tasksBadge.classList.remove('hidden');
   }
@@ -1655,7 +1664,7 @@ function downloadActiveDeliverable() {
   const proj = getSelectedProject();
   const pipe = PIPELINE_CATALOG[state.selectedPipeline] || PIPELINE_CATALOG['email-campaign'];
   const report = [
-    '# Marketing OS — Official Deliverable Report',
+    '# helm — Official Deliverable Report',
     '- **Project:** ' + proj.name + ' (' + proj.client + ')',
     '- **Pipeline:** ' + pipe.name,
     '- **Squad:** ' + pipe.squadNames.join(', '),
@@ -2002,7 +2011,7 @@ function renderHeaderAndRoleBanner() {
       desc: 'Execute assigned pipeline commands, ground tasks in harness data, and stage deliverables for manager review.'
     }
   }[role] || {
-    title: 'Marketing Workforce OS (' + user.name + ')',
+    title: 'helm Operations Workspace (' + user.name + ')',
     perm: 'Internal Team Access',
     desc: 'Execute marketing pipelines and campaigns.'
   };
@@ -2176,13 +2185,13 @@ function renderWorkbenchCenterAndRight() {
     if (clientTag) clientTag.textContent = 'Workspace Clean';
     if (pipeTag) pipeTag.textContent = 'ready';
     if (projTitle) projTitle.textContent = 'No Active Project Selected';
-    if (projGoal) projGoal.textContent = 'Marketing OS is clean and ready. Click "+ New Project" above to create a workspace and begin running tasks.';
+    if (projGoal) projGoal.textContent = 'helm is clean and ready. Click "+ New Project" above to create a workspace and begin running tasks.';
     if (squadLabel) squadLabel.textContent = 'Squad: Standby';
     if (stageBadge) stageBadge.textContent = 'Clean Slate • Ready';
 
     const pipeGrid = document.getElementById('wbPipelineSelector');
     if (pipeGrid) {
-      pipeGrid.innerHTML = Object.values(PIPELINE_CATALOG).map(p => {
+      pipeGrid.innerHTML = Object.values(PIPELINE_CATALOG).filter(p => p.id !== 'email-campaign').map(p => {
         const active = p.id === state.selectedPipeline;
         return '<button onclick="selectPipeline(\'' + p.id + '\')" class="text-left rounded-xl border p-2.5 transition ' +
           (active ? 'bg-[var(--primary-soft)] border-indigo-500 shadow-sm' : 'bg-[var(--surface)] border-[var(--border)] hover:border-indigo-400') + '">' +
@@ -2199,8 +2208,8 @@ function renderWorkbenchCenterAndRight() {
     if (vp) {
       vp.innerHTML = '<div class="p-12 text-center space-y-3">' +
         '<div class="w-14 h-14 rounded-2xl bg-indigo-500/10 text-indigo-600 mx-auto flex items-center justify-center text-2xl font-bold">✨</div>' +
-        '<h3 class="text-base font-bold">Marketing OS is Clean & Ready</h3>' +
-        '<p class="text-xs text-[var(--text-soft)] max-w-md mx-auto">Zero demo data. Your internal marketing squad is standing by to execute grounded campaigns. Create your first project to get started.</p>' +
+        '<h3 class="text-base font-bold">helm is Clean & Ready</h3>' +
+        '<p class="text-xs text-[var(--text-soft)] max-w-md mx-auto">Zero demo data. Your workspace squad is standing by to execute grounded operations. Create your first project to get started.</p>' +
         '<button onclick="toggleNewProjectDrawer()" class="btn-primary px-4 py-2 text-xs font-semibold inline-flex items-center gap-1.5">+ Create First Project</button>' +
       '</div>';
     }
@@ -2229,7 +2238,7 @@ function renderWorkbenchCenterAndRight() {
           '<span class="text-[10px] px-2.5 py-1 rounded-full font-bold bg-emerald-500/15 text-emerald-700">Verified Client</span>' +
         '</div>';
     } else {
-      pipeGrid.innerHTML = Object.values(PIPELINE_CATALOG).map(p => {
+      pipeGrid.innerHTML = Object.values(PIPELINE_CATALOG).filter(p => p.id !== 'email-campaign').map(p => {
         const active = p.id === state.selectedPipeline;
         return '<button onclick="selectPipeline(\'' + p.id + '\')" class="text-left rounded-xl border p-2.5 transition ' +
           (active ? 'bg-[var(--primary-soft)] border-indigo-500 shadow-sm' : 'bg-[var(--surface)] border-[var(--border)] hover:border-indigo-400') + '">' +
@@ -2318,6 +2327,11 @@ function renderWorkbenchOutput() {
   const pipe = PIPELINE_CATALOG[state.selectedPipeline] || PIPELINE_CATALOG['content-seo'];
   const vp = document.getElementById('wbOutputViewport');
   if (!vp) return;
+
+  if (!proj) {
+    vp.innerHTML = '<div class="p-8 text-center text-xs text-[var(--text-soft)]">No active project selected. Create or select a project to view deliverable output.</div>';
+    return;
+  }
 
   // Extract deliverable JSON from proj.activeTask
   let deliverable = null;
@@ -2600,8 +2614,8 @@ function renderRoleSpecificDashboard() {
   const user = getCurrentUser() || { name: 'Guest', role: 'guest' };
   const role = user.role || state.currentUserRole || 'guest';
 
-  let dashboardSubtitle = 'Internal Marketing Workforce Tasks & Execution';
-  let badgeLabel = state.tasks.length + ' Tasks in Factory';
+  let dashboardSubtitle = 'Internal Operations Workforce Tasks & Execution';
+  let badgeLabel = state.tasks.length + ' Tasks in Workspace';
 
   if (role === 'super_admin' || role === 'admin') {
     dashboardSubtitle = 'Executive Oversight & Cross-Pipeline Task Telemetry';
@@ -6231,25 +6245,124 @@ function closeTaskModal() {
   if (modal) modal.classList.add('hidden');
 }
 
+function populateModalProjects() {
+  const projSelect = document.getElementById('modalTaskProject');
+  if (!projSelect) return;
+  const projects = state.projects || [];
+  if (projects.length === 0) {
+    projSelect.innerHTML = '<option value="">(Default Department Project)</option>';
+    return;
+  }
+  projSelect.innerHTML = projects.map(p =>
+    `<option value="${p.id}" ${p.id === state.selectedProjectId ? 'selected' : ''}>${escapeHtml(p.name)} [${escapeHtml(p.department || 'general')}]</option>`
+  ).join('');
+}
+
+function openCreateTaskModal(dept) {
+  const modal = document.getElementById('taskModal');
+  if (!modal) return;
+  populateModalProjects();
+  const deptSelect = document.getElementById('modalTaskDepartment');
+  if (deptSelect) {
+    if (dept) {
+      deptSelect.value = dept;
+    } else {
+      deptSelect.value = state.mainView === 'research' ? 'research' : (state.mainView === 'sales' ? 'sales' : 'creative');
+    }
+  }
+  const pipeSelect = document.getElementById('modalTaskPipeline');
+  if (pipeSelect) {
+    const curDept = deptSelect?.value || dept || 'creative';
+    if (curDept === 'research') pipeSelect.value = 'market-intel';
+    else if (curDept === 'sales') pipeSelect.value = 'email-campaign';
+    else pipeSelect.value = 'landing-page';
+  }
+  modal.classList.remove('hidden');
+}
+
+function onModalDepartmentChange() {
+  const deptSelect = document.getElementById('modalTaskDepartment');
+  const pipeSelect = document.getElementById('modalTaskPipeline');
+  if (!deptSelect || !pipeSelect) return;
+  const dept = deptSelect.value;
+  if (dept === 'research') pipeSelect.value = 'market-intel';
+  else if (dept === 'sales') pipeSelect.value = 'email-campaign';
+  else pipeSelect.value = 'landing-page';
+}
+
 async function submitModalTask() {
-  const projectId = document.getElementById('modalTaskProject')?.value || state.selectedProjectId;
-  const pipeline = document.getElementById('modalTaskPipeline')?.value || 'email-campaign';
+  let projectId = document.getElementById('modalTaskProject')?.value || state.selectedProjectId;
+  const pipeline = document.getElementById('modalTaskPipeline')?.value || 'content-seo';
   const title = (document.getElementById('modalTaskTitle')?.value || '').trim();
   const description = (document.getElementById('modalTaskBrief')?.value || '').trim();
+  const department = document.getElementById('modalTaskDepartment')?.value || (
+    state.mainView === 'research' ? 'research' : (state.mainView === 'sales' ? 'sales' : 'creative')
+  );
+
+  if (!title) return showToast('Please enter a Task Title.');
+
+  if (!projectId) {
+    try {
+      const pRes = await apiFetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: `${department.charAt(0).toUpperCase() + department.slice(1)} Operations`,
+          client_name: 'Agency Client',
+          goal: `Default project workspace for ${department} department tasks`,
+          department: department,
+          type: pipeline
+        })
+      });
+      if (pRes.ok) {
+        const pData = await pRes.json();
+        projectId = pData.id;
+        const newProj = {
+          id: pData.id,
+          name: pData.name,
+          client: 'Agency Client',
+          department: department,
+          goal: `Default project workspace for ${department} department tasks`,
+          pipeline,
+          stage: 'Draft',
+          progress: 0
+        };
+        if (!Array.isArray(state.projects)) state.projects = [];
+        state.projects.unshift(newProj);
+        state.selectedProjectId = projectId;
+      }
+    } catch (_) {}
+  }
 
   if (!projectId) return showToast('Please select or create a project first.');
-  if (!title) return showToast('Please enter a Task Title.');
 
   try {
     const createRes = await apiFetch(`/api/projects/${projectId}/tasks`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, pipeline, description, priority: 'high' })
+      body: JSON.stringify({ title, pipeline, description, department, priority: 'high' })
     });
     const createData = await createRes.json().catch(() => ({}));
     if (!createRes.ok) {
       return showToast('Task creation failed: ' + (createData.error || `HTTP ${createRes.status}`));
     }
+
+    if (!Array.isArray(state.tasks)) state.tasks = [];
+    const newTask = {
+      id: createData.id,
+      project_id: projectId,
+      title,
+      pipeline,
+      department: createData.department || department,
+      description,
+      status: 'draft',
+      priority: 'high',
+      created_at: new Date().toISOString()
+    };
+    state.tasks.unshift(newTask);
+    saveState();
+    renderAll();
+    updateLiveNavBadges();
 
     closeTaskModal();
     showToast(`Launching "${title}"...`);
@@ -6262,17 +6375,372 @@ async function submitModalTask() {
       const errData = await runRes.json().catch(() => ({}));
       return showToast('Task execution failed: ' + (errData.error || `HTTP ${runRes.status}`));
     }
+    const runData = await runRes.json();
+    if (runData.task) {
+      const idx = state.tasks.findIndex(t => t.id === createData.id);
+      if (idx !== -1) {
+        state.tasks[idx] = runData.task;
+      }
+      const proj = state.projects.find(p => p.id === projectId);
+      if (proj) {
+        proj.activeTask = runData.task;
+        proj.stage = runData.task.status === 'delivered' ? 'Delivered' : 'In Review';
+        proj.progress = runData.task.status === 'delivered' ? 100 : 90;
+      }
+    }
 
-    state.selectedProjectId = projectId;
-    state.selectedPipeline = pipeline;
-    state.mainView = 'workbench';
-    await syncFromBackend();
     saveState();
     renderAll();
+    renderWorkbenchOutput();
     showToast(`Task "${title}" completed and staged in review!`);
   } catch (err) {
     showToast('Task error: ' + err.message);
   }
+}
+
+async function executeSalesEmailCampaign() {
+  if (state.executing) return;
+  let proj = (state.projects || []).find(p => p.department === 'sales') || getSelectedProject() || (state.projects && state.projects[0]);
+  if (!proj) {
+    try {
+      const pRes = await apiFetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'Sales Campaign Outreach',
+          client_name: 'Apex Dental Care',
+          goal: 'Automated email sequence outreach for qualified dental leads',
+          department: 'sales',
+          type: 'email-campaign'
+        })
+      });
+      if (pRes.ok) {
+        const pData = await pRes.json();
+        proj = {
+          id: pData.id,
+          name: pData.name,
+          client: 'Apex Dental Care',
+          goal: 'Automated email sequence outreach for qualified dental leads',
+          department: 'sales',
+          pipeline: 'email-campaign',
+          stage: 'In Progress',
+          progress: 20
+        };
+        if (!Array.isArray(state.projects)) state.projects = [];
+        state.projects.unshift(proj);
+        state.selectedProjectId = proj.id;
+      }
+    } catch (_) {}
+  }
+  if (!proj) {
+    return showToast('Please create a project first to run the Email Sequence Campaign.');
+  }
+
+  const cmdInput = document.getElementById('salesCommandInput');
+  const promptText = (cmdInput?.value || '').trim() || '/assign Craft dual-branded email sequence with personalized merge fields, compelling value proposition, and instant booking CTA.';
+
+  const pipe = PIPELINE_CATALOG['email-campaign'];
+  state.executing = true;
+  state.selectedPipeline = 'email-campaign';
+  state.selectedProjectId = proj.id;
+
+  const setSalesStep = (pct, step, statusText) => {
+    const statusEl = document.getElementById('salesExecStatusText');
+    const pctEl = document.getElementById('salesExecPct');
+    const barEl = document.getElementById('salesExecBar');
+    const logEl = document.getElementById('salesTelemetryLog');
+    if (statusEl) statusEl.textContent = statusText;
+    if (pctEl) pctEl.textContent = pct + '%';
+    if (barEl) barEl.style.width = pct + '%';
+    if (logEl) logEl.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${statusText}</div>`;
+  };
+
+  setSalesStep(20, 1, `Planning Email Sequence for ${proj.client || proj.name}...`);
+  showToast(`Dispatching Email Sequence Campaign for ${proj.client || proj.name}...`);
+
+  try {
+    const taskRes = await apiFetch(`/api/projects/${proj.id}/tasks`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: `${proj.name} — Email Sequence Campaign`,
+        pipeline: 'email-campaign',
+        department: 'sales',
+        description: promptText,
+        priority: 'urgent'
+      })
+    });
+    if (!taskRes.ok) throw new Error(`Task creation failed: HTTP ${taskRes.status}`);
+    const taskData = await taskRes.json();
+    const taskId = taskData.id;
+
+    setSalesStep(50, 2, 'Generating dual-branded HTML & merge tags...');
+
+    const runRes = await apiFetch(`/api/tasks/${taskId}/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!runRes.ok) {
+      const errBody = await runRes.json().catch(() => ({}));
+      throw new Error(errBody.error || `Execution failed: HTTP ${runRes.status}`);
+    }
+    const runData = await runRes.json();
+    const task = runData.task || {};
+
+    setSalesStep(100, 4, 'Email Sequence Campaign execution complete! Reviewing deliverable.');
+    state.executing = false;
+
+    proj.activeTask = task;
+    proj.deliverable = pipe.name;
+    proj.stage = task.status === 'delivered' ? 'Delivered' : 'In Review';
+    proj.progress = task.status === 'delivered' ? 100 : 90;
+
+    if (!Array.isArray(state.tasks)) state.tasks = [];
+    const existingTaskIdx = state.tasks.findIndex(t => t.id === task.id);
+    if (existingTaskIdx !== -1) {
+      state.tasks[existingTaskIdx] = task;
+    } else {
+      state.tasks.unshift(task);
+    }
+
+    saveState();
+    renderAll();
+    renderWorkbenchOutput();
+    showToast('Email Sequence Campaign complete! Deliverable rendered in Sales & CRM view.');
+  } catch (err) {
+    state.executing = false;
+    setSalesStep(0, 0, `Execution error: ${err.message}`);
+    showToast(`Execution error: ${err.message}`);
+  }
+}
+
+async function updateTaskStatus(taskId, newStatus) {
+  const role = currentUser?.role || state.currentUserRole || 'guest';
+  if (newStatus === 'delivered' && !['super_admin', 'admin', 'manager', 'owner'].includes(role)) {
+    return showToast('RBAC Notice: Only Super Admin, Admin, or Manager can deliver deliverables.');
+  }
+  const task = (state.tasks || []).find(t => t.id === taskId);
+  if (!task) return;
+  const prevStatus = task.status;
+
+  // Optimistic update
+  task.status = newStatus;
+  const proj = state.projects.find(p => p.id === task.project_id);
+  if (proj && proj.activeTask?.id === taskId) {
+    proj.activeTask.status = newStatus;
+    if (newStatus === 'delivered') {
+      proj.stage = 'Delivered';
+      proj.progress = 100;
+    } else if (newStatus === 'in_progress') {
+      proj.stage = 'In Progress';
+    } else if (newStatus === 'in_review') {
+      proj.stage = 'In Review';
+    }
+  }
+  saveState();
+  renderAll();
+  updateLiveNavBadges();
+  showToast(`Task status updated to ${newStatus}`);
+
+  try {
+    const res = await apiFetch(`/api/tasks/${taskId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+    const data = await res.json();
+    if (data.task) {
+      Object.assign(task, data.task);
+      saveState();
+    }
+  } catch (err) {
+    task.status = prevStatus;
+    saveState();
+    renderAll();
+    updateLiveNavBadges();
+    showToast(`Failed to update task: ${err.message}`);
+  }
+}
+
+async function deleteTask(taskId) {
+  const taskIndex = (state.tasks || []).findIndex(t => t.id === taskId);
+  if (taskIndex === -1) return;
+  const removedTask = state.tasks[taskIndex];
+
+  // Optimistic delete
+  state.tasks.splice(taskIndex, 1);
+  const proj = state.projects.find(p => p.id === removedTask.project_id);
+  if (proj && proj.activeTask?.id === taskId) {
+    proj.activeTask = state.tasks.find(t => t.project_id === proj.id) || null;
+  }
+  saveState();
+  renderAll();
+  updateLiveNavBadges();
+  showToast('Task deleted');
+
+  try {
+    const res = await apiFetch(`/api/tasks/${taskId}`, {
+      method: 'DELETE'
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status}`);
+    }
+  } catch (err) {
+    state.tasks.splice(taskIndex, 0, removedTask);
+    saveState();
+    renderAll();
+    updateLiveNavBadges();
+    showToast(`Failed to delete task: ${err.message}`);
+  }
+}
+
+function filterWorkbenchTasks(dept) {
+  state.workbenchTaskFilter = dept || 'all';
+  ['all', 'research', 'sales', 'creative'].forEach(d => {
+    const btn = document.getElementById(`wbTaskTab-${d}`);
+    if (btn) {
+      if (d === state.workbenchTaskFilter) {
+        btn.className = 'px-2.5 py-1 rounded-lg text-[11px] font-bold bg-indigo-600 text-white shadow-xs';
+      } else {
+        btn.className = 'px-2.5 py-1 rounded-lg text-[11px] font-bold text-[var(--text-soft)] hover:text-[var(--text)]';
+      }
+    }
+  });
+  renderWorkbenchTasks();
+}
+
+function renderWorkbenchTasks() {
+  const container = document.getElementById('wbTasksListContainer');
+  const countBadge = document.getElementById('wbTasksCountBadge');
+  if (!container) return;
+
+  const allTasks = state.tasks || [];
+  const filter = state.workbenchTaskFilter || 'all';
+  const filtered = filter === 'all' ? allTasks : allTasks.filter(t => t.department === filter);
+
+  if (countBadge) {
+    countBadge.textContent = String(filtered.length);
+  }
+
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="p-4 text-center rounded-xl border border-dashed border-[var(--border)] text-xs text-[var(--text-soft)]">
+      No tasks found for ${filter.toUpperCase()}. Click "+ New Task" to create and dispatch one.
+    </div>`;
+    return;
+  }
+
+  container.innerHTML = filtered.map(t => {
+    const proj = state.projects.find(p => p.id === t.project_id);
+    const projName = proj ? proj.name : (t.project_name || 'Project');
+    const dept = t.department || 'creative';
+    const deptColors = {
+      research: 'bg-blue-500/15 text-blue-500 border-blue-500/30',
+      sales: 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30',
+      creative: 'bg-purple-500/15 text-purple-400 border-purple-500/30'
+    };
+    const statusBadges = {
+      draft: '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-500/15 text-slate-400 border border-slate-500/30">Draft</span>',
+      queued: '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30">Queued</span>',
+      running: '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">Running</span>',
+      in_progress: '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-500 border border-blue-500/30">In Progress</span>',
+      in_review: '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/15 text-purple-400 border border-purple-500/30">In Review</span>',
+      delivered: '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">Delivered</span>',
+      needs_fix: '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30">Needs Fix</span>',
+      needs_attention: '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30">Needs Attention</span>'
+    };
+    const stBadge = statusBadges[t.status] || statusBadges.draft;
+
+    return `
+      <div class="card-subtle p-3 rounded-xl border border-[var(--border)] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div class="min-w-0 flex-1 space-y-1">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase border ${deptColors[dept] || deptColors.creative}">${dept}</span>
+            <span class="text-xs font-bold text-[var(--text)] truncate">${escapeHtml(t.title)}</span>
+            ${stBadge}
+          </div>
+          <div class="flex flex-wrap items-center gap-2 text-[11px] text-[var(--text-soft)]">
+            <span>Project: <strong>${escapeHtml(projName)}</strong></span>
+            <span>&bull;</span>
+            <span class="mono">Pipeline: ${escapeHtml(t.pipeline || 'general')}</span>
+            <span>&bull;</span>
+            <span class="capitalize">Priority: ${escapeHtml(t.priority || 'medium')}</span>
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-1.5 shrink-0">
+          ${t.status !== 'queued' ? `<button type="button" onclick="updateTaskStatus('${t.id}', 'queued')" class="btn-outline px-2 py-1 text-[10px] font-semibold">Queued</button>` : ''}
+          ${t.status !== 'in_progress' ? `<button type="button" onclick="updateTaskStatus('${t.id}', 'in_progress')" class="btn-outline px-2 py-1 text-[10px] font-semibold text-blue-500 border-blue-500/30 hover:bg-blue-500/10">In Progress</button>` : ''}
+          ${t.status !== 'in_review' ? `<button type="button" onclick="updateTaskStatus('${t.id}', 'in_review')" class="btn-outline px-2 py-1 text-[10px] font-semibold text-purple-500 border-purple-500/30 hover:bg-purple-500/10">In Review</button>` : ''}
+          ${t.status !== 'delivered' ? `<button type="button" onclick="updateTaskStatus('${t.id}', 'delivered')" class="btn-outline px-2 py-1 text-[10px] font-semibold text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/10">Delivered</button>` : ''}
+          <button type="button" onclick="deleteTask('${t.id}')" class="px-2 py-1 rounded-md text-[10px] font-semibold text-rose-500 border border-rose-500/30 hover:bg-rose-500/10 transition" title="Delete Task">Delete</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderDepartmentProjectsAndTasks(dept) {
+  const container = document.getElementById(`${dept}ProjectsTasksContainer`);
+  const countBadge = document.getElementById(`${dept}TasksCountBadge`);
+  if (!container) return;
+
+  const tasks = (state.tasks || []).filter(t => t.department === dept);
+  if (countBadge) {
+    countBadge.textContent = String(tasks.length);
+  }
+
+  if (tasks.length === 0) {
+    container.innerHTML = `<div class="p-4 text-center rounded-xl border border-dashed border-[var(--border)] text-xs text-[var(--text-soft)]">
+      No ${dept} tasks created yet. Click "+ New ${dept.charAt(0).toUpperCase() + dept.slice(1)} Task" above to dispatch a task.
+    </div>`;
+    return;
+  }
+
+  const statusBadges = {
+    draft: '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-500/15 text-slate-400 border border-slate-500/30">Draft</span>',
+    queued: '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30">Queued</span>',
+    running: '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">Running</span>',
+    in_progress: '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-500 border border-blue-500/30">In Progress</span>',
+    in_review: '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-500/15 text-purple-400 border border-purple-500/30">In Review</span>',
+    delivered: '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">Delivered</span>',
+    needs_fix: '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30">Needs Fix</span>',
+    needs_attention: '<span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30">Needs Attention</span>'
+  };
+
+  container.innerHTML = tasks.map(t => {
+    const proj = state.projects.find(p => p.id === t.project_id);
+    const projName = proj ? proj.name : (t.project_name || 'Project');
+    const stBadge = statusBadges[t.status] || statusBadges.draft;
+
+    return `
+      <div class="card-subtle p-3.5 rounded-xl border border-[var(--border)] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="min-w-0 flex-1 space-y-1">
+          <div class="flex flex-wrap items-center gap-2">
+            <h4 class="text-xs font-bold text-[var(--text)]">${escapeHtml(t.title)}</h4>
+            ${stBadge}
+            <span class="text-[10px] mono px-2 py-0.5 rounded bg-[var(--surface-2)] border border-[var(--border)]">${escapeHtml(t.pipeline || 'general')}</span>
+          </div>
+          <div class="flex flex-wrap items-center gap-2 text-[11px] text-[var(--text-soft)]">
+            <span>Project: <strong>${escapeHtml(projName)}</strong></span>
+            <span>&bull;</span>
+            <span class="capitalize">Priority: ${escapeHtml(t.priority || 'medium')}</span>
+            ${t.created_at ? `<span>&bull;</span><span>${new Date(t.created_at).toLocaleDateString()}</span>` : ''}
+          </div>
+        </div>
+        <div class="flex flex-wrap items-center gap-1.5 shrink-0">
+          ${t.status !== 'queued' ? `<button type="button" onclick="updateTaskStatus('${t.id}', 'queued')" class="btn-outline px-2 py-1 text-[10px] font-semibold">Queued</button>` : ''}
+          ${t.status !== 'in_progress' ? `<button type="button" onclick="updateTaskStatus('${t.id}', 'in_progress')" class="btn-outline px-2 py-1 text-[10px] font-semibold text-blue-500 border-blue-500/30 hover:bg-blue-500/10">In Progress</button>` : ''}
+          ${t.status !== 'in_review' ? `<button type="button" onclick="updateTaskStatus('${t.id}', 'in_review')" class="btn-outline px-2 py-1 text-[10px] font-semibold text-purple-500 border-purple-500/30 hover:bg-purple-500/10">In Review</button>` : ''}
+          ${t.status !== 'delivered' ? `<button type="button" onclick="updateTaskStatus('${t.id}', 'delivered')" class="btn-outline px-2 py-1 text-[10px] font-semibold text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/10">Delivered</button>` : ''}
+          <button type="button" onclick="deleteTask('${t.id}')" class="px-2 py-1 rounded-md text-[10px] font-semibold text-rose-500 border border-rose-500/30 hover:bg-rose-500/10 transition" title="Delete Task">Delete</button>
+        </div>
+      </div>
+    `;
+  }).join('');
 }
 
 function getAgentBlueprintContent(agent, tab) {
@@ -6420,6 +6888,11 @@ function renderAll() {
   renderAgentsDirectory();
   renderRagView();
   renderAdminSettingsView();
+  renderDepartmentProjectsAndTasks('research');
+  renderDepartmentProjectsAndTasks('sales');
+  renderDepartmentProjectsAndTasks('creative');
+  renderWorkbenchTasks();
+  renderWorkbenchOutput();
   setupDragAndDrop();
   updateLiveNavBadges();
 }
@@ -6464,3 +6937,11 @@ window.approveAndDeliverCurrent = approveAndDeliverCurrent;
 window.signOffCurrent = signOffCurrent;
 window.requestFixOnCurrent = requestFixOnCurrent;
 window.updateTaskStatusOptimistic = updateTaskStatusOptimistic;
+window.openCreateTaskModal = openCreateTaskModal;
+window.onModalDepartmentChange = onModalDepartmentChange;
+window.executeSalesEmailCampaign = executeSalesEmailCampaign;
+window.updateTaskStatus = updateTaskStatus;
+window.deleteTask = deleteTask;
+window.filterWorkbenchTasks = filterWorkbenchTasks;
+window.renderWorkbenchTasks = renderWorkbenchTasks;
+window.renderDepartmentProjectsAndTasks = renderDepartmentProjectsAndTasks;

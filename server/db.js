@@ -52,6 +52,7 @@ try {
     status TEXT DEFAULT 'draft' CHECK(status IN ('draft','in_progress','in_review','delivered','archived')),
     owner_id TEXT,
     progress INTEGER DEFAULT 0 CHECK(progress BETWEEN 0 AND 100),
+    department TEXT DEFAULT 'creative',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(owner_id) REFERENCES users(id) ON DELETE SET NULL
   );
@@ -75,7 +76,7 @@ try {
     title TEXT NOT NULL,
     pipeline TEXT NOT NULL,
     description TEXT,
-    status TEXT DEFAULT 'draft' CHECK(status IN ('draft','queued','running','in_review','needs_fix','needs_attention','delivered')),
+    status TEXT DEFAULT 'draft' CHECK(status IN ('draft','queued','running','in_progress','in_review','needs_fix','needs_attention','delivered')),
     assignee_id TEXT,
     created_by TEXT,
     priority TEXT DEFAULT 'medium' CHECK(priority IN ('low','medium','high','urgent')),
@@ -673,6 +674,9 @@ try {
     if (!pragmaProjects.some(c => c.name === 'updated_at')) {
       db.prepare("ALTER TABLE projects ADD COLUMN updated_at DATETIME DEFAULT NULL").run();
     }
+    if (!pragmaProjects.some(c => c.name === 'department')) {
+      db.prepare("ALTER TABLE projects ADD COLUMN department TEXT DEFAULT 'creative'").run();
+    }
 
     const pragmaTasks = db.prepare("PRAGMA table_info(tasks)").all();
     if (!pragmaTasks.some(c => c.name === 'department')) {
@@ -707,12 +711,18 @@ try {
       } catch (_) {}
     }
 
-    // Verify tasks table supports 'needs_attention'
+    // Verify tasks table supports 'in_progress' and 'needs_attention'
     const tableInfo = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='tasks'").get();
-    if (tableInfo && tableInfo.sql && !tableInfo.sql.includes('needs_attention')) {
+    if (tableInfo && tableInfo.sql && (!tableInfo.sql.includes("'in_progress'") || !tableInfo.sql.includes('needs_attention'))) {
       db.pragma('foreign_keys = OFF');
       db.transaction(() => {
-        const newSql = tableInfo.sql.replace("'needs_fix'", "'needs_fix','needs_attention'");
+        let newSql = tableInfo.sql;
+        if (!newSql.includes("'in_progress'")) {
+          newSql = newSql.replace("'running'", "'running','in_progress'");
+        }
+        if (!newSql.includes('needs_attention')) {
+          newSql = newSql.replace("'needs_fix'", "'needs_fix','needs_attention'");
+        }
         db.prepare("CREATE TABLE tasks_migrated " + newSql.slice(newSql.indexOf('('))).run();
         db.prepare("INSERT INTO tasks_migrated SELECT * FROM tasks").run();
         db.prepare("DROP TABLE tasks").run();
@@ -720,6 +730,11 @@ try {
       })();
       db.pragma('foreign_keys = ON');
     }
+
+    // Add index for department task queries
+    try {
+      db.prepare("CREATE INDEX IF NOT EXISTS idx_tasks_dept ON tasks(department, project_id)").run();
+    } catch (_) {}
 
     // Initialize Admin LLM configurations and routing rules
     const { initLLMDatabase } = require('./llmConfig');
