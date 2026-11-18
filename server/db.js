@@ -535,6 +535,31 @@ try {
     FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
   );
   CREATE INDEX IF NOT EXISTS idx_approvals_status ON approvals(status, department);
+
+  -- 31. Agent Runs (Observable Execution Ledger for the 3 Core Agents)
+  CREATE TABLE IF NOT EXISTS agent_runs (
+    id TEXT PRIMARY KEY,
+    task_id TEXT,
+    project_id TEXT,
+    agent_id TEXT NOT NULL,
+    agent_name TEXT NOT NULL,
+    department TEXT NOT NULL CHECK(department IN ('research','sales','creative')),
+    skill_slug TEXT NOT NULL,
+    provider TEXT,
+    model TEXT,
+    status TEXT NOT NULL CHECK(status IN ('running','succeeded','failed')),
+    data_source TEXT NOT NULL CHECK(data_source IN ('live_llm','simulated_fallback')),
+    attempt_count INTEGER DEFAULT 1,
+    duration_ms INTEGER DEFAULT 0,
+    error_message TEXT,
+    metadata_json TEXT DEFAULT '{}',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    completed_at DATETIME,
+    FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE SET NULL,
+    FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_agent_runs_task ON agent_runs(task_id, created_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_agent_runs_agent ON agent_runs(agent_id, status, created_at DESC);
   `);
 
   // Safe runtime migrations for customizable guidelines and multi-format files

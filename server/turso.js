@@ -55,7 +55,8 @@ const SYNC_TABLES = [
   'llm_execution_logs',
   'llm_cost_quotas',
   'webhook_retries',
-  'approvals'
+  'approvals',
+  'agent_runs'
 ];
 
 const CRITICAL_TABLES = new Set([

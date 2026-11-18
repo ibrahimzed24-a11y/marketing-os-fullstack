@@ -2042,6 +2042,22 @@ app.post('/api/handoff/sales-to-creative', authMiddleware, requireRole('owner', 
   });
 }));
 
+// 8. Agent Execution Ledger (Phase 1 Observability)
+app.get('/api/agent-runs', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager', 'member'), asyncHandler(async (req, res) => {
+  const { agent_id, department, status, task_id, limit = 50 } = req.query;
+  let sql = 'SELECT * FROM agent_runs WHERE 1=1';
+  const params = [];
+  if (agent_id) { sql += ' AND agent_id = ?'; params.push(agent_id); }
+  if (department) { sql += ' AND department = ?'; params.push(department); }
+  if (status) { sql += ' AND status = ?'; params.push(status); }
+  if (task_id) { sql += ' AND task_id = ?'; params.push(task_id); }
+  sql += ' ORDER BY created_at DESC LIMIT ?';
+  params.push(Math.min(Math.max(parseInt(limit, 10) || 50, 1), 200));
+
+  const runs = db.prepare(sql).all(...params);
+  res.json({ ok: true, runs, total: runs.length });
+}));
+
 // SPA Fallback
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, '../public/index.html')));
 
