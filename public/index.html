@@ -601,7 +601,13 @@
               Powered by Sales Agent (Agent 02). Converts verified research leads into qualified opportunities, prepares outreach drafts, and tracks deals.
             </p>
           </div>
-          <div class="flex items-center gap-2">
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="openLeadLogosModal()" class="btn-outline text-xs px-3 py-1.5 font-bold flex items-center gap-1.5 border-teal-500/40 text-teal-600 dark:text-teal-300 hover:bg-teal-500/10">
+              <span>🖼️</span> <span>Lead Logos</span>
+            </button>
+            <button onclick="openBrandKitModal()" class="btn-outline text-xs px-3 py-1.5 font-bold flex items-center gap-1.5">
+              <span>🎨</span> <span>Client Brand Kit</span>
+            </button>
             <button onclick="handoffSalesToCreative()" class="btn-outline text-xs px-3 py-1.5 font-bold flex items-center gap-1.5 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/10 transition">
               <span>🚀</span> <span>Onboard Deal to Creative Studio</span>
             </button>
@@ -610,6 +616,36 @@
             </button>
           </div>
         </div>
+      </section>
+
+      <!-- Bulk CSV / XLSX Leads Import & Dual-Branded Outreach Staging -->
+      <section class="card-surface p-4 rounded-2xl border border-[var(--border)] space-y-3">
+        <div class="flex flex-col lg:flex-row lg:items-end justify-between gap-3">
+          <div class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label for="crmBulkProjectSelect" class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Target Project</label>
+              <select id="crmBulkProjectSelect" onchange="onCrmProjectFilterChange()" class="input-field text-xs py-1.5 px-2.5 w-full">
+                <option value="">All Projects</option>
+              </select>
+            </div>
+            <div>
+              <label for="crmBulkCsvFile" class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Bulk Leads File (.CSV or .XLSX)</label>
+              <input id="crmBulkCsvFile" type="file" accept=".csv,.xlsx,.xls,text/csv" class="input-field text-xs py-1 px-2 w-full" />
+            </div>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="importBulkLeadsCsv()" class="btn-primary text-xs px-3.5 py-2 font-bold flex items-center gap-1.5">
+              <span>📥</span> <span>Import Bulk Leads</span>
+            </button>
+            <button onclick="autoFetchProjectLeadLogos()" class="btn-outline text-xs px-3 py-2 font-bold flex items-center gap-1.5 border-teal-500/40 text-teal-600 dark:text-teal-300 hover:bg-teal-500/10" title="Fetch real logos from each lead's website URL">
+              <span>🌐</span> <span>Fetch Lead Logos</span>
+            </button>
+            <button onclick="queueCrmEmailApproval()" class="btn-outline text-xs px-3.5 py-2 font-bold flex items-center gap-1.5 border-indigo-500/40 text-indigo-500 hover:bg-indigo-500/10">
+              <span>📧</span> <span>Stage Dual-Branded Email for Approval</span>
+            </button>
+          </div>
+        </div>
+        <div id="crmBulkImportStatus" class="hidden text-xs px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-300"></div>
       </section>
 
       <!-- Deal Stages Pipeline Ribbon -->
@@ -647,12 +683,119 @@
         </section>
         <section class="card-surface p-5 rounded-2xl border border-[var(--border)] space-y-3">
           <div class="flex items-center justify-between">
-            <h2 class="text-sm font-extrabold">CRM Leads Pipeline</h2>
+            <h2 class="text-sm font-extrabold">CRM Leads Pipeline <span id="salesLeadsCountBadge" class="ml-1.5 text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-400 font-bold">0</span></h2>
             <span class="text-[11px] text-[var(--text-faint)]">Live SQLite/Turso Records</span>
           </div>
-          <div id="salesLeadsContainer" class="space-y-2 text-xs text-[var(--text-soft)]">Loading CRM leads...</div>
+          <div id="salesLeadsContainer" class="space-y-2 text-xs text-[var(--text-soft)] max-h-[420px] overflow-y-auto pr-1">Loading CRM leads...</div>
         </section>
       </div>
+
+      <!-- Smart Calendar & Timezone-Aware Email Campaign Auto-Scheduler -->
+      <section class="card-surface p-5 rounded-2xl border border-[var(--border)] space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-sm font-extrabold">📅 Smart Email Campaign Calendar &amp; Auto-Scheduler</h2>
+              <span id="emailSchedulerEngineBadge" class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/15 text-emerald-500 border border-emerald-500/30">Auto-Send Ready</span>
+            </div>
+            <p class="text-[11px] text-[var(--text-soft)] mt-0.5">Schedule dual-branded email campaigns by date, time, and timezone. Auto-sends approved campaigns on time using your configured Email Delivery provider.</p>
+          </div>
+          <button onclick="fetchEmailSchedules()" class="btn-outline text-[11px] px-2.5 py-1 self-start sm:self-auto">↻ Refresh Schedule</button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          <!-- Interactive Monthly Smart Calendar -->
+          <div class="lg:col-span-5 card-subtle p-4 rounded-2xl border border-[var(--border)] space-y-3">
+            <div class="flex items-center justify-between">
+              <button type="button" onclick="shiftSchedulerCalendarMonth(-1)" class="btn-outline px-2.5 py-1 text-xs font-bold">‹</button>
+              <div id="schedCalMonthTitle" class="text-xs font-extrabold tracking-tight">Calendar</div>
+              <div class="flex items-center gap-1">
+                <button type="button" onclick="resetSchedulerCalendarToday()" class="btn-outline px-2 py-1 text-[10px] font-bold">Today</button>
+                <button type="button" onclick="shiftSchedulerCalendarMonth(1)" class="btn-outline px-2.5 py-1 text-xs font-bold">›</button>
+              </div>
+            </div>
+            <div class="grid grid-cols-7 gap-1 text-center text-[10px] font-bold uppercase text-[var(--text-soft)]">
+              <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+            </div>
+            <div id="schedCalGrid" class="grid grid-cols-7 gap-1 text-xs"></div>
+            <div class="pt-2 border-t border-[var(--border)] flex flex-wrap items-center gap-1.5">
+              <span class="text-[10px] font-bold text-[var(--text-soft)] uppercase mr-1">Smart Presets:</span>
+              <button type="button" onclick="applySchedulePreset('in_5_min')" class="btn-outline px-2 py-0.5 text-[10px] font-semibold">In 5 min</button>
+              <button type="button" onclick="applySchedulePreset('tomorrow_9am')" class="btn-outline px-2 py-0.5 text-[10px] font-semibold">Tomorrow 9:00 AM</button>
+              <button type="button" onclick="applySchedulePreset('next_tue_10am')" class="btn-outline px-2 py-0.5 text-[10px] font-semibold">Next Tue 10:00 AM</button>
+            </div>
+          </div>
+
+          <!-- Schedule Composer & Timezone Picker -->
+          <div class="lg:col-span-7 space-y-3 text-xs">
+            <div class="card-subtle p-4 rounded-2xl border border-[var(--border)] space-y-3">
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label for="schedCampaignName" class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Campaign Name</label>
+                  <input id="schedCampaignName" type="text" placeholder="e.g. Canada Dental Wave 1" class="input-field text-xs py-1.5 px-2.5 w-full" />
+                </div>
+                <div>
+                  <label for="schedApprovalSelect" class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Linked Gate G2 Approval</label>
+                  <select id="schedApprovalSelect" class="input-field text-xs py-1.5 px-2.5 w-full">
+                    <option value="">Auto-create pending Approval (approve before send)</option>
+                  </select>
+                </div>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label for="schedSubject" class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Email Subject ([Clinic Name], [City])</label>
+                  <input id="schedSubject" type="text" placeholder="Dental Growth Opportunity for [Clinic Name]" class="input-field text-xs py-1.5 px-2.5 w-full" />
+                </div>
+                <div>
+                  <label for="schedFromEmail" class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">From Email (Optional Override)</label>
+                  <input id="schedFromEmail" type="email" placeholder="Uses Settings default if blank" class="input-field text-xs py-1.5 px-2.5 w-full" />
+                </div>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label for="schedDateInput" class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Send Date</label>
+                  <input id="schedDateInput" type="date" onchange="syncCalendarSelectionFromInput()" class="input-field text-xs py-1.5 px-2.5 w-full" />
+                </div>
+                <div>
+                  <label for="schedTimeInput" class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Send Time</label>
+                  <input id="schedTimeInput" type="time" value="09:00" class="input-field text-xs py-1.5 px-2.5 w-full" />
+                </div>
+                <div>
+                  <label for="schedTimezoneSelect" class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Time Zone</label>
+                  <select id="schedTimezoneSelect" class="input-field text-xs py-1.5 px-2.5 w-full">
+                    <option value="America/Toronto">America/Toronto (ET - Canada)</option>
+                    <option value="America/Vancouver">America/Vancouver (PT - Canada)</option>
+                    <option value="America/Edmonton">America/Edmonton (MT - Canada)</option>
+                    <option value="America/Winnipeg">America/Winnipeg (CT - Canada)</option>
+                    <option value="America/Halifax">America/Halifax (AT - Canada)</option>
+                    <option value="America/New_York">America/New_York (US Eastern)</option>
+                    <option value="America/Chicago">America/Chicago (US Central)</option>
+                    <option value="America/Los_Angeles">America/Los_Angeles (US Pacific)</option>
+                    <option value="Europe/London">Europe/London (UK)</option>
+                    <option value="Europe/Paris">Europe/Paris (CET)</option>
+                    <option value="Africa/Cairo">Africa/Cairo (EET)</option>
+                    <option value="Asia/Riyadh">Asia/Riyadh (AST)</option>
+                    <option value="Asia/Dubai">Asia/Dubai (GST)</option>
+                    <option value="UTC">UTC</option>
+                  </select>
+                </div>
+              </div>
+              <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+                <span class="text-[11px] text-[var(--text-soft)]">Uses active Target Project selected above &bull; Dual-branded logos applied automatically.</span>
+                <button type="button" onclick="createScheduledEmailCampaign()" class="btn-primary px-4 py-2 text-xs font-bold">📅 Schedule Auto-Send</button>
+              </div>
+            </div>
+
+            <!-- Scheduled Campaigns Queue -->
+            <div class="space-y-2">
+              <div class="text-[11px] font-extrabold uppercase tracking-wide text-[var(--text-soft)]">Scheduled Email Campaigns Queue</div>
+              <div id="scheduledCampaignsList" class="space-y-2 max-h-56 overflow-y-auto pr-1">
+                <div class="p-3 text-center rounded-xl border border-dashed border-[var(--border)] text-[var(--text-soft)]">No scheduled email campaigns yet.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
 
     <!-- ===================================================================== -->
@@ -1079,56 +1222,171 @@
     <!-- ===================================================================== -->
     <div id="view-rag" class="hidden space-y-5">
       <div class="card-surface p-5 space-y-5">
+        <!-- Top Header & Scoped Project Selector -->
         <div class="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] pb-4">
           <div>
-            <div class="flex items-center gap-2">
-              <span class="text-[11px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 mono">CAMPAIGN KNOWLEDGE BASE & RESEARCH ARCHIVE</span>
-              <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-semibold mono">Semantic Asset Search • Grounded Brand Data</span>
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 mono">PROJECT KNOWLEDGE BASE &amp; RESEARCH HUB</span>
+              <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-semibold mono">Single Source of Truth &bull; Grounded Real Data</span>
             </div>
-            <h2 class="text-base sm:text-lg font-extrabold mt-1">Marketing Knowledge Base & Research Hub</h2>
-            <p class="text-xs text-[var(--text-soft)]">Search project briefs, customer personas, competitor audits, and brand guidelines to inform every marketing campaign.</p>
+            <h2 class="text-base sm:text-lg font-extrabold mt-1">Marketing Knowledge Base &amp; Research Hub</h2>
+            <p class="text-xs text-[var(--text-soft)]">Market research, competitor gap audits, brand guidelines, customer profiles, and offer frameworks partitioned per project to power all personalized outreach campaigns.</p>
           </div>
-          <div class="flex items-center gap-2">
-            <select id="ragProjectSelect" onchange="selectProjectFromRag(this.value)" class="input-field !w-auto font-semibold text-xs"></select>
-            <button onclick="copyAntigravityRagPrompt()" class="btn-primary px-4 py-2 text-xs">📋 Copy Campaign Context</button>
+          <div class="flex items-center gap-2 flex-wrap">
+            <select id="ragProjectSelect" onchange="selectProjectFromRag(this.value)" class="input-field !w-auto font-semibold text-xs" aria-label="Select Project"></select>
+            <button onclick="openKnowledgeUploadModal()" class="btn-primary px-3 py-1.5 text-xs font-bold inline-flex items-center gap-1.5">
+              <span>📁 Upload Research / Doc</span>
+            </button>
+            <button onclick="triggerBulkProposalGeneration()" class="btn-ink px-3 py-1.5 text-xs font-bold inline-flex items-center gap-1.5" title="Generate grounded customized proposals for all project leads">
+              <span>⚡ Generate Lead Proposals</span>
+            </button>
+            <button onclick="copyAntigravityRagPrompt()" class="btn-outline px-3 py-1.5 text-xs">📋 Copy Campaign Context</button>
           </div>
         </div>
 
-        <!-- 3-Column RAG Grid -->
-        <div class="grid lg:grid-cols-3 gap-4">
-          <!-- Col 1: Semantic Vector Search -->
-          <div class="card-subtle p-4 space-y-3 lg:col-span-2">
+        <!-- Metric Stat Cards (5 Core Pillars & Proposals) -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div onclick="filterKnowledgeTab('market_research')" class="card-subtle p-3 rounded-xl border border-[var(--border)] cursor-pointer hover:border-indigo-500 transition text-center sm:text-left">
+            <div class="text-[10px] font-bold text-[var(--text-soft)] uppercase tracking-wider">📊 Market Research</div>
+            <div id="statMarketResearch" class="text-lg font-black mt-1 text-indigo-600 dark:text-indigo-400">0 docs</div>
+            <div class="text-[10px] text-[var(--text-faint)]">Industry audits &amp; intel</div>
+          </div>
+          <div onclick="filterKnowledgeTab('gaps_opportunities')" class="card-subtle p-3 rounded-xl border border-[var(--border)] cursor-pointer hover:border-indigo-500 transition text-center sm:text-left">
+            <div class="text-[10px] font-bold text-[var(--text-soft)] uppercase tracking-wider">🔍 Gaps &amp; Opportunities</div>
+            <div id="statGaps" class="text-lg font-black mt-1 text-emerald-600 dark:text-emerald-400">0 docs</div>
+            <div class="text-[10px] text-[var(--text-faint)]">Competitor audits &amp; teardowns</div>
+          </div>
+          <div onclick="filterKnowledgeTab('brand_guidelines')" class="card-subtle p-3 rounded-xl border border-[var(--border)] cursor-pointer hover:border-indigo-500 transition text-center sm:text-left">
+            <div class="text-[10px] font-bold text-[var(--text-soft)] uppercase tracking-wider">🎨 Brand Guidelines</div>
+            <div id="statBrand" class="text-lg font-black mt-1 text-teal-600 dark:text-teal-400">0 docs</div>
+            <div class="text-[10px] text-[var(--text-faint)]">Logos, colors &amp; client tone</div>
+          </div>
+          <div onclick="filterKnowledgeTab('customer_profiles')" class="card-subtle p-3 rounded-xl border border-[var(--border)] cursor-pointer hover:border-indigo-500 transition text-center sm:text-left">
+            <div class="text-[10px] font-bold text-[var(--text-soft)] uppercase tracking-wider">👥 Customer Profiles</div>
+            <div id="statProfiles" class="text-lg font-black mt-1 text-amber-600 dark:text-amber-400">0 docs</div>
+            <div class="text-[10px] text-[var(--text-faint)]">ICP personas &amp; pain points</div>
+          </div>
+          <div onclick="filterKnowledgeTab('offer_frameworks')" class="card-subtle p-3 rounded-xl border border-[var(--border)] cursor-pointer hover:border-indigo-500 transition text-center sm:text-left">
+            <div class="text-[10px] font-bold text-[var(--text-soft)] uppercase tracking-wider">💎 Offer Frameworks</div>
+            <div id="statOffers" class="text-lg font-black mt-1 text-purple-600 dark:text-purple-400">0 docs</div>
+            <div class="text-[10px] text-[var(--text-faint)]">Pricing, packages &amp; guarantee</div>
+          </div>
+          <div onclick="switchKnowledgeTab('proposals')" class="card-subtle p-3 rounded-xl border border-[var(--border)] cursor-pointer hover:border-emerald-500 transition text-center sm:text-left bg-emerald-500/5">
+            <div class="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">🎯 Lead Proposals</div>
+            <div id="statProposals" class="text-lg font-black mt-1 text-emerald-700 dark:text-emerald-300">0 / 0</div>
+            <div class="text-[10px] text-[var(--text-faint)]">Single source of truth</div>
+          </div>
+        </div>
+
+        <!-- 3 Knowledge Hub Sub-Navigation Tabs -->
+        <div class="flex items-center gap-2 border-b border-[var(--border)] pb-2 overflow-x-auto">
+          <button id="kbTabBtn-docs" onclick="switchKnowledgeTab('docs')" class="px-3.5 py-1.5 text-xs font-bold rounded-lg bg-indigo-600 text-white shadow-sm">
+            📂 Knowledge Documents &amp; Files (<span id="kbDocsTabCount">0</span>)
+          </button>
+          <button id="kbTabBtn-proposals" onclick="switchKnowledgeTab('proposals')" class="px-3.5 py-1.5 text-xs font-semibold rounded-lg text-[var(--text-soft)] hover:bg-[var(--border)] transition">
+            🎯 Per-Lead Customized Proposals (<span id="kbProposalsTabCount">0</span>)
+          </button>
+          <button id="kbTabBtn-search" onclick="switchKnowledgeTab('search')" class="px-3.5 py-1.5 text-xs font-semibold rounded-lg text-[var(--text-soft)] hover:bg-[var(--border)] transition">
+            🔍 Semantic Knowledge Search
+          </button>
+        </div>
+
+        <!-- TAB 1: Categorized Knowledge Documents -->
+        <div id="kbTabPane-docs" class="space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-1.5 overflow-x-auto" id="kbCategoryFilters">
+              <button onclick="filterKnowledgeCategory('all')" class="kb-cat-pill active px-3 py-1 rounded-full text-[11px] font-bold bg-indigo-600 text-white" data-cat="all">All Documents</button>
+              <button onclick="filterKnowledgeCategory('market_research')" class="kb-cat-pill px-3 py-1 rounded-full text-[11px] font-semibold bg-[var(--border)] text-[var(--text-soft)] hover:text-white" data-cat="market_research">📊 Market Research</button>
+              <button onclick="filterKnowledgeCategory('gaps_opportunities')" class="kb-cat-pill px-3 py-1 rounded-full text-[11px] font-semibold bg-[var(--border)] text-[var(--text-soft)] hover:text-white" data-cat="gaps_opportunities">🔍 Gaps &amp; Opportunities</button>
+              <button onclick="filterKnowledgeCategory('brand_guidelines')" class="kb-cat-pill px-3 py-1 rounded-full text-[11px] font-semibold bg-[var(--border)] text-[var(--text-soft)] hover:text-white" data-cat="brand_guidelines">🎨 Brand Guidelines</button>
+              <button onclick="filterKnowledgeCategory('customer_profiles')" class="kb-cat-pill px-3 py-1 rounded-full text-[11px] font-semibold bg-[var(--border)] text-[var(--text-soft)] hover:text-white" data-cat="customer_profiles">👥 Customer Profiles</button>
+              <button onclick="filterKnowledgeCategory('offer_frameworks')" class="kb-cat-pill px-3 py-1 rounded-full text-[11px] font-semibold bg-[var(--border)] text-[var(--text-soft)] hover:text-white" data-cat="offer_frameworks">💎 Offer Frameworks</button>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="openKnowledgeUploadModal()" class="btn-outline px-3 py-1 text-xs font-semibold">+ Add File or Document</button>
+            </div>
+          </div>
+
+          <div id="kbDocumentsList" class="space-y-2.5">
+            <!-- Dynamically populated document cards -->
+          </div>
+        </div>
+
+        <!-- TAB 2: Per-Lead Customized Proposals (Single Source of Truth) -->
+        <div id="kbTabPane-proposals" class="hidden space-y-4">
+          <div class="p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <div class="font-bold text-xs text-emerald-800 dark:text-emerald-200">💎 The Single Source of Truth for Dual-Branded Email Campaigns</div>
+              <p class="text-[11px] text-[var(--text-soft)] mt-0.5">Every email generated, previewed, or sent dynamically pulls its identified gaps, pitch hook, and offer framework directly from this customized proposal table.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="triggerBulkProposalGeneration()" class="btn-primary text-xs px-3.5 py-1.5 font-bold shadow-sm">⚡ Re-Generate All Proposals</button>
+            </div>
+          </div>
+
+          <!-- Filter & Search Controls -->
+          <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="relative flex-1 w-full sm:max-w-md">
+              <input id="kbProposalSearchInput" oninput="debounceProposalSearch()" class="input-field text-xs pl-3 w-full" placeholder="Search clinic, city, or identified gap..." />
+            </div>
+            <div class="flex items-center gap-2 w-full sm:w-auto">
+              <select id="kbProposalStatusFilter" onchange="renderKnowledgeProposals()" class="input-field !w-auto text-xs">
+                <option value="all">All Proposals</option>
+                <option value="customized">Customized (Admin Edited)</option>
+                <option value="grounded">Grounded (Knowledge Base)</option>
+              </select>
+              <span id="kbProposalCountLabel" class="text-xs mono text-[var(--text-soft)] shrink-0 font-semibold">0 leads</span>
+            </div>
+          </div>
+
+          <!-- Proposals Table -->
+          <div class="card-subtle overflow-x-auto border border-[var(--border)] rounded-xl">
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="border-b border-[var(--border)] bg-[var(--surface)] text-[10px] font-bold uppercase tracking-wider text-[var(--text-soft)]">
+                  <th class="p-3">Clinic &amp; Location</th>
+                  <th class="p-3">Identified Marketing Gap</th>
+                  <th class="p-3">Tailored Angle &amp; Pitch</th>
+                  <th class="p-3">Recommended Offer</th>
+                  <th class="p-3">Status</th>
+                  <th class="p-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="kbProposalsTableBody" class="divide-y divide-[var(--border)]">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB 3: Semantic Knowledge Search -->
+        <div id="kbTabPane-search" class="hidden space-y-4">
+          <div class="card-subtle p-4 space-y-3">
             <div class="flex items-center justify-between">
-              <h3 class="text-xs font-bold">1. Marketing Asset & Research Search</h3>
-              <span id="ragChunkCountBadge" class="text-[11px] mono text-indigo-600 dark:text-indigo-400 font-semibold">0 assets indexed</span>
+              <h3 class="text-xs font-bold">Marketing Asset &amp; Research Semantic Search</h3>
+              <span id="ragChunkCountBadge" class="text-[11px] mono text-indigo-600 dark:text-indigo-400 font-semibold">0 chunks indexed</span>
             </div>
             <div class="flex flex-col sm:flex-row gap-2">
               <input id="ragQueryInput" class="input-field flex-1 text-xs" placeholder="Search marketing research, target audience, or campaign offers..." value="Target market growth opportunities and campaign offer" />
-              <select id="ragTopKSelect" class="input-field !w-28 text-xs mono">
+              <select id="ragCategoryFilterSelect" class="input-field !w-44 text-xs font-semibold">
+                <option value="">All Categories</option>
+                <option value="market_research">Market Research</option>
+                <option value="gaps_opportunities">Gaps &amp; Opportunities</option>
+                <option value="brand_guidelines">Brand Guidelines</option>
+                <option value="customer_profiles">Customer Profiles</option>
+                <option value="offer_frameworks">Offer Frameworks</option>
+              </select>
+              <select id="ragTopKSelect" class="input-field !w-24 text-xs mono">
                 <option value="3">Top-K: 3</option>
                 <option value="5" selected>Top-K: 5</option>
                 <option value="8">Top-K: 8</option>
               </select>
               <button onclick="runRagSemanticSearch()" class="btn-ink px-4 py-2 text-xs shrink-0">🔍 Search Assets</button>
             </div>
-            <div id="ragSearchResultsList" class="space-y-2.5 max-h-[360px] overflow-y-auto pr-1"></div>
-          </div>
-
-          <!-- Col 2: Live Document Chunker -->
-          <div class="card-subtle p-4 space-y-3">
-            <h3 class="text-xs font-bold">2. Add Campaign Document or Market Research</h3>
-            <p class="text-[11px] text-[var(--text-soft)]">Add brand guidelines, customer profiles, offer frameworks, or competitive teardowns.</p>
-            <div>
-              <label class="block text-[11px] font-medium text-[var(--text-soft)] mb-1">Document Title</label>
-              <input id="ragNewDocName" class="input-field text-xs mono" placeholder="e.g. Q4_Campaign_Brief.md" value="Q4_Campaign_Brief.md" />
-            </div>
-            <div>
-              <label class="block text-[11px] font-medium text-[var(--text-soft)] mb-1">Document Content</label>
-              <textarea id="ragNewDocContent" rows="5" class="input-field text-xs mono" placeholder="Paste campaign brief, target audience pain points, brand rules, or pricing guidelines...">Marketing Campaign Brief: High-conversion customer acquisition campaign. Personalized value proposition, transparent pricing, 100% brand asset ownership, zero long-term lock-in.</textarea>
-            </div>
-            <button onclick="ingestNewRagDocument()" class="btn-primary w-full py-2 text-xs">⚡ Save to Campaign Knowledge Base</button>
+            <div id="ragSearchResultsList" class="space-y-2.5 max-h-[420px] overflow-y-auto pr-1"></div>
           </div>
         </div>
+
       </div>
     </div>
 
@@ -1570,6 +1828,301 @@
       </div>
       <div class="flex-1 bg-slate-950 p-2 overflow-hidden">
         <iframe id="previewModalFrame" class="w-full h-full border-0 rounded-xl bg-white" title="Deliverable Preview"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================= -->
+  <!-- MODAL 3B: CLIENT BRAND KIT & GUIDELINES (DUAL-BRANDED EMAILS & AGENTS)  -->
+  <!-- ======================================================================= -->
+  <div id="brandKitModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5">
+    <div class="card-surface w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+      <div class="px-5 py-3.5 border-b border-[var(--border)] flex items-center justify-between">
+        <div>
+          <h3 class="text-sm font-extrabold">🎨 Client Brand Kit &amp; Guidelines</h3>
+          <p class="text-[11px] text-[var(--text-soft)]">Applied automatically to dual-branded emails and fetched by all AI agents.</p>
+        </div>
+        <button onclick="closeBrandKitModal()" class="btn-outline px-2.5 py-1 text-xs font-bold">✕</button>
+      </div>
+      <div class="p-5 overflow-y-auto space-y-4 text-xs">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Project</label>
+            <select id="bkProjectSelect" onchange="loadBrandKitForProject(this.value)" class="input-field text-xs py-1.5 px-2.5 w-full"></select>
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Brand Name (Co-Brand Header)</label>
+            <input id="bkBrandName" type="text" placeholder="e.g. VALIOZ Health" class="input-field text-xs py-1.5 px-2.5 w-full" />
+          </div>
+        </div>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Primary Color</label>
+            <div class="flex items-center gap-2">
+              <input id="bkPrimaryColorPicker" type="color" value="#063f4e" oninput="document.getElementById('bkPrimaryColor').value=this.value" class="w-9 h-8 rounded cursor-pointer border border-[var(--border)]" />
+              <input id="bkPrimaryColor" type="text" value="#063f4e" class="input-field text-xs mono py-1.5 px-2 w-full" />
+            </div>
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Accent Color</label>
+            <div class="flex items-center gap-2">
+              <input id="bkAccentColorPicker" type="color" value="#00a9a4" oninput="document.getElementById('bkAccentColor').value=this.value" class="w-9 h-8 rounded cursor-pointer border border-[var(--border)]" />
+              <input id="bkAccentColor" type="text" value="#00a9a4" class="input-field text-xs mono py-1.5 px-2 w-full" />
+            </div>
+          </div>
+          <div class="col-span-2 sm:col-span-1">
+            <label class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Brand Logo Asset</label>
+            <select id="bkLogoFileSelect" class="input-field text-xs py-1.5 px-2 w-full">
+              <option value="">Auto-detect uploaded logo</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Tagline / Subtitle</label>
+            <input id="bkTagline" type="text" placeholder="e.g. Better Care Deserves To Be Found" class="input-field text-xs py-1.5 px-2.5 w-full" />
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Tone of Voice</label>
+            <input id="bkTone" type="text" placeholder="e.g. Direct, clinical trust, zero hype" class="input-field text-xs py-1.5 px-2.5 w-full" />
+          </div>
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Client Brand Guidelines &amp; Dual-Brand Rules</label>
+          <textarea id="bkGuidelines" rows="4" placeholder="Paste brand messaging rules, approved offers, banned phrases, compliance notes (CASL/HIPAA), and dual-branding instructions..." class="input-field text-xs p-2.5 w-full"></textarea>
+        </div>
+        <div class="card-subtle p-3 rounded-xl border border-[var(--border)] space-y-2">
+          <div class="font-bold text-[11px]">📎 Attach Logo or Brand Guideline Document (PDF / MD / TXT / PNG / HTML)</div>
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <input id="bkAssetFile" type="file" accept=".png,.jpg,.jpeg,.svg,.webp,.pdf,.md,.txt,.html,.csv,.xlsx" class="input-field text-xs py-1 px-2 flex-1" />
+            <button onclick="uploadBrandKitAsset()" class="btn-outline text-xs px-3 py-1.5 font-bold shrink-0">Upload to Project Harness</button>
+          </div>
+          <div id="bkAttachedList" class="text-[11px] text-[var(--text-soft)]"></div>
+        </div>
+      </div>
+      <div class="px-5 py-3 border-t border-[var(--border)] flex items-center justify-end gap-2">
+        <button onclick="closeBrandKitModal()" class="btn-outline px-3.5 py-1.5 text-xs font-semibold">Cancel</button>
+        <button onclick="saveBrandKit()" class="btn-primary px-4 py-1.5 text-xs font-bold">💾 Save Brand Kit &amp; Guidelines</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================= -->
+  <!-- MODAL 3C: ADMIN POST-APPROVAL EMAIL DISPATCH MODAL                      -->
+  <!-- ======================================================================= -->
+  <div id="sendApprovedEmailsModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5">
+    <div class="card-surface w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+      <div class="px-5 py-3.5 border-b border-[var(--border)] flex items-center justify-between">
+        <div>
+          <h3 id="sendEmailModalTitle" class="text-sm font-extrabold">📧 Send Approved Dual-Branded Emails</h3>
+          <p class="text-[11px] text-[var(--text-soft)]">Gate G2 Verified · Dispatches via Admin-configured SMTP, Resend, or Webhook.</p>
+        </div>
+        <button onclick="closeSendApprovedEmailsModal()" class="btn-outline px-2.5 py-1 text-xs font-bold">✕</button>
+      </div>
+      <div class="p-5 overflow-y-auto space-y-4 text-xs">
+        <div id="sendEmailProviderBanner" class="p-3 rounded-xl border text-xs"></div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">From Email</label>
+            <input id="sendEmailFrom" type="email" placeholder="sales@health.valioz.com" class="input-field text-xs py-1.5 px-2.5 w-full" />
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Optional Test Recipient (Sends 1 Test Only)</label>
+            <input id="sendEmailTestRecipient" type="email" placeholder="Leave blank to send to selected leads" class="input-field text-xs py-1.5 px-2.5 w-full" />
+          </div>
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Subject Line (Supports [Clinic Name], [City], [First Name])</label>
+          <input id="sendEmailSubject" type="text" class="input-field text-xs py-1.5 px-2.5 w-full" />
+        </div>
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <label class="text-[10px] font-bold uppercase text-[var(--text-soft)]">Eligible Project Leads (<span id="sendEmailLeadCount">0</span>)</label>
+            <div class="flex items-center gap-2">
+              <button type="button" onclick="selectEmailRecipients('unsent')" class="btn-outline px-2 py-0.5 text-[10px] font-bold">Select Unsent</button>
+              <button type="button" onclick="selectEmailRecipients('none')" class="btn-outline px-2 py-0.5 text-[10px] font-bold">Clear</button>
+            </div>
+          </div>
+          <div id="sendEmailLeadsList" class="max-h-48 overflow-y-auto border border-[var(--border)] rounded-xl divide-y divide-[var(--border)] bg-[var(--bg-soft)]"></div>
+        </div>
+        <div id="sendEmailResultBox" class="hidden p-3 rounded-xl border text-xs space-y-1"></div>
+      </div>
+      <div class="px-5 py-3 border-t border-[var(--border)] flex items-center justify-between gap-2">
+        <button onclick="openSettingsFromEmailModal()" class="btn-outline px-3 py-1.5 text-xs font-semibold">⚙️ Email Provider Settings</button>
+        <div class="flex items-center gap-2">
+          <button onclick="closeSendApprovedEmailsModal()" class="btn-outline px-3.5 py-1.5 text-xs font-semibold">Close</button>
+          <button id="sendEmailsSubmitBtn" onclick="sendApprovedEmailsNow()" class="btn-primary px-4 py-1.5 text-xs font-bold">🚀 Send Emails Now</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================= -->
+  <!-- MODAL 3D: LEAD LOGOS CAMPAIGN ASSETS MANAGER (DUAL-BRANDED LOCKUP)      -->
+  <!-- ======================================================================= -->
+  <div id="leadLogosModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5">
+    <div class="card-surface w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+      <div class="px-5 py-3.5 border-b border-[var(--border)] flex items-center justify-between">
+        <div>
+          <h3 class="text-sm font-extrabold">🖼️ Lead Logos — Dual-Branded Campaign Assets</h3>
+          <p class="text-[11px] text-[var(--text-soft)]">Displayed side-by-side right next to your primary brand logo (e.g. VALIOZ Health &times; Clinic Logo) in previews &amp; sent emails.</p>
+        </div>
+        <button onclick="closeLeadLogosModal()" class="btn-outline px-2.5 py-1 text-xs font-bold">✕</button>
+      </div>
+      <div class="p-5 overflow-y-auto space-y-4 text-xs">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+          <div>
+            <label class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Project</label>
+            <select id="llProjectSelect" onchange="loadLeadLogosForProject(this.value)" class="input-field text-xs py-1.5 px-2.5 w-full"></select>
+          </div>
+          <div id="llPrimaryLogoHint" class="text-[11px] text-[var(--text-soft)] p-2 rounded-xl bg-[var(--bg-soft)] border border-[var(--border)]">
+            Primary logo: auto-detected
+          </div>
+        </div>
+
+        <div class="card-subtle p-3.5 rounded-xl border border-[var(--border)] space-y-2">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="font-bold text-xs">📤 Bulk Upload or Auto-Fetch Client / Lead Logos</div>
+            <button type="button" onclick="autoFetchProjectLeadLogos(document.getElementById('llProjectSelect').value)" class="btn-outline text-[11px] px-3 py-1 font-bold border-teal-500/40 text-teal-600 dark:text-teal-300 hover:bg-teal-500/10">🌐 Auto-Fetch From Clinic Websites</button>
+          </div>
+          <p class="text-[11px] text-[var(--text-soft)]">Uploading a leads sheet automatically fetches real logos from each clinic&rsquo;s <code>direct_clinic_url</code>. You can also upload manual logo files (.PNG, .JPG, .SVG, .WEBP) or map any logo below.</p>
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <input id="llBulkLogoFiles" type="file" multiple accept=".png,.jpg,.jpeg,.svg,.webp,.gif,image/*" class="input-field text-xs py-1 px-2 flex-1" />
+            <button type="button" onclick="uploadLeadLogosBulk()" class="btn-primary text-xs px-4 py-2 font-bold shrink-0">Upload Lead Logos</button>
+          </div>
+          <div id="llUploadFeedback" class="hidden text-[11px] text-emerald-600 dark:text-emerald-300 font-semibold"></div>
+        </div>
+
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <div class="font-bold text-xs">Uploaded Lead Logos (<span id="llLogoCount">0</span>)</div>
+          </div>
+          <div id="llUploadedGallery" class="flex flex-wrap gap-2"></div>
+        </div>
+
+        <div class="space-y-2">
+          <div class="font-bold text-xs">Lead-to-Logo Dual-Brand Mapping (<span id="llLeadCount">0</span> leads)</div>
+          <div id="llLeadsMappingList" class="max-h-64 overflow-y-auto border border-[var(--border)] rounded-xl divide-y divide-[var(--border)] bg-[var(--bg-soft)]"></div>
+        </div>
+      </div>
+      <div class="px-5 py-3 border-t border-[var(--border)] flex items-center justify-end gap-2">
+        <button onclick="closeLeadLogosModal()" class="btn-primary px-4 py-1.5 text-xs font-bold">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================= -->
+  <!-- MODAL 3E: MARKETING KNOWLEDGE BASE UPLOADER & DOCUMENT WRITER           -->
+  <!-- ======================================================================= -->
+  <div id="knowledgeUploadModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5">
+    <div class="card-surface w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+      <div class="px-5 py-3.5 border-b border-[var(--border)] flex items-center justify-between">
+        <div>
+          <h3 class="text-sm font-extrabold">📁 Add to Project Knowledge Base &amp; Research Hub</h3>
+          <p class="text-[11px] text-[var(--text-soft)]">Categorize market research, competitor audits, brand guidelines, customer profiles, or offer frameworks.</p>
+        </div>
+        <button onclick="closeKnowledgeUploadModal()" class="btn-outline px-2.5 py-1 text-xs font-bold">✕</button>
+      </div>
+      <div class="p-5 overflow-y-auto space-y-4 text-xs">
+        <div>
+          <label class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Knowledge Category</label>
+          <select id="kuCategorySelect" class="input-field text-xs py-2 px-2.5 w-full font-semibold">
+            <option value="market_research">📊 Market Research &amp; Industry Audits</option>
+            <option value="gaps_opportunities">🔍 Competitor Gaps &amp; Opportunities</option>
+            <option value="brand_guidelines">🎨 Brand Guidelines &amp; Client Voice</option>
+            <option value="customer_profiles">👥 Customer Profiles &amp; ICP Personas</option>
+            <option value="offer_frameworks">💎 Offer Frameworks &amp; Pricing Packages</option>
+          </select>
+        </div>
+        
+        <div class="flex items-center gap-2 border-b border-[var(--border)] pb-2">
+          <button id="kuModeBtn-file" type="button" onclick="setKnowledgeUploadMode('file')" class="px-3 py-1 rounded-full text-xs font-bold bg-indigo-600 text-white">📎 Upload File (PDF / CSV / XLSX / MD / TXT)</button>
+          <button id="kuModeBtn-text" type="button" onclick="setKnowledgeUploadMode('text')" class="px-3 py-1 rounded-full text-xs font-semibold text-[var(--text-soft)] hover:bg-[var(--border)]">✍️ Author Document Directly</button>
+        </div>
+
+        <div id="kuFileSection" class="space-y-3">
+          <div class="border-2 border-dashed border-[var(--border)] rounded-xl p-5 text-center bg-[var(--bg-soft)] hover:border-indigo-500/50 transition">
+            <input id="kuFileInput" type="file" accept=".pdf,.csv,.xlsx,.xls,.md,.txt,.json,.html" class="hidden" onchange="handleKnowledgeFileSelected(this)" />
+            <label for="kuFileInput" class="cursor-pointer block space-y-1">
+              <span class="text-2xl block">📄</span>
+              <span class="text-xs font-bold text-indigo-600 dark:text-indigo-400">Choose file or drag &amp; drop</span>
+              <span class="text-[10px] block text-[var(--text-soft)]">Supports PDF research reports, CSV/XLSX leads &amp; audit sheets, Markdown, Text</span>
+            </label>
+            <div id="kuSelectedFileInfo" class="mt-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 hidden"></div>
+          </div>
+        </div>
+
+        <div id="kuTextSection" class="space-y-3 hidden">
+          <div>
+            <label class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Document Title</label>
+            <input id="kuDocTitleInput" type="text" placeholder="e.g. Dental_Clinic_Patient_Intake_Audit.md" class="input-field text-xs py-1.5 px-2.5 w-full" />
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Document Content (Markdown / Plain Text)</label>
+            <textarea id="kuDocContentInput" rows="7" placeholder="Paste findings, competitor teardowns, audience pains, or offer details..." class="input-field mono text-xs p-2.5 w-full leading-relaxed"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="px-5 py-3 border-t border-[var(--border)] flex items-center justify-end gap-2">
+        <button onclick="closeKnowledgeUploadModal()" class="btn-outline px-3.5 py-1.5 text-xs font-semibold">Cancel</button>
+        <button id="kuSubmitBtn" onclick="submitKnowledgeItem()" class="btn-primary px-4 py-1.5 text-xs font-bold">⚡ Ingest into Knowledge Base</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================= -->
+  <!-- MODAL 3F: EDIT LEAD CUSTOMIZED PROPOSAL (GROUND TRUTH FOR OUTREACH)     -->
+  <!-- ======================================================================= -->
+  <div id="editLeadProposalModal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5">
+    <div class="card-surface w-full max-w-2xl max-h-[92vh] flex flex-col overflow-hidden shadow-2xl">
+      <div class="px-5 py-3.5 border-b border-[var(--border)] flex items-center justify-between">
+        <div>
+          <h3 id="elpModalTitle" class="text-sm font-extrabold">🎯 Customize Proposal &bull; <span id="elpClinicHeader">Clinic Name</span></h3>
+          <p class="text-[11px] text-[var(--text-soft)]">Grounded proposal used as the single source of truth for dual-branded email campaigns.</p>
+        </div>
+        <button onclick="closeEditLeadProposalModal()" class="btn-outline px-2.5 py-1 text-xs font-bold">✕</button>
+      </div>
+      <div class="p-5 overflow-y-auto space-y-3.5 text-xs">
+        <input id="elpLeadId" type="hidden" />
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 p-2.5 rounded-xl bg-[var(--bg-soft)] border border-[var(--border)]">
+          <div><span class="text-[10px] text-[var(--text-soft)] block">City</span><b id="elpCity">—</b></div>
+          <div><span class="text-[10px] text-[var(--text-soft)] block">Google Rating</span><b id="elpRating">—</b></div>
+          <div><span class="text-[10px] text-[var(--text-soft)] block">Email</span><span id="elpEmail" class="font-mono text-[11px] truncate block">—</span></div>
+          <div><span class="text-[10px] text-[var(--text-soft)] block">Website</span><span id="elpWebsite" class="truncate block text-indigo-600 dark:text-indigo-400">—</span></div>
+        </div>
+
+        <div>
+          <label class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Identified Marketing Gaps (Evidence-Grounded)</label>
+          <textarea id="elpGapsInput" rows="2" class="input-field text-xs p-2 w-full" placeholder="Specific clinic audit findings, competitor search gaps, missing intake..."></textarea>
+        </div>
+
+        <div>
+          <label class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Tailored Angle &amp; Custom Pitch Hook</label>
+          <textarea id="elpPitchInput" rows="2" class="input-field text-xs p-2 w-full" placeholder="Personalized angle targeting their exact marketing opportunity..."></textarea>
+        </div>
+
+        <div>
+          <label class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Recommended Offer (From Offer Framework)</label>
+          <textarea id="elpOfferInput" rows="2" class="input-field text-xs p-2 w-full" placeholder="Pricing package, deliverables, and guarantee terms..."></textarea>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">ROI / Production Projection</label>
+            <input id="elpRoiInput" type="text" class="input-field text-xs py-1.5 px-2.5 w-full" placeholder="e.g. +$18,500/mo estimated production" />
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Custom Call-To-Action (CTA)</label>
+            <input id="elpCtaInput" type="text" class="input-field text-xs py-1.5 px-2.5 w-full" placeholder="e.g. Reply 'YES' to review your custom clinic intake prototype" />
+          </div>
+        </div>
+      </div>
+      <div class="px-5 py-3 border-t border-[var(--border)] flex items-center justify-between gap-2">
+        <button id="elpPreviewEmailBtn" onclick="previewEmailForCurrentCustomizedLead()" class="btn-outline px-3 py-1.5 text-xs font-semibold">👁️ Preview Dual-Branded Email</button>
+        <div class="flex items-center gap-2">
+          <button onclick="closeEditLeadProposalModal()" class="btn-outline px-3.5 py-1.5 text-xs font-semibold">Cancel</button>
+          <button onclick="saveLeadCustomProposal()" class="btn-primary px-4 py-1.5 text-xs font-bold">💾 Save Customized Proposal</button>
+        </div>
       </div>
     </div>
   </div>

@@ -17,6 +17,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const multer = require('multer');
 const { v4: uuidv4 } = require('uuid');
 
@@ -25,6 +26,35 @@ const turso = require('./turso');
 const { signToken, authMiddleware, requireRole, hashPassword, verifyPassword } = require('./auth');
 const { triggerN8n } = require('./n8n');
 const { executeAgentTask, researchAgent, salesAgent, creativeDirectorAgent } = require('./agentFramework');
+const { isLocalEndpoint } = require('./llmClient');
+const { buildDeliverablePreview, parseSpreadsheetFile, normalizeLeadRecord, getProjectBrandKit, matchLeadLogoImage } = require('./previewBuilder');
+const {
+  getEmailProviderConfig,
+  buildSmtpTransporter,
+  testEmailProviderConnection,
+  mergeTemplateForLead,
+  resolveEmailHtmlTemplate,
+  sendSingleRealEmail,
+  executeDualBrandedEmailBatch
+} = require('./emailDispatcher');
+const {
+  isValidTimeZone,
+  zonedDateTimeToUtcIso,
+  executeScheduledCampaignRow,
+  runDueScheduledCampaigns,
+  startEmailScheduler,
+  getEmailSchedulerStatus
+} = require('./emailScheduler');
+const {
+  fetchAndAttachLogosForProject,
+  getLogoFetchJobStatus
+} = require('./leadLogoFetcher');
+const {
+  generateProposalsForProject,
+  getProjectProposals,
+  getLeadProposal,
+  updateLeadProposal
+} = require('./proposalCustomizer');
 const { POLICY_MATRIX, evaluatePolicy, dispatchExternalAction } = require('./approvalPolicy');
 const { getInstalledSkills } = require('./skillEngine');
 const {
@@ -43,7 +73,8 @@ const {
   maskApiKey,
   isMaskedKey,
   pingProvider,
-  sanitizeConfigRow
+  sanitizeConfigRow,
+  getActiveLLMConfig
 } = require('./llmConfig');
 const {
   ErrorCategory,
@@ -644,16 +675,236 @@ app.post('/api/projects/:id/rag/ingest', authMiddleware, requireRole('super_admi
 
 app.post('/api/projects/:id/rag/search', authMiddleware, asyncHandler(async (req, res) => {
   if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
-  const { query, top_k } = req.body;
+  const { query, top_k, category } = req.body;
   if (!query) return res.status(400).json({ error: 'query string required' });
 
-  const results = rag.searchChunks(req.params.id, query, top_k || 5);
+  const results = rag.searchChunks(req.params.id, query, top_k || 5, category || null);
   res.json({
     ok: true,
     query,
+    category: category || null,
     results_count: results.length,
     results
   });
+}));
+
+// =============================================================================
+// MARKETING KNOWLEDGE BASE & RESEARCH HUB + PROPOSAL CUSTOMIZATION
+// =============================================================================
+
+// 1. Get project knowledge summary, categorized files, and proposal metrics
+app.get('/api/projects/:id/knowledge', authMiddleware, asyncHandler(async (req, res) => {
+  if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
+  const projectId = req.params.id;
+
+  const summary = rag.getProjectKnowledgeSummary(projectId);
+  const files = db.prepare(`
+    SELECT id, project_id, filename, original_name, mime, size, file_category, parsed_summary, created_at
+    FROM harness_files
+    WHERE project_id = ? AND file_category != 'Lead Logo'
+    ORDER BY created_at DESC
+  `).all(projectId);
+
+  const proposalRow = db.prepare(`
+    SELECT
+      COUNT(*) as total_proposals,
+      SUM(CASE WHEN status = 'customized' THEN 1 ELSE 0 END) as customized_count,
+      SUM(CASE WHEN status = 'grounded' THEN 1 ELSE 0 END) as grounded_count
+    FROM lead_customized_proposals
+    WHERE project_id = ?
+  `).get(projectId);
+
+  const totalLeads = db.prepare('SELECT COUNT(*) as cnt FROM leads WHERE project_id = ?').get(projectId)?.cnt || 0;
+
+  res.json({
+    ok: true,
+    project_id: projectId,
+    summary,
+    files,
+    proposals_metric: {
+      total: proposalRow?.total_proposals || 0,
+      customized: proposalRow?.customized_count || 0,
+      grounded: proposalRow?.grounded_count || 0,
+      total_leads: totalLeads
+    }
+  });
+}));
+
+// 2. Upload file directly into Knowledge Base Hub with category
+app.post('/api/projects/:id/knowledge/upload', authMiddleware, (req, res) => {
+  if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
+
+  harnessUpload(req, res, async (err) => {
+    if (err) return res.status(400).json({ error: err.message });
+    const uploadedFile = req.file || (req.files && (req.files.file?.[0] || req.files.harness?.[0] || req.files.attachment?.[0] || req.files.files?.[0]));
+    if (!uploadedFile) return res.status(400).json({ error: 'No file uploaded' });
+
+    const category = rag.normalizeCategory(req.body.category || 'market_research');
+    const id = uuidv4();
+    const filePath = path.join(uploadDir, uploadedFile.filename);
+    const ext = path.extname(uploadedFile.originalname).toLowerCase();
+
+    let textContent = '';
+    if (['.txt', '.md', '.csv', '.json', '.html'].includes(ext)) {
+      try {
+        textContent = fs.readFileSync(filePath, 'utf8');
+      } catch (_) {}
+    } else if (['.xlsx', '.xls'].includes(ext)) {
+      try {
+        const rows = parseSpreadsheetFile(filePath, 200);
+        if (rows.length > 0) {
+          textContent = rows.map((r, i) => `[RECORD #${i + 1}] ` + Object.entries(r).map(([k, v]) => `${k}: ${v}`).join(' | ')).join('\n\n');
+        }
+      } catch (_) {}
+    } else if (ext === '.pdf') {
+      try {
+        const buf = fs.readFileSync(filePath);
+        // Extract ASCII strings from PDF streams
+        const matches = buf.toString('latin1').match(/[A-Za-z0-9 ,.\-:;?!/]{6,120}/g) || [];
+        if (matches.length > 0) {
+          textContent = matches.slice(0, 1000).join(' ');
+        }
+      } catch (_) {}
+    }
+
+    let chunksCount = 0;
+    let tokensCount = 0;
+    if (textContent && textContent.length > 10) {
+      try {
+        const ingestRes = rag.ingestDocument(req.params.id, uploadedFile.originalname, textContent, category);
+        chunksCount = ingestRes.chunks_created;
+        tokensCount = ingestRes.total_tokens;
+      } catch (ingestErr) {
+        console.warn(`[knowledge/upload] RAG ingest warning: ${ingestErr.message}`);
+      }
+    }
+
+    const categoryTitleMap = {
+      market_research: 'Market Research',
+      gaps_opportunities: 'Competitor Gaps',
+      brand_guidelines: 'Brand Guidelines',
+      customer_profiles: 'Customer Profiles',
+      offer_frameworks: 'Offer Frameworks'
+    };
+    const fileCategoryTitle = categoryTitleMap[category] || 'Market Research';
+
+    const parsedSummary = `Ingested into ${fileCategoryTitle} (${chunksCount} RAG chunks, ${tokensCount} tokens) • ${(uploadedFile.size / 1024).toFixed(1)} KB`;
+
+    db.prepare(`
+      INSERT INTO harness_files (id, project_id, filename, original_name, mime, size, uploaded_by, parsed_summary, file_category)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, req.params.id, uploadedFile.filename, uploadedFile.originalname, uploadedFile.mimetype, uploadedFile.size, req.user.id, parsedSummary, fileCategoryTitle);
+
+    res.json({
+      ok: true,
+      id,
+      document_name: uploadedFile.originalname,
+      category,
+      chunks_created: chunksCount,
+      total_tokens: tokensCount
+    });
+  });
+});
+
+// 3. Add or update a text/markdown knowledge document directly
+app.post('/api/projects/:id/knowledge/document', authMiddleware, requireRole('super_admin', 'admin', 'manager', 'member'), asyncHandler(async (req, res) => {
+  if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
+  const { title, content, category } = req.body;
+  if (!title || !content) return res.status(400).json({ error: 'Title and content are required' });
+
+  const resolvedCategory = rag.normalizeCategory(category || 'market_research');
+  const safeFilename = `${title.toLowerCase().replace(/[^a-z0-9_-]/g, '_').slice(0, 50)}_${Date.now()}.md`;
+  const filePath = path.join(uploadDir, safeFilename);
+
+  fs.writeFileSync(filePath, content, 'utf8');
+
+  // Ingest into RAG engine
+  const ingestRes = rag.ingestDocument(req.params.id, title, content, resolvedCategory);
+
+  const categoryTitleMap = {
+    market_research: 'Market Research',
+    gaps_opportunities: 'Competitor Gaps',
+    brand_guidelines: 'Brand Guidelines',
+    customer_profiles: 'Customer Profiles',
+    offer_frameworks: 'Offer Frameworks'
+  };
+  const fileCategoryTitle = categoryTitleMap[resolvedCategory] || 'Market Research';
+
+  // Store in harness_files
+  const id = uuidv4();
+  db.prepare(`
+    INSERT INTO harness_files (id, project_id, filename, original_name, mime, size, uploaded_by, parsed_summary, file_category)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    id,
+    req.params.id,
+    safeFilename,
+    title.endsWith('.md') ? title : `${title}.md`,
+    'text/markdown',
+    Buffer.byteLength(content, 'utf8'),
+    req.user.id,
+    `Authored document in ${fileCategoryTitle} (${ingestRes.chunks_created} chunks, ${ingestRes.total_tokens} tokens)`,
+    fileCategoryTitle
+  );
+
+  res.json({
+    ok: true,
+    id,
+    document_name: title,
+    category: resolvedCategory,
+    chunks_created: ingestRes.chunks_created,
+    total_tokens: ingestRes.total_tokens
+  });
+}));
+
+// 4. Delete knowledge file and remove its RAG chunks
+app.delete('/api/projects/:id/knowledge/:fileId', authMiddleware, requireRole('super_admin', 'admin', 'manager'), asyncHandler(async (req, res) => {
+  if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
+  const file = db.prepare('SELECT * FROM harness_files WHERE id = ? AND project_id = ?').get(req.params.fileId, req.params.id);
+  if (!file) return res.status(404).json({ error: 'Knowledge file not found' });
+
+  // Delete chunks from rag_chunks
+  db.prepare('DELETE FROM rag_chunks WHERE project_id = ? AND (document_name = ? OR document_name = ?)').run(req.params.id, file.original_name, file.filename);
+
+  // Unlink file from storage
+  try {
+    const fullPath = path.join(uploadDir, file.filename);
+    if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
+  } catch (_) {}
+
+  // Delete from harness_files
+  db.prepare('DELETE FROM harness_files WHERE id = ?').run(req.params.fileId);
+
+  res.json({ ok: true, message: `Deleted ${file.original_name} from Knowledge Base` });
+}));
+
+// 5. Get all customized proposals for project leads
+app.get('/api/projects/:id/proposals', authMiddleware, asyncHandler(async (req, res) => {
+  if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
+  const data = getProjectProposals(db, req.params.id, req.query);
+  res.json({ ok: true, ...data });
+}));
+
+// 6. Generate customized proposals for all project leads
+app.post('/api/projects/:id/proposals/generate-bulk', authMiddleware, requireRole('super_admin', 'admin', 'manager'), asyncHandler(async (req, res) => {
+  if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
+  const result = generateProposalsForProject(db, req.params.id, uploadDir);
+  res.json(result);
+}));
+
+// 7. Get proposal for a single lead
+app.get('/api/projects/:id/leads/:leadId/proposal', authMiddleware, asyncHandler(async (req, res) => {
+  if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
+  const proposal = getLeadProposal(db, req.params.id, req.params.leadId);
+  if (!proposal) return res.status(404).json({ error: 'Proposal not found for this lead' });
+  res.json({ ok: true, proposal });
+}));
+
+// 8. Update / customize a single lead proposal
+app.put('/api/projects/:id/leads/:leadId/proposal', authMiddleware, requireRole('super_admin', 'admin', 'manager'), asyncHandler(async (req, res) => {
+  if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
+  const updated = updateLeadProposal(db, req.params.id, req.params.leadId, req.body);
+  res.json({ ok: true, proposal: updated });
 }));
 
 // =============================================================================
@@ -726,6 +977,35 @@ app.post('/api/agents/dispatch', authMiddleware, requireRole('super_admin', 'adm
     finalOutput = n8nData.deliverable || n8nData.output || n8nData;
     finalReport = n8nData.report || '';
   } else {
+    const activeLlmCfg = getActiveLLMConfig(db, false);
+    if (shouldQueueForLocalWorker(activeLlmCfg)) {
+      const queuedInput = {
+        ...inputData,
+        _worker: {
+          queued_at: new Date().toISOString(),
+          target_provider: activeLlmCfg.provider,
+          target_model: activeLlmCfg.default_model,
+          retry_count: 0,
+          requested_by: req.user.id
+        }
+      };
+      db.prepare("UPDATE tasks SET status='queued', input_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=?")
+        .run(JSON.stringify(queuedInput), taskId);
+      const workerStatus = getLiveWorkerStatus();
+      return res.status(202).json({
+        ok: true,
+        mode: 'local_worker_queued',
+        execution_mode: 'local_worker',
+        status: 'queued',
+        task_id: taskId,
+        agent: { slug: agent.slug, name: agent.name, role: agent.role },
+        worker: workerStatus,
+        message: workerStatus.online
+          ? `Dispatched to Local Ollama Worker (${workerStatus.hostname || workerStatus.worker_id}).`
+          : 'Dispatched to Local Ollama Worker queue. Start your MacBook worker with: npm run worker'
+      });
+    }
+
     const local = await executeAgentTask({ ...taskObj, pipeline: primaryPipeline }, proj, harness);
     finalOutput = local.outputJson;
     finalReport = local.reportMd;
@@ -936,7 +1216,50 @@ app.post('/api/tasks/:id/run', authMiddleware, asyncHandler(async (req, res) => 
     });
   }
 
-  // 2. Execute via Unified 3-Agent Framework (Research, Sales, Creative)
+  // 2. Check if active LLM provider is a localhost engine on a serverless deployment (requires Local Worker)
+  const activeLlmCfg = getActiveLLMConfig(db, false);
+  if (shouldQueueForLocalWorker(activeLlmCfg)) {
+    let parsedInput = {};
+    try {
+      parsedInput = typeof task.input_json === 'string' ? JSON.parse(task.input_json || '{}') : (task.input_json || {});
+    } catch (_) {
+      parsedInput = {};
+    }
+    parsedInput._worker = {
+      queued_at: new Date().toISOString(),
+      target_provider: activeLlmCfg.provider,
+      target_model: activeLlmCfg.default_model,
+      retry_count: Number(parsedInput._worker?.retry_count || 0),
+      requested_by: req.user.id
+    };
+    db.prepare("UPDATE tasks SET status='queued', input_json=?, updated_at=CURRENT_TIMESTAMP WHERE id=?")
+      .run(JSON.stringify(parsedInput), task.id);
+    db.prepare('INSERT INTO activity (id,project_id,task_id,user_id,action,meta) VALUES (?,?,?,?,?,?)')
+      .run(
+        uuidv4(),
+        task.project_id,
+        task.id,
+        req.user.id,
+        'task_queued_local_worker',
+        JSON.stringify({ provider: activeLlmCfg.provider, model: activeLlmCfg.default_model })
+      );
+    const workerStatus = getLiveWorkerStatus();
+    const queuedTask = db.prepare('SELECT * FROM tasks WHERE id=?').get(task.id);
+    return res.status(202).json({
+      ok: true,
+      mode: 'local_worker_queued',
+      execution_mode: 'local_worker',
+      status: 'queued',
+      task_id: task.id,
+      task: queuedTask,
+      worker: workerStatus,
+      message: workerStatus.online
+        ? `Task queued for Local Ollama Worker (${workerStatus.hostname || workerStatus.worker_id} · ${workerStatus.model || activeLlmCfg.default_model}).`
+        : 'Task queued for Local Ollama Worker. Start the worker on your MacBook with: npm run worker'
+    });
+  }
+
+  // 3. Execute via Unified 3-Agent Framework (Research, Sales, Creative)
   console.log(`[task-runner] n8n offline (${result.error}). Executing task via Unified Agent Framework...`);
   let execResult;
   try {
@@ -1049,6 +1372,120 @@ app.get('/api/tasks/:id', authMiddleware, asyncHandler(async (req, res) => {
     return res.status(403).json({ error: 'Clients can only view delivered deliverables' });
   }
   res.json({ task: t });
+}));
+
+app.get('/api/tasks/:id/preview', authMiddleware, asyncHandler(async (req, res) => {
+  const task = db.prepare('SELECT * FROM tasks WHERE id=?').get(req.params.id);
+  if (!task) return res.status(404).json({ error: 'Task not found' });
+  if (!canAccessProject(req.user, task.project_id)) return res.status(403).json({ error: 'No access' });
+  if (req.user.role === 'client' && task.status !== 'delivered') {
+    return res.status(403).json({ error: 'Clients can only preview delivered deliverables' });
+  }
+
+  const project = db.prepare('SELECT * FROM projects WHERE id=?').get(task.project_id);
+  const harnessFiles = db.prepare('SELECT * FROM harness_files WHERE project_id=? ORDER BY created_at DESC').all(task.project_id);
+  const dbLeads = db.prepare('SELECT * FROM leads WHERE project_id=? ORDER BY icp_score DESC, created_at DESC LIMIT 100').all(task.project_id);
+
+  const preview = buildDeliverablePreview({
+    project,
+    task,
+    harnessFiles,
+    dbLeads,
+    uploadDir,
+    publicDir: path.join(__dirname, '../public')
+  });
+  res.json(preview);
+}));
+
+app.get('/api/projects/:id/preview', authMiddleware, asyncHandler(async (req, res) => {
+  const project = db.prepare('SELECT * FROM projects WHERE id=?').get(req.params.id);
+  if (!project) return res.status(404).json({ error: 'Project not found' });
+  if (!canAccessProject(req.user, project.id)) return res.status(403).json({ error: 'No access' });
+
+  const latestTask = db.prepare('SELECT * FROM tasks WHERE project_id=? ORDER BY updated_at DESC, created_at DESC LIMIT 1').get(project.id) || null;
+  if (req.user.role === 'client' && latestTask && latestTask.status !== 'delivered') {
+    return res.status(403).json({ error: 'Clients can only preview delivered deliverables' });
+  }
+
+  const harnessFiles = db.prepare('SELECT * FROM harness_files WHERE project_id=? ORDER BY created_at DESC').all(project.id);
+  const dbLeads = db.prepare('SELECT * FROM leads WHERE project_id=? ORDER BY icp_score DESC, created_at DESC LIMIT 100').all(project.id);
+
+  const preview = buildDeliverablePreview({
+    project,
+    task: latestTask,
+    harnessFiles,
+    dbLeads,
+    uploadDir,
+    publicDir: path.join(__dirname, '../public')
+  });
+  res.json(preview);
+}));
+
+// Client Brand Kit & Guidelines (accessible to Admins AND all project users for Dual-Branded Emails & Agents)
+app.get('/api/projects/:id/brand-kit', authMiddleware, asyncHandler(async (req, res) => {
+  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.id);
+  if (!project) return res.status(404).json({ error: 'Project not found' });
+  if (!canAccessProject(req.user, project.id)) return res.status(403).json({ error: 'No access' });
+
+  const brandKit = getProjectBrandKit(project);
+  const harnessFiles = db.prepare('SELECT id, original_name, mime, size, file_category, created_at FROM harness_files WHERE project_id = ? ORDER BY created_at DESC').all(project.id);
+  const logos = harnessFiles.filter((f) => (f.mime && f.mime.startsWith('image/')) || /\.(png|jpe?g|svg|webp)$/i.test(f.original_name || ''));
+
+  res.json({
+    ok: true,
+    project_id: project.id,
+    project_name: project.name,
+    brand_kit: brandKit,
+    available_logos: logos,
+    attached_documents: harnessFiles
+  });
+}));
+
+app.put('/api/projects/:id/brand-kit', authMiddleware, asyncHandler(async (req, res) => {
+  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(req.params.id);
+  if (!project) return res.status(404).json({ error: 'Project not found' });
+  if (!canAccessProject(req.user, project.id)) return res.status(403).json({ error: 'No access' });
+
+  const {
+    brand_name = '',
+    primary_color = '#063f4e',
+    accent_color = '#00a9a4',
+    font_family = 'Arial, Helvetica, sans-serif',
+    tagline = '',
+    tone_of_voice = '',
+    cta_text = '',
+    logo_file_id = null,
+    logo_url = '',
+    guidelines = ''
+  } = req.body || {};
+
+  let specs = {};
+  try { specs = JSON.parse(project.deliverable_specs || '{}'); } catch (_) { specs = {}; }
+
+  const nextBrandKit = {
+    brand_name: String(brand_name || project.name).trim(),
+    primary_color: /^#[0-9a-fA-F]{3,8}$/.test(String(primary_color).trim()) ? String(primary_color).trim() : '#063f4e',
+    accent_color: /^#[0-9a-fA-F]{3,8}$/.test(String(accent_color).trim()) ? String(accent_color).trim() : '#00a9a4',
+    font_family: String(font_family || 'Arial, Helvetica, sans-serif').trim(),
+    tagline: String(tagline || '').trim(),
+    tone_of_voice: String(tone_of_voice || '').trim(),
+    cta_text: String(cta_text || '').trim(),
+    logo_file_id: logo_file_id || null,
+    logo_url: String(logo_url || '').trim(),
+    guidelines: String(guidelines || '').trim(),
+    updated_by: req.user.email,
+    updated_at: new Date().toISOString()
+  };
+
+  specs.brand_kit = nextBrandKit;
+
+  db.prepare('UPDATE projects SET deliverable_specs = ?, guidelines = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+    .run(JSON.stringify(specs), nextBrandKit.guidelines || project.guidelines || '', project.id);
+
+  db.prepare('INSERT INTO activity (id, project_id, user_id, action, meta) VALUES (?, ?, ?, ?, ?)')
+    .run(uuidv4(), project.id, req.user.id, 'brand_kit_updated', JSON.stringify({ brand_name: nextBrandKit.brand_name, primary_color: nextBrandKit.primary_color, accent_color: nextBrandKit.accent_color }));
+
+  res.json({ ok: true, project_id: project.id, brand_kit: nextBrandKit });
 }));
 
 app.post('/api/webhooks/n8n', asyncHandler(async (req, res) => {
@@ -1285,6 +1722,167 @@ app.delete('/api/leads/:id', authMiddleware, requireRole('owner', 'super_admin',
   res.json({ ok: true });
 }));
 
+// Bulk Import Leads from CSV or XLSX into ANY Project (Sales & CRM Pipeline)
+app.post('/api/projects/:id/leads/import', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager', 'member'), upload.single('file'), asyncHandler(async (req, res) => {
+  const projectId = req.params.id;
+  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
+  if (!project) return res.status(404).json({ error: 'Project not found' });
+  if (!canAccessProject(req.user, projectId)) return res.status(403).json({ error: 'No access' });
+
+  let sourceFilePath = null;
+  let sourceFileName = '';
+  let shouldDeleteTemp = false;
+
+  if (req.file) {
+    sourceFilePath = req.file.path;
+    sourceFileName = req.file.originalname || req.file.filename;
+    shouldDeleteTemp = true;
+  } else if (req.body && req.body.harness_file_id) {
+    const hf = db.prepare('SELECT * FROM harness_files WHERE id = ? AND project_id = ?').get(req.body.harness_file_id, projectId);
+    if (!hf) return res.status(404).json({ error: 'Harness file not found for this project' });
+    sourceFilePath = path.join(uploadDir, hf.filename);
+    sourceFileName = hf.original_name || hf.filename;
+  } else {
+    return res.status(400).json({ error: 'Upload a CSV/XLSX file (field "file") or provide harness_file_id' });
+  }
+
+  let rawRows = [];
+  try {
+    rawRows = parseSpreadsheetFile(sourceFilePath, 1000);
+  } finally {
+    if (shouldDeleteTemp && sourceFilePath) {
+      try { fs.unlinkSync(sourceFilePath); } catch (_) {}
+    }
+  }
+
+  if (!rawRows || rawRows.length === 0) {
+    return res.status(400).json({ error: 'No lead rows could be parsed from the uploaded file. Ensure it has a header row and at least one data row.' });
+  }
+
+  const existingLeads = db.prepare("SELECT lower(COALESCE(email, '')) as em, lower(COALESCE(full_name, '')) as fn FROM leads WHERE project_id = ?").all(projectId);
+  const existingEmails = new Set(existingLeads.map((r) => r.em).filter(Boolean));
+  const existingNames = new Set(existingLeads.map((r) => r.fn).filter(Boolean));
+
+  const insertStmt = db.prepare(`
+    INSERT INTO leads (id, project_id, full_name, email, phone, job_title, icp_score, status, source_evidence)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'new', ?)
+  `);
+
+  let importedCount = 0;
+  let skippedDuplicates = 0;
+  const importedPreview = [];
+
+  db.transaction(() => {
+    rawRows.forEach((raw, idx) => {
+      const norm = normalizeLeadRecord(raw, idx);
+      const emailNorm = (norm.email || '').trim().toLowerCase();
+      const nameNorm = (norm.clinic_name || norm.first_name || '').trim().toLowerCase();
+
+      if ((emailNorm && existingEmails.has(emailNorm)) || (!emailNorm && nameNorm && existingNames.has(nameNorm))) {
+        skippedDuplicates++;
+        return;
+      }
+
+      // Transparent ICP score calculation from real fields (explicit column or real completeness signals)
+      let icpScore = 70;
+      const rawIcp = parseInt(raw.icp_score || raw.score || '', 10);
+      if (Number.isFinite(rawIcp) && rawIcp >= 0 && rawIcp <= 100) {
+        icpScore = rawIcp;
+      } else {
+        if (emailNorm) icpScore += 15;
+        if (norm.phone) icpScore += 5;
+        const ratingVal = parseFloat(norm.rating);
+        if (Number.isFinite(ratingVal) && ratingVal >= 4.5) icpScore += 10;
+        else if (Number.isFinite(ratingVal) && ratingVal >= 4.0) icpScore += 5;
+        icpScore = Math.min(100, icpScore);
+      }
+
+      const id = uuidv4();
+      const displayName = norm.clinic_name || norm.first_name || `Lead #${idx + 1}`;
+      const jobTitle = norm.first_name && norm.first_name !== 'Team' && norm.first_name !== displayName
+        ? norm.first_name
+        : (norm.city ? `${norm.city}${norm.province ? ', ' + norm.province : ''}` : 'Prospect');
+
+      const evidence = {
+        source: 'csv_bulk_import',
+        file_name: sourceFileName,
+        clinic_name: norm.clinic_name,
+        first_name: norm.first_name,
+        city: norm.city,
+        province: norm.province,
+        website: norm.website,
+        google_rating: norm.rating,
+        reviews: norm.reviews,
+        brand_color: norm.brand_color || '',
+        brand_guidelines: norm.brand_guidelines || '',
+        logo_url: norm.logo_url || '',
+        specialty: norm.specialty || ''
+      };
+
+      insertStmt.run(
+        id,
+        projectId,
+        displayName,
+        norm.email || null,
+        norm.phone || null,
+        jobTitle,
+        icpScore,
+        JSON.stringify(evidence)
+      );
+
+      if (emailNorm) existingEmails.add(emailNorm);
+      if (nameNorm) existingNames.add(nameNorm);
+      importedCount++;
+      if (importedPreview.length < 25) {
+        importedPreview.push({ id, full_name: displayName, email: norm.email || null, city: norm.city, icp_score: icpScore });
+      }
+    });
+
+    db.prepare('INSERT INTO activity (id, project_id, user_id, action, meta) VALUES (?, ?, ?, ?, ?)')
+      .run(
+        uuidv4(),
+        projectId,
+        req.user.id,
+        'bulk_leads_imported',
+        JSON.stringify({ file_name: sourceFileName, imported_count: importedCount, skipped_duplicates: skippedDuplicates })
+      );
+  })();
+
+  // Automated Sales & CRM Pipeline Task: immediately fetch real clinic logos from website URLs
+  const autoFetchEnabled = req.query.auto_fetch_logos !== 'false'
+    && req.body?.auto_fetch_logos !== false
+    && process.env.DISABLE_AUTO_LOGO_FETCH !== 'true'
+    && process.env.NODE_ENV !== 'test';
+
+  let logoFetchStarted = false;
+  if (autoFetchEnabled && importedCount > 0) {
+    logoFetchStarted = true;
+    setImmediate(() => {
+      fetchAndAttachLogosForProject(db, {
+        projectId,
+        uploadDir,
+        userId: req.user.id,
+        concurrency: 5,
+        maxLeads: 200
+      }).catch((err) => {
+        console.warn(`[lead-logo-fetcher] Background fetch error for project ${projectId}: ${err.message}`);
+      });
+    });
+  }
+
+  res.json({
+    ok: true,
+    project_id: projectId,
+    project_name: project.name,
+    file_name: sourceFileName,
+    total_parsed: rawRows.length,
+    imported_count: importedCount,
+    skipped_duplicates: skippedDuplicates,
+    logo_fetch_started: logoFetchStarted,
+    leads: importedPreview
+  });
+}));
+
 // Global Sales CRM Pipeline Overview (Phase 2/3 real backend hydration)
 app.get('/api/crm/pipeline', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager', 'member'), asyncHandler(async (req, res) => {
   const { project_id } = req.query;
@@ -1292,13 +1890,15 @@ app.get('/api/crm/pipeline', authMiddleware, requireRole('owner', 'super_admin',
   const dealWhere = project_id ? 'WHERE d.project_id = ?' : '';
   const params = project_id ? [project_id] : [];
 
+  const totalLeads = db.prepare(`SELECT COUNT(*) as c FROM leads l ${whereClause}`).get(...params)?.c || 0;
+
   const leads = db.prepare(`
     SELECT l.*, p.name as project_name, p.client_name
     FROM leads l
     LEFT JOIN projects p ON p.id = l.project_id
     ${whereClause}
     ORDER BY l.icp_score DESC, l.created_at DESC
-    LIMIT 100
+    LIMIT 500
   `).all(...params);
 
   const deals = db.prepare(`
@@ -1308,7 +1908,7 @@ app.get('/api/crm/pipeline', authMiddleware, requireRole('owner', 'super_admin',
     LEFT JOIN leads l ON l.id = d.lead_id
     ${dealWhere}
     ORDER BY d.created_at DESC
-    LIMIT 100
+    LIMIT 200
   `).all(...params);
 
   const stageCounts = {
@@ -1319,7 +1919,7 @@ app.get('/api/crm/pipeline', authMiddleware, requireRole('owner', 'super_admin',
     won: deals.filter(d => d.stage === 'closed_won').length
   };
 
-  res.json({ ok: true, leads, deals, stage_counts: stageCounts });
+  res.json({ ok: true, total_leads: totalLeads, leads, deals, stage_counts: stageCounts });
 }));
 
 // =============================================================================
@@ -2172,6 +2772,491 @@ app.post('/api/approvals/:id/execute', authMiddleware, requireRole('owner', 'sup
   });
 }));
 
+// 3b-ii. Post-Approval Email Batch Preview (Admin-only Gate G2 pre-flight)
+app.get('/api/approvals/:id/email-preview-batch', authMiddleware, requireRole('owner', 'super_admin', 'admin'), asyncHandler(async (req, res) => {
+  const approval = db.prepare('SELECT * FROM approvals WHERE id = ?').get(req.params.id);
+  if (!approval) return res.status(404).json({ error: 'Approval request not found' });
+
+  const project = approval.project_id ? db.prepare('SELECT * FROM projects WHERE id = ?').get(approval.project_id) : null;
+  const task = approval.task_id ? db.prepare('SELECT * FROM tasks WHERE id = ?').get(approval.task_id) : null;
+  const harnessFiles = approval.project_id ? db.prepare('SELECT * FROM harness_files WHERE project_id = ? ORDER BY created_at DESC').all(approval.project_id) : [];
+
+  const leads = approval.project_id
+    ? db.prepare("SELECT * FROM leads WHERE project_id = ? AND email IS NOT NULL AND trim(email) != '' AND email LIKE '%@%' ORDER BY icp_score DESC, created_at DESC LIMIT 500").all(approval.project_id)
+    : [];
+
+  const sentRows = db.prepare("SELECT lower(recipient_email) as em FROM email_logs WHERE status = 'sent'").all();
+  const sentEmailSet = new Set(sentRows.map((r) => r.em));
+
+  let parsedPreviewMeta = {};
+  try {
+    parsedPreviewMeta = typeof approval.preview_data === 'string' ? JSON.parse(approval.preview_data) : (approval.preview_data || {});
+  } catch (_) {}
+
+  const emailCfg = getEmailProviderConfig(db);
+  const hasHtmlHarness = harnessFiles.some((f) => /\.html?$/i.test(f.original_name || f.filename || ''));
+
+  res.json({
+    ok: true,
+    approval: {
+      id: approval.id,
+      title: approval.title,
+      status: approval.status,
+      execution_status: approval.execution_status || 'not_executed',
+      project_id: approval.project_id
+    },
+    project: project ? { id: project.id, name: project.name, client_name: project.client_name } : null,
+    email_provider: {
+      configured: Boolean(emailCfg?.configured),
+      provider: emailCfg?.provider || 'not_configured',
+      from_email: emailCfg?.from_email || '',
+      from_name: emailCfg?.from_name || '',
+      status: emailCfg?.status || 'not_configured'
+    },
+    default_subject: parsedPreviewMeta?.subject || `${project?.name || 'Growth Opportunity'} for [Clinic Name]`,
+    template_source: hasHtmlHarness ? 'project_html_harness' : (task?.output_json ? 'task_output' : 'approval_summary'),
+    eligible_leads: leads.map((l) => {
+      let ev = {};
+      try { ev = JSON.parse(l.source_evidence || '{}'); } catch (_) {}
+      return {
+        id: l.id,
+        full_name: l.full_name,
+        email: l.email,
+        city: ev.city || '',
+        province: ev.province || '',
+        icp_score: l.icp_score,
+        status: l.status,
+        already_sent: sentEmailSet.has(String(l.email || '').trim().toLowerCase())
+      };
+    })
+  });
+}));
+
+// 3b-iii. Admin Post-Approval Real Email Dispatch (Strictly Enforces approval.status === 'approved' & Real Provider)
+app.post('/api/approvals/:id/send-emails', authMiddleware, requireRole('owner', 'super_admin', 'admin'), asyncHandler(async (req, res) => {
+  const approval = db.prepare('SELECT * FROM approvals WHERE id = ?').get(req.params.id);
+  if (!approval) return res.status(404).json({ ok: false, error: 'Approval request not found' });
+
+  if (approval.status !== 'approved') {
+    return res.status(409).json({
+      ok: false,
+      code: 'APPROVAL_REQUIRED',
+      error: `Cannot send emails: approval status is '${approval.status}'. An Admin must approve this item first.`
+    });
+  }
+
+  const {
+    subject,
+    from_email,
+    lead_ids,
+    limit = 25,
+    test_recipient = '',
+    html_override = '',
+    resend_already_sent = false
+  } = req.body || {};
+
+  const task = approval.task_id ? db.prepare('SELECT * FROM tasks WHERE id = ?').get(approval.task_id) : null;
+  const batchRes = await executeDualBrandedEmailBatch(db, {
+    projectId: approval.project_id,
+    approval,
+    task,
+    subject,
+    fromEmail: from_email,
+    leadIds: lead_ids,
+    limit,
+    testRecipient: test_recipient,
+    htmlOverride: html_override,
+    resendAlreadySent: resend_already_sent,
+    dispatchedBy: req.user.email,
+    uploadDir,
+    publicDir: path.join(__dirname, '../public')
+  });
+
+  if (batchRes.code === 'EMAIL_PROVIDER_NOT_CONFIGURED' || batchRes.code === 'NO_ELIGIBLE_LEADS' || batchRes.code === 'SMTP_CONFIG_INVALID') {
+    return res.status(batchRes.httpStatus || 400).json({ ok: false, code: batchRes.code, error: batchRes.error });
+  }
+
+  const receipt = {
+    provider: batchRes.provider,
+    from: batchRes.from,
+    subject: batchRes.subject,
+    is_test: Boolean(test_recipient),
+    sent_count: batchRes.sent_count,
+    failed_count: batchRes.failed_count,
+    skipped_count: batchRes.skipped_count,
+    dispatched_by: req.user.email,
+    dispatched_at: new Date().toISOString()
+  };
+
+  if (!test_recipient) {
+    db.prepare(`
+      UPDATE approvals
+      SET execution_status = ?, executed_at = COALESCE(?, executed_at), execution_receipt = ?
+      WHERE id = ?
+    `).run(batchRes.execution_status, batchRes.sent_count > 0 ? new Date().toISOString() : null, JSON.stringify(receipt), approval.id);
+  }
+
+  db.prepare('INSERT INTO activity (id, project_id, task_id, user_id, action, meta) VALUES (?, ?, ?, ?, ?, ?)')
+    .run(uuidv4(), approval.project_id, approval.task_id, req.user.id, 'admin_email_dispatch', JSON.stringify(receipt));
+
+  res.status(batchRes.httpStatus || 200).json({
+    ok: batchRes.ok,
+    approval_id: approval.id,
+    provider: batchRes.provider,
+    execution_status: test_recipient ? approval.execution_status : batchRes.execution_status,
+    sent_count: batchRes.sent_count,
+    failed_count: batchRes.failed_count,
+    skipped_count: batchRes.skipped_count,
+    results: batchRes.results,
+    error: batchRes.error || null
+  });
+}));
+
+// 3b-iv. Lead Logos Campaign Assets (Bulk Upload, Auto-Match & Per-Lead Assignment)
+app.get('/api/projects/:id/harness/:fileId/raw', authMiddleware, asyncHandler(async (req, res) => {
+  if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
+  const file = db.prepare('SELECT * FROM harness_files WHERE id = ? AND project_id = ?').get(req.params.fileId, req.params.id);
+  if (!file) return res.status(404).json({ error: 'File not found' });
+  const fullPath = path.join(uploadDir, file.filename);
+  if (!fs.existsSync(fullPath)) return res.status(404).json({ error: 'Asset file missing on disk' });
+  res.setHeader('Content-Type', file.mime || 'application/octet-stream');
+  res.setHeader('Cache-Control', 'private, max-age=300');
+  fs.createReadStream(fullPath).pipe(res);
+}));
+
+app.get('/api/projects/:id/lead-logos', authMiddleware, asyncHandler(async (req, res) => {
+  const projectId = req.params.id;
+  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
+  if (!project) return res.status(404).json({ error: 'Project not found' });
+  if (!canAccessProject(req.user, projectId)) return res.status(403).json({ error: 'No access' });
+
+  const brandKit = getProjectBrandKit(project);
+  const files = db.prepare('SELECT * FROM harness_files WHERE project_id = ? ORDER BY created_at DESC').all(projectId);
+  const imageFiles = files.filter((f) => (f.mime && f.mime.startsWith('image/')) || /\.(png|jpe?g|svg|webp|gif)$/i.test(f.original_name || ''));
+  const primaryLogo = imageFiles.find((f) => f.id === brandKit.logo_file_id)
+    || imageFiles.find((f) => f.file_category !== 'Lead Logo' && /logo/i.test(f.original_name || ''))
+    || null;
+  const leadLogos = imageFiles.filter((f) => f.id !== primaryLogo?.id);
+
+  const leads = db.prepare('SELECT * FROM leads WHERE project_id = ? ORDER BY icp_score DESC, created_at DESC LIMIT 200').all(projectId);
+  const normalizedImages = leadLogos.map((f) => ({
+    id: f.id,
+    original_name: f.original_name,
+    filename: f.filename,
+    file_category: f.file_category || 'Lead Logo'
+  }));
+
+  const mappedLeads = leads.map((l) => {
+    let ev = {};
+    try { ev = JSON.parse(l.source_evidence || '{}'); } catch (_) {}
+    const assigned = ev.logo_file_id ? leadLogos.find((f) => f.id === ev.logo_file_id) : null;
+    const autoMatched = !assigned ? matchLeadLogoImage({ clinic_name: ev.clinic_name || l.full_name, full_name: l.full_name }, normalizedImages, primaryLogo?.id || null) : null;
+    const active = assigned || autoMatched;
+    return {
+      id: l.id,
+      full_name: l.full_name,
+      email: l.email,
+      city: ev.city || '',
+      logo_file_id: active?.id || null,
+      logo_file_name: active?.original_name || null,
+      match_type: assigned ? 'assigned' : (autoMatched ? 'auto_matched' : 'none')
+    };
+  });
+
+  res.json({
+    ok: true,
+    project_id: projectId,
+    primary_logo: primaryLogo ? { id: primaryLogo.id, original_name: primaryLogo.original_name } : null,
+    logos: leadLogos.map((f) => ({
+      id: f.id,
+      original_name: f.original_name,
+      mime: f.mime,
+      size: f.size,
+      file_category: f.file_category,
+      created_at: f.created_at
+    })),
+    leads: mappedLeads
+  });
+}));
+
+app.post('/api/projects/:id/lead-logos', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager'), upload.array('files', 100), asyncHandler(async (req, res) => {
+  const projectId = req.params.id;
+  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
+  if (!project) return res.status(404).json({ error: 'Project not found' });
+  if (!canAccessProject(req.user, projectId)) return res.status(403).json({ error: 'No access' });
+
+  const uploaded = Array.isArray(req.files) ? req.files : [];
+  if (uploaded.length === 0) {
+    return res.status(400).json({ error: 'Upload at least one image file (.png, .jpg, .svg, .webp) under field "files"' });
+  }
+
+  const targetLeadId = req.body?.lead_id ? String(req.body.lead_id).trim() : null;
+  const insertedFiles = [];
+  const matches = [];
+
+  db.transaction(() => {
+    const ins = db.prepare(`
+      INSERT INTO harness_files (id, project_id, filename, original_name, mime, size, uploaded_by, parsed_summary, file_category)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Lead Logo')
+    `);
+
+    for (const f of uploaded) {
+      const id = uuidv4();
+      const summary = `Lead campaign logo asset: ${f.originalname} (${(f.size / 1024).toFixed(1)} KB)`;
+      ins.run(id, projectId, f.filename, f.originalname, f.mimetype || 'image/png', f.size, req.user.id, summary);
+      insertedFiles.push({ id, original_name: f.originalname, filename: f.filename, file_category: 'Lead Logo' });
+    }
+
+    const projectLeads = db.prepare('SELECT * FROM leads WHERE project_id = ?').all(projectId);
+
+    if (targetLeadId && insertedFiles.length === 1) {
+      const lead = projectLeads.find((l) => l.id === targetLeadId);
+      if (lead) {
+        let ev = {};
+        try { ev = JSON.parse(lead.source_evidence || '{}'); } catch (_) {}
+        ev.logo_file_id = insertedFiles[0].id;
+        ev.logo_file_name = insertedFiles[0].original_name;
+        db.prepare('UPDATE leads SET source_evidence = ? WHERE id = ?').run(JSON.stringify(ev), lead.id);
+        matches.push({ lead_id: lead.id, lead_name: lead.full_name, logo_file_id: insertedFiles[0].id, logo_name: insertedFiles[0].original_name });
+      }
+    } else {
+      // Auto-match uploaded lead logos to project leads by clinic name
+      for (const lead of projectLeads) {
+        let ev = {};
+        try { ev = JSON.parse(lead.source_evidence || '{}'); } catch (_) {}
+        const matched = matchLeadLogoImage({ clinic_name: ev.clinic_name || lead.full_name, full_name: lead.full_name }, insertedFiles, null);
+        if (matched) {
+          ev.logo_file_id = matched.id;
+          ev.logo_file_name = matched.original_name;
+          db.prepare('UPDATE leads SET source_evidence = ? WHERE id = ?').run(JSON.stringify(ev), lead.id);
+          matches.push({ lead_id: lead.id, lead_name: lead.full_name, logo_file_id: matched.id, logo_name: matched.original_name });
+        }
+      }
+    }
+
+    db.prepare('INSERT INTO activity (id, project_id, user_id, action, meta) VALUES (?, ?, ?, ?, ?)')
+      .run(uuidv4(), projectId, req.user.id, 'lead_logos_uploaded', JSON.stringify({ uploaded_count: insertedFiles.length, matched_count: matches.length }));
+  })();
+
+  res.json({
+    ok: true,
+    project_id: projectId,
+    uploaded_count: insertedFiles.length,
+    matched_count: matches.length,
+    files: insertedFiles,
+    matches
+  });
+}));
+
+app.put('/api/leads/:id/logo', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager'), asyncHandler(async (req, res) => {
+  const lead = db.prepare('SELECT * FROM leads WHERE id = ?').get(req.params.id);
+  if (!lead) return res.status(404).json({ error: 'Lead not found' });
+  if (!canAccessProject(req.user, lead.project_id)) return res.status(403).json({ error: 'No access' });
+
+  const { logo_file_id = null } = req.body || {};
+  let logoName = null;
+  if (logo_file_id) {
+    const hf = db.prepare('SELECT id, original_name FROM harness_files WHERE id = ? AND project_id = ?').get(logo_file_id, lead.project_id);
+    if (!hf) return res.status(404).json({ error: 'Logo asset not found in this project' });
+    logoName = hf.original_name;
+  }
+
+  let ev = {};
+  try { ev = JSON.parse(lead.source_evidence || '{}'); } catch (_) {}
+  ev.logo_file_id = logo_file_id || null;
+  ev.logo_file_name = logoName;
+
+  db.prepare('UPDATE leads SET source_evidence = ? WHERE id = ?').run(JSON.stringify(ev), lead.id);
+  res.json({ ok: true, lead_id: lead.id, logo_file_id: ev.logo_file_id, logo_file_name: logoName });
+}));
+
+// Automated Real Lead Logo Fetcher Triggers (fetch directly from each clinic's website URL)
+app.post('/api/projects/:id/lead-logos/auto-fetch', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager', 'member'), asyncHandler(async (req, res) => {
+  const projectId = req.params.id;
+  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(projectId);
+  if (!project) return res.status(404).json({ error: 'Project not found' });
+  if (!canAccessProject(req.user, projectId)) return res.status(403).json({ error: 'No access' });
+
+  const wait = req.query.wait === 'true' || req.body?.wait === true;
+  const forceRefresh = req.body?.force_refresh === true;
+  const maxLeads = Math.min(Math.max(parseInt(req.body?.max_leads || '200', 10) || 200, 1), 300);
+
+  if (wait) {
+    const job = await fetchAndAttachLogosForProject(db, {
+      projectId,
+      uploadDir,
+      userId: req.user.id,
+      concurrency: 5,
+      maxLeads,
+      forceRefresh
+    });
+    return res.json({ ok: true, job });
+  }
+
+  const current = getLogoFetchJobStatus(projectId);
+  if (!current.running) {
+    setImmediate(() => {
+      fetchAndAttachLogosForProject(db, {
+        projectId,
+        uploadDir,
+        userId: req.user.id,
+        concurrency: 5,
+        maxLeads,
+        forceRefresh
+      }).catch((err) => {
+        console.warn(`[lead-logo-fetcher] Auto-fetch error: ${err.message}`);
+      });
+    });
+  }
+  return res.status(202).json({
+    ok: true,
+    started: true,
+    message: 'Automated lead logo fetch started from clinic website URLs.',
+    job: getLogoFetchJobStatus(projectId)
+  });
+}));
+
+app.get('/api/projects/:id/lead-logos/fetch-status', authMiddleware, asyncHandler(async (req, res) => {
+  if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
+  res.json({ ok: true, job: getLogoFetchJobStatus(req.params.id) });
+}));
+
+// 3b-v. Smart Calendar & Timezone-Aware Email Campaign Scheduler (Admins & Sales/Team Users)
+app.get('/api/email-schedules', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager', 'member'), asyncHandler(async (req, res) => {
+  const { project_id } = req.query;
+  const where = project_id ? 'WHERE s.project_id = ?' : '';
+  const params = project_id ? [project_id] : [];
+
+  const schedules = db.prepare(`
+    SELECT s.*, p.name as project_name, a.status as approval_status, a.title as approval_title
+    FROM scheduled_email_campaigns s
+    LEFT JOIN projects p ON p.id = s.project_id
+    LEFT JOIN approvals a ON a.id = s.approval_id
+    ${where}
+    ORDER BY s.scheduled_at_utc ASC
+    LIMIT 200
+  `).all(...params);
+
+  res.json({
+    ok: true,
+    schedules,
+    scheduler: getEmailSchedulerStatus()
+  });
+}));
+
+app.post('/api/email-schedules', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager', 'member'), asyncHandler(async (req, res) => {
+  const {
+    project_id,
+    approval_id = null,
+    campaign_name,
+    subject,
+    from_email = '',
+    scheduled_date,
+    scheduled_time,
+    timezone = 'America/Toronto',
+    lead_ids = []
+  } = req.body || {};
+
+  if (!project_id || !campaign_name || !subject || !scheduled_date || !scheduled_time) {
+    return res.status(400).json({ error: 'project_id, campaign_name, subject, scheduled_date (YYYY-MM-DD), and scheduled_time (HH:MM) are required' });
+  }
+  if (!isValidTimeZone(timezone)) {
+    return res.status(400).json({ error: `Invalid IANA timezone '${timezone}'` });
+  }
+  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(project_id);
+  if (!project) return res.status(404).json({ error: 'Project not found' });
+  if (!canAccessProject(req.user, project_id)) return res.status(403).json({ error: 'No access' });
+
+  let scheduledAtUtc;
+  try {
+    scheduledAtUtc = zonedDateTimeToUtcIso(scheduled_date, scheduled_time, timezone);
+  } catch (err) {
+    return res.status(400).json({ error: err.message });
+  }
+
+  let resolvedApprovalId = approval_id || null;
+  let initialStatus = 'scheduled';
+
+  if (resolvedApprovalId) {
+    const appRow = db.prepare('SELECT * FROM approvals WHERE id = ?').get(resolvedApprovalId);
+    if (!appRow) return res.status(404).json({ error: 'Linked approval not found' });
+    if (appRow.status !== 'approved') {
+      initialStatus = 'awaiting_approval';
+    }
+  } else {
+    // Auto-create a Gate G2 approval item linked to this scheduled campaign
+    resolvedApprovalId = uuidv4();
+    const isAdminAutoApprove = false; // Gate G2: always requires explicit approval decision in Approvals
+    initialStatus = isAdminAutoApprove ? 'scheduled' : 'awaiting_approval';
+    db.prepare(`
+      INSERT INTO approvals (id, task_id, project_id, department, agent_name, action_type, title, summary, preview_data, status)
+      VALUES (?, NULL, ?, 'sales', 'Sales Agent', 'email_send', ?, ?, ?, 'pending')
+    `).run(
+      resolvedApprovalId,
+      project_id,
+      `Scheduled Email: ${String(campaign_name).trim()}`,
+      `Scheduled for ${scheduled_date} ${scheduled_time} (${timezone}). Subject: "${String(subject).trim()}". Approve to enable automatic sending at scheduled time.`,
+      JSON.stringify({ subject: String(subject).trim(), scheduled_date, scheduled_time, timezone })
+    );
+  }
+
+  const id = uuidv4();
+  const scheduledLocal = `${String(scheduled_date).trim()} ${String(scheduled_time).trim()}`;
+
+  db.prepare(`
+    INSERT INTO scheduled_email_campaigns (
+      id, project_id, approval_id, campaign_name, subject, from_email, lead_ids_json,
+      scheduled_at_utc, scheduled_local, timezone, status, created_by
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    id,
+    project_id,
+    resolvedApprovalId,
+    String(campaign_name).trim(),
+    String(subject).trim(),
+    String(from_email || '').trim(),
+    JSON.stringify(Array.isArray(lead_ids) ? lead_ids : []),
+    scheduledAtUtc,
+    scheduledLocal,
+    timezone.trim(),
+    initialStatus,
+    req.user.email
+  );
+
+  db.prepare('INSERT INTO activity (id, project_id, user_id, action, meta) VALUES (?, ?, ?, ?, ?)')
+    .run(uuidv4(), project_id, req.user.id, 'email_campaign_scheduled', JSON.stringify({ schedule_id: id, campaign_name, scheduled_at_utc: scheduledAtUtc, timezone, status: initialStatus }));
+
+  const created = db.prepare('SELECT * FROM scheduled_email_campaigns WHERE id = ?').get(id);
+  res.status(201).json({ ok: true, schedule: created });
+}));
+
+app.post('/api/email-schedules/:id/cancel', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager', 'member'), asyncHandler(async (req, res) => {
+  const sched = db.prepare('SELECT * FROM scheduled_email_campaigns WHERE id = ?').get(req.params.id);
+  if (!sched) return res.status(404).json({ error: 'Scheduled campaign not found' });
+  if (!canAccessProject(req.user, sched.project_id)) return res.status(403).json({ error: 'No access' });
+  if (['sent', 'running'].includes(sched.status)) {
+    return res.status(409).json({ error: `Cannot cancel campaign in '${sched.status}' state` });
+  }
+  db.prepare("UPDATE scheduled_email_campaigns SET status = 'cancelled', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(sched.id);
+  res.json({ ok: true, id: sched.id, status: 'cancelled' });
+}));
+
+app.post('/api/email-schedules/:id/run-now', authMiddleware, requireRole('owner', 'super_admin', 'admin'), asyncHandler(async (req, res) => {
+  const sched = db.prepare('SELECT * FROM scheduled_email_campaigns WHERE id = ?').get(req.params.id);
+  if (!sched) return res.status(404).json({ error: 'Scheduled campaign not found' });
+  if (['running', 'sent'].includes(sched.status)) {
+    return res.status(409).json({ error: `Campaign is already '${sched.status}'` });
+  }
+  db.prepare("UPDATE scheduled_email_campaigns SET status = 'running', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(sched.id);
+  const result = await executeScheduledCampaignRow(db, sched, { uploadDir, publicDir: path.join(__dirname, '../public') });
+  res.json({ ok: result.status === 'sent' || result.status === 'partial', ...result });
+}));
+
+app.post('/api/email-schedules/tick', authMiddleware, requireRole('owner', 'super_admin', 'admin'), asyncHandler(async (req, res) => {
+  const result = await runDueScheduledCampaigns(db, { uploadDir, publicDir: path.join(__dirname, '../public') });
+  res.json(result);
+}));
+
 // 3c. Autonomy & Approval Policy Matrix Endpoint
 app.get('/api/governance/policy', authMiddleware, asyncHandler(async (req, res) => {
   res.json({ ok: true, policy_matrix: POLICY_MATRIX });
@@ -2459,6 +3544,13 @@ app.get('/api/system/status', authMiddleware, asyncHandler(async (req, res) => {
   const wd = getWatchdogStatus();
   const tursoStatus = turso.getStatus();
   const connectedIntegrations = db.prepare("SELECT COUNT(*) as c FROM external_integrations WHERE status = 'connected'").get()?.c || 0;
+  const localWorker = getLiveWorkerStatus();
+  const directConnected = activeLlm?.status === 'connected' || activeLlm?.status === 'online';
+  const viaLocalWorker = Boolean(
+    activeLlm?.provider === 'ollama'
+    && localWorker.online
+    && localWorker.ollama_status === 'connected'
+  );
 
   res.json({
     ok: true,
@@ -2466,9 +3558,11 @@ app.get('/api/system/status', authMiddleware, asyncHandler(async (req, res) => {
       provider: activeLlm?.provider || null,
       display_name: activeLlm?.display_name || 'Not Configured',
       model: activeLlm?.default_model || null,
-      status: activeLlm?.status || 'untested',
-      connected: activeLlm?.status === 'connected' || activeLlm?.status === 'online'
+      status: viaLocalWorker ? 'connected_via_worker' : (activeLlm?.status || 'untested'),
+      connected: directConnected || viaLocalWorker,
+      via_local_worker: viaLocalWorker
     },
+    local_worker: localWorker,
     watchdog: {
       is_running: Boolean(wd.is_running),
       serverless: process.env.VERCEL === '1',
@@ -2491,6 +3585,8 @@ app.get('/api/admin/integrations', authMiddleware, requireRole('super_admin', 'a
     if (r.api_key) {
       try { plainKey = decryptSecret(r.api_key); } catch (_) { plainKey = null; }
     }
+    let configObj = {};
+    try { configObj = JSON.parse(r.config_json || '{}'); } catch (_) { configObj = {}; }
     return {
       slug: r.slug,
       display_name: r.display_name,
@@ -2499,6 +3595,7 @@ app.get('/api/admin/integrations', authMiddleware, requireRole('super_admin', 'a
       endpoint_url: r.endpoint_url || '',
       api_key: maskApiKey(plainKey),
       has_api_key: Boolean(plainKey && plainKey.trim().length > 0),
+      config: configObj,
       status: r.status || 'not_configured',
       last_tested: r.last_tested,
       last_error: r.last_error,
@@ -2509,7 +3606,7 @@ app.get('/api/admin/integrations', authMiddleware, requireRole('super_admin', 'a
 }));
 
 app.post('/api/admin/integrations', authMiddleware, requireRole('super_admin', 'admin'), asyncHandler(async (req, res) => {
-  const { slug, provider, endpoint_url, api_key } = req.body;
+  const { slug, provider, endpoint_url, api_key, config } = req.body;
   if (!slug) return res.status(400).json({ error: 'slug is required' });
   const existing = db.prepare('SELECT * FROM external_integrations WHERE slug = ?').get(slug);
   if (!existing) return res.status(404).json({ error: `Integration '${slug}' not found` });
@@ -2523,15 +3620,19 @@ app.post('/api/admin/integrations', authMiddleware, requireRole('super_admin', '
     }
   }
 
+  let existingConfig = {};
+  try { existingConfig = JSON.parse(existing.config_json || '{}'); } catch (_) {}
+  const mergedConfig = config && typeof config === 'object' ? { ...existingConfig, ...config } : existingConfig;
+
   const nextUrl = endpoint_url !== undefined ? String(endpoint_url).trim() : existing.endpoint_url;
   const nextProvider = provider !== undefined ? String(provider).trim() : existing.provider;
   const nextStatus = (!finalKey && !nextUrl) ? 'not_configured' : (existing.status === 'connected' ? 'connected' : 'not_configured');
 
   db.prepare(`
     UPDATE external_integrations
-    SET provider = ?, endpoint_url = ?, api_key = ?, status = ?, last_error = NULL, updated_at = CURRENT_TIMESTAMP
+    SET provider = ?, endpoint_url = ?, api_key = ?, config_json = ?, status = ?, last_error = NULL, updated_at = CURRENT_TIMESTAMP
     WHERE slug = ?
-  `).run(nextProvider, nextUrl, finalKey, nextStatus, slug);
+  `).run(nextProvider, nextUrl, finalKey, JSON.stringify(mergedConfig), nextStatus, slug);
 
   res.json({ ok: true, message: `Saved configuration for ${existing.display_name}. Run Test Connection to verify.` });
 }));
@@ -2539,6 +3640,14 @@ app.post('/api/admin/integrations', authMiddleware, requireRole('super_admin', '
 app.post('/api/admin/integrations/:slug/test', authMiddleware, requireRole('super_admin', 'admin'), asyncHandler(async (req, res) => {
   const row = db.prepare('SELECT * FROM external_integrations WHERE slug = ?').get(req.params.slug);
   if (!row) return res.status(404).json({ error: 'Integration not found' });
+
+  if (row.slug === 'email_dispatch') {
+    const emailCfg = getEmailProviderConfig(db);
+    const result = await testEmailProviderConnection(emailCfg);
+    db.prepare('UPDATE external_integrations SET status = ?, last_error = ?, last_tested = CURRENT_TIMESTAMP WHERE slug = ?')
+      .run(result.status, result.error || null, row.slug);
+    return res.json(result);
+  }
 
   const plainKey = row.api_key ? decryptSecret(row.api_key) : null;
   const endpoint = (row.endpoint_url || '').trim();
@@ -2632,6 +3741,420 @@ app.get('/api/skills', authMiddleware, asyncHandler(async (req, res) => {
   });
 }));
 
+// =============================================================================
+// 13. LOCAL OLLAMA WORKER BRIDGE (Secure Pull-Based Queue for Vercel <-> MacBook)
+// =============================================================================
+
+function shouldQueueForLocalWorker(activeCfg) {
+  if (!activeCfg) return false;
+  const isServerless = process.env.VERCEL === '1' || process.env.FORCE_LOCAL_WORKER_QUEUE === 'true';
+  if (!isServerless) return false;
+  const isLocalEngine = ['ollama', 'lmstudio', 'vllm'].includes(String(activeCfg.provider || '').toLowerCase());
+  return isLocalEngine && isLocalEndpoint(activeCfg.base_url);
+}
+
+function getLiveWorkerStatus(maxAgeSeconds = 60) {
+  try {
+    const row = db.prepare('SELECT * FROM local_workers ORDER BY last_heartbeat DESC LIMIT 1').get();
+    if (!row) {
+      return { online: false, worker_id: null, hostname: null, model: null, ollama_status: 'offline', models: [], last_heartbeat: null };
+    }
+    const lastMs = Date.parse(String(row.last_heartbeat).replace(' ', 'T') + (String(row.last_heartbeat).includes('Z') ? '' : 'Z'));
+    const ageSec = Number.isFinite(lastMs) ? Math.floor((Date.now() - lastMs) / 1000) : Infinity;
+    let models = [];
+    try { models = JSON.parse(row.models_json || '[]'); } catch (_) { models = []; }
+    const online = ageSec <= maxAgeSeconds && row.status === 'online';
+    return {
+      online,
+      worker_id: row.worker_id,
+      hostname: row.hostname,
+      provider: row.provider,
+      model: row.model,
+      ollama_status: online ? row.ollama_status : 'offline',
+      models,
+      last_heartbeat: row.last_heartbeat,
+      age_seconds: Number.isFinite(ageSec) ? ageSec : null
+    };
+  } catch (_) {
+    return { online: false, worker_id: null, hostname: null, model: null, ollama_status: 'offline', models: [], last_heartbeat: null };
+  }
+}
+
+function requireWorkerApiKey(req, res, next) {
+  const isProd = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
+  const expectedKey = (process.env.OS_API_KEY || '').trim() || (isProd ? '' : 'local-dev-key-change-me');
+  const providedKey = String(req.headers['x-os-api-key'] || '').trim();
+  if (!expectedKey) {
+    return res.status(503).json({ ok: false, error: 'Worker bridge misconfigured: OS_API_KEY required in production' });
+  }
+  const a = Buffer.from(providedKey);
+  const b = Buffer.from(expectedKey);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+    return res.status(401).json({ ok: false, error: 'Unauthorized worker API key' });
+  }
+  return next();
+}
+
+app.post('/api/worker/heartbeat', requireWorkerApiKey, asyncHandler(async (req, res) => {
+  const {
+    worker_id = 'local-ollama-worker',
+    hostname = 'unknown-host',
+    provider = 'ollama',
+    model = process.env.OLLAMA_MODEL || 'qwen2.5:7b',
+    ollama_status = 'connected',
+    models = []
+  } = req.body || {};
+
+  const nowIso = new Date().toISOString();
+  const safeModels = Array.isArray(models) ? models.slice(0, 50) : [];
+
+  db.prepare(`
+    INSERT INTO local_workers (worker_id, hostname, provider, model, ollama_status, models_json, status, last_heartbeat, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, 'online', ?, ?)
+    ON CONFLICT(worker_id) DO UPDATE SET
+      hostname = excluded.hostname,
+      provider = excluded.provider,
+      model = excluded.model,
+      ollama_status = excluded.ollama_status,
+      models_json = excluded.models_json,
+      status = 'online',
+      last_heartbeat = excluded.last_heartbeat,
+      updated_at = excluded.updated_at
+  `).run(
+    String(worker_id).slice(0, 120),
+    String(hostname).slice(0, 120),
+    String(provider).slice(0, 40),
+    String(model).slice(0, 120),
+    String(ollama_status).slice(0, 40),
+    JSON.stringify(safeModels),
+    nowIso,
+    nowIso
+  );
+
+  // Also keep admin_llm_configs.available_models in sync with real installed local models
+  if (provider === 'ollama' && safeModels.length > 0) {
+    try {
+      db.prepare('UPDATE admin_llm_configs SET available_models = ?, updated_at = CURRENT_TIMESTAMP WHERE provider = ?')
+        .run(JSON.stringify(safeModels), 'ollama');
+    } catch (_) {}
+  }
+
+  const pendingQueued = db.prepare("SELECT COUNT(*) as c FROM tasks WHERE status = 'queued'").get()?.c || 0;
+  res.json({ ok: true, server_time: nowIso, pending_queued_tasks: pendingQueued });
+}));
+
+app.post('/api/worker/claim', requireWorkerApiKey, asyncHandler(async (req, res) => {
+  const { worker_id = 'local-ollama-worker', stale_timeout_ms = 600000 } = req.body || {};
+
+  // 1. Reap stale worker-claimed tasks if a worker disconnected mid-run (> 10 min)
+  try {
+    const runningTasks = db.prepare("SELECT id, input_json, updated_at FROM tasks WHERE status = 'running'").all();
+    const now = Date.now();
+    for (const rt of runningTasks) {
+      let inp = {};
+      try { inp = JSON.parse(rt.input_json || '{}'); } catch (_) {}
+      if (inp?._worker?.claimed_at) {
+        const claimedAtMs = Date.parse(inp._worker.claimed_at);
+        if (Number.isFinite(claimedAtMs) && (now - claimedAtMs) > Number(stale_timeout_ms)) {
+          inp._worker.stale_reaped_at = new Date().toISOString();
+          inp._worker.last_error = 'Worker disconnected before reporting task completion';
+          db.prepare("UPDATE tasks SET status = 'needs_attention', input_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'running'")
+            .run(JSON.stringify(inp), rt.id);
+        }
+      }
+    }
+  } catch (reapErr) {
+    console.warn(`[worker/claim] Stale task check note: ${reapErr.message}`);
+  }
+
+  // 2. Atomically claim the oldest queued task (guarantees zero duplicate claims)
+  const candidate = db.prepare("SELECT * FROM tasks WHERE status = 'queued' ORDER BY updated_at ASC, created_at ASC LIMIT 1").get();
+  if (!candidate) {
+    return res.json({ ok: true, claimed: false, task: null });
+  }
+
+  const claimId = uuidv4();
+  const runId = uuidv4();
+  let parsedInput = {};
+  try { parsedInput = JSON.parse(candidate.input_json || '{}'); } catch (_) {}
+  parsedInput._worker = {
+    ...(parsedInput._worker || {}),
+    claim_id: claimId,
+    run_id: runId,
+    worker_id: String(worker_id).slice(0, 120),
+    claimed_at: new Date().toISOString()
+  };
+
+  const claimRes = db.prepare("UPDATE tasks SET status = 'running', input_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND status = 'queued'")
+    .run(JSON.stringify(parsedInput), candidate.id);
+
+  if (!claimRes || claimRes.changes !== 1) {
+    return res.json({ ok: true, claimed: false, task: null, reason: 'already_claimed' });
+  }
+
+  const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(candidate.id);
+  const project = db.prepare('SELECT * FROM projects WHERE id = ?').get(task.project_id) || null;
+  const harness = db.prepare('SELECT * FROM harness_files WHERE project_id = ?').all(task.project_id);
+
+  let ragContext = [];
+  try {
+    if (rag && typeof rag.searchChunks === 'function' && project?.id) {
+      ragContext = rag.searchChunks(project.id, `${task.title} ${task.description || ''}`, 5) || [];
+    }
+  } catch (_) {}
+
+  let teamRoster = [];
+  try {
+    teamRoster = db.prepare("SELECT name, role, department FROM users WHERE role != 'client'").all();
+  } catch (_) {}
+
+  let blueprints = '';
+  let agencyContext = '';
+  try {
+    const dept = task.department || (['market-intel', 'lead-research', 'content-seo'].includes(task.pipeline) ? 'research' : (['email-campaign', 'lead_qualification', 'deal_proposal'].includes(task.pipeline) ? 'sales' : 'creative'));
+    const bpRows = db.prepare('SELECT tab_name, content FROM agent_blueprints WHERE agent_slug = ?').all(dept);
+    blueprints = bpRows.filter((r) => r.content && r.content.trim()).map((r) => `[${r.tab_name}]\n${r.content.trim()}`).join('\n\n');
+    const dnaRows = db.prepare("SELECT tab_name, content FROM agent_blueprints WHERE agent_slug = 'agency_dna' ORDER BY tab_name ASC").all();
+    agencyContext = dnaRows.filter((r) => r.content && r.content.trim()).map((r) => `[AGENCY:${r.tab_name}]\n${r.content.trim()}`).join('\n\n');
+  } catch (_) {}
+
+  const activeLlm = getActiveLLMConfig(db, false);
+  res.json({
+    ok: true,
+    claimed: true,
+    claim_id: claimId,
+    run_id: runId,
+    task,
+    project,
+    harness,
+    remote_context: {
+      ragContext,
+      teamRoster,
+      blueprints,
+      agencyContext,
+      webSearch: { configured: false, results: [] }
+    },
+    active_llm_config: activeLlm ? {
+      provider: activeLlm.provider,
+      default_model: activeLlm.default_model,
+      temperature: activeLlm.temperature,
+      max_tokens: activeLlm.max_tokens
+    } : null
+  });
+}));
+
+app.post('/api/worker/complete', requireWorkerApiKey, asyncHandler(async (req, res) => {
+  const {
+    task_id,
+    claim_id,
+    run_id,
+    worker_id = 'local-ollama-worker',
+    provider = 'ollama',
+    model = process.env.OLLAMA_MODEL || 'qwen2.5:7b',
+    duration_ms = 0,
+    attempts = 1,
+    usage = null,
+    output_json,
+    report_md = '',
+    requires_approval = false,
+    sop_slug = 'general',
+    agent = {}
+  } = req.body || {};
+
+  if (!task_id || !run_id || !output_json) {
+    return res.status(400).json({ ok: false, error: 'task_id, run_id, and output_json are required' });
+  }
+
+  const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(task_id);
+  if (!task) return res.status(404).json({ ok: false, error: 'Task not found' });
+
+  // Strict Idempotency: ignore duplicate delivery for an already-completed run_id
+  const existingRun = db.prepare("SELECT id, status FROM agent_runs WHERE id = ? AND status = 'succeeded'").get(run_id);
+  if (existingRun) {
+    return res.json({ ok: true, duplicate: true, task_id, run_id, status: task.status });
+  }
+
+  const department = ['research', 'sales', 'creative'].includes(agent.department) ? agent.department : 'creative';
+  const agentId = agent.id || 'agent-worker';
+  const agentName = agent.name || 'Local Ollama Agent';
+
+  let approvalId = null;
+  let persistedLeads = 0;
+
+  db.transaction(() => {
+    db.prepare("UPDATE tasks SET status = 'in_review', output_json = ?, report_md = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?")
+      .run(
+        typeof output_json === 'string' ? output_json : JSON.stringify(output_json),
+        String(report_md || ''),
+        task_id
+      );
+
+    db.prepare('INSERT INTO reports (id, task_id, project_id, title, content_md, verdict, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .run(uuidv4(), task_id, task.project_id, `Admin Report - ${task.title}`, String(report_md || ''), 'pending', agentName);
+
+    if (sop_slug === 'lead_research' && Array.isArray(output_json.discovered_leads) && task.project_id) {
+      const insertLead = db.prepare(`
+        INSERT INTO leads (id, project_id, full_name, email, phone, job_title, icp_score, status, source_evidence)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'new', ?)
+      `);
+      for (const l of output_json.discovered_leads) {
+        insertLead.run(
+          uuidv4(),
+          task.project_id,
+          l.name || l.full_name || 'Prospect Lead',
+          l.email || null,
+          l.phone || null,
+          l.title || l.job_title || 'Decision Maker',
+          typeof l.icp_score === 'number' ? l.icp_score : 85,
+          JSON.stringify({ data_source: 'live_llm', run_id, worker_id, company: l.company || null })
+        );
+        persistedLeads++;
+      }
+    }
+
+    if (requires_approval) {
+      approvalId = uuidv4();
+      db.prepare(`
+        INSERT INTO approvals (id, task_id, project_id, department, agent_name, action_type, title, summary, preview_data, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+      `).run(
+        approvalId,
+        task_id,
+        task.project_id || null,
+        department,
+        agentName,
+        output_json.proposed_action || `Execute ${task.title}`,
+        `Approval Required: ${task.title}`,
+        output_json.summary || 'Local Ollama agent output requiring human sign-off.',
+        JSON.stringify(output_json.sequence || output_json.html || output_json.summary || '')
+      );
+    }
+
+    db.prepare(`
+      INSERT OR REPLACE INTO agent_runs (
+        id, task_id, project_id, agent_id, agent_name, department, skill_slug,
+        provider, model, status, data_source, attempt_count, duration_ms, metadata_json, completed_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'succeeded', 'live_llm', ?, ?, ?, CURRENT_TIMESTAMP)
+    `).run(
+      run_id,
+      task_id,
+      task.project_id || null,
+      agentId,
+      agentName,
+      department,
+      sop_slug,
+      provider,
+      model,
+      Number(attempts) || 1,
+      Number(duration_ms) || 0,
+      JSON.stringify({
+        worker_id,
+        claim_id: claim_id || null,
+        requires_approval: Boolean(requires_approval),
+        approval_id: approvalId,
+        persisted_leads: persistedLeads,
+        usage: usage || null
+      })
+    );
+
+    db.prepare('INSERT INTO activity (id, project_id, task_id, user_id, action, meta) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(
+        uuidv4(),
+        task.project_id,
+        task_id,
+        null,
+        `worker_completed_${department}:${task.pipeline}`,
+        JSON.stringify({ run_id, worker_id, provider, model, duration_ms: Number(duration_ms) || 0 })
+      );
+  })();
+
+  res.json({
+    ok: true,
+    duplicate: false,
+    task_id,
+    run_id,
+    status: 'in_review',
+    approval_id: approvalId,
+    persisted_leads: persistedLeads
+  });
+}));
+
+app.post('/api/worker/fail', requireWorkerApiKey, asyncHandler(async (req, res) => {
+  const {
+    task_id,
+    claim_id,
+    run_id = uuidv4(),
+    worker_id = 'local-ollama-worker',
+    provider = 'ollama',
+    model = process.env.OLLAMA_MODEL || 'qwen2.5:7b',
+    duration_ms = 0,
+    attempts = 1,
+    error_code = 'WORKER_EXECUTION_FAILED',
+    error_message = 'Local worker execution failed',
+    retryable = false,
+    agent = {}
+  } = req.body || {};
+
+  if (!task_id) return res.status(400).json({ ok: false, error: 'task_id is required' });
+  const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(task_id);
+  if (!task) return res.status(404).json({ ok: false, error: 'Task not found' });
+
+  let parsedInput = {};
+  try { parsedInput = JSON.parse(task.input_json || '{}'); } catch (_) {}
+  const prevRetries = Number(parsedInput?._worker?.retry_count || 0);
+  const shouldRequeue = Boolean(retryable) && prevRetries < 2;
+  const nextStatus = shouldRequeue ? 'queued' : 'needs_attention';
+
+  parsedInput._worker = {
+    ...(parsedInput._worker || {}),
+    retry_count: shouldRequeue ? prevRetries + 1 : prevRetries,
+    last_error: String(error_message).slice(0, 400),
+    last_error_code: String(error_code),
+    last_failed_at: new Date().toISOString()
+  };
+
+  const department = ['research', 'sales', 'creative'].includes(agent.department) ? agent.department : 'creative';
+
+  db.transaction(() => {
+    db.prepare('UPDATE tasks SET status = ?, input_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?')
+      .run(nextStatus, JSON.stringify(parsedInput), task_id);
+
+    db.prepare(`
+      INSERT OR REPLACE INTO agent_runs (
+        id, task_id, project_id, agent_id, agent_name, department, skill_slug,
+        provider, model, status, data_source, attempt_count, duration_ms, error_message, metadata_json, completed_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'failed', 'live_llm', ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `).run(
+      run_id,
+      task_id,
+      task.project_id || null,
+      agent.id || 'agent-worker',
+      agent.name || 'Local Ollama Agent',
+      department,
+      task.pipeline || 'general',
+      provider,
+      model,
+      Number(attempts) || 1,
+      Number(duration_ms) || 0,
+      String(error_message).slice(0, 500),
+      JSON.stringify({ worker_id, claim_id: claim_id || null, error_code, requeued: shouldRequeue })
+    );
+
+    db.prepare(`
+      INSERT INTO error_log (id, correlation_id, category, code, message, stack_trace, context_json, severity)
+      VALUES (?, ?, 'LOCAL_WORKER_ERROR', ?, ?, '', ?, 'ERROR')
+    `).run(
+      uuidv4(),
+      run_id,
+      String(error_code),
+      String(error_message).slice(0, 500),
+      JSON.stringify({ task_id, worker_id, provider, model, requeued: shouldRequeue })
+    );
+  })();
+
+  res.json({ ok: true, task_id, run_id, status: nextStatus, requeued: shouldRequeue });
+}));
+
 // SPA Fallback
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, '../public/index.html')));
 
@@ -2643,6 +4166,7 @@ if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
   app.listen(PORT, () => {
     console.log(`\n✅ Marketing OS running at http://localhost:${PORT}\n   Seed: npm run seed\n   n8n webhook: ${process.env.N8N_WEBHOOK_TASK}\n`);
     startWatchdog();
+    startEmailScheduler(db, { uploadDir, publicDir: path.join(__dirname, '../public'), intervalMs: 15000 });
   });
 }
 

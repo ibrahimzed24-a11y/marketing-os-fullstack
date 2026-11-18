@@ -12,12 +12,14 @@
  *   Evaluate External Action -> Queue in Approvals if Action is Critical.
  */
 
+const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const db = require('./db');
 const { getActiveLLMConfig } = require('./llmConfig');
 const { invokeLLM } = require('./llmClient');
 const { decryptSecret } = require('./cryptoVault');
 const { buildSkillDirectives, lintDeliverableQuality } = require('./skillEngine');
+const { extractProjectBrandAndLeadsContext } = require('./previewBuilder');
 let rag = null;
 try {
   rag = require('./rag');
@@ -616,6 +618,7 @@ async function fetchLiveWebSearch(targetDb, query) {
  */
 function loadAgentBlueprints(targetDb, agentSlug) {
   try {
+    if (!targetDb) return '';
     const rows = targetDb.prepare('SELECT tab_name, content FROM agent_blueprints WHERE agent_slug = ?').all(agentSlug);
     return rows.filter((r) => r.content && r.content.trim()).map((r) => `[${r.tab_name}]\n${r.content.trim()}`).join('\n\n');
   } catch (_) {
@@ -624,15 +627,54 @@ function loadAgentBlueprints(targetDb, agentSlug) {
 }
 
 /**
- * Build grounded prompt for live LLM execution using project context, harness files,
- * keyword/BM25 retrieved snippets, live web search (if configured by Admin), real team roster, and saved blueprints.
+ * Agency DNA & Shared SOP Extension Point (incremental hook for future Agency Knowledge Base).
+ * Reads shared agency-level standards stored under `agent_slug = 'agency_dna'` in `agent_blueprints`
+ * without inventing any unverified agency facts.
  */
-function buildAgentPrompts(targetAgent, skill, task, project, harnessFiles, ragContext, inputData, { webSearch, teamRoster, blueprints, skillDirectives } = {}) {
+function loadAgencyContext(targetDb) {
+  try {
+    if (!targetDb) return '';
+    const rows = targetDb
+      .prepare("SELECT tab_name, content FROM agent_blueprints WHERE agent_slug = 'agency_dna' ORDER BY tab_name ASC")
+      .all();
+    return rows.filter((r) => r.content && r.content.trim()).map((r) => `[AGENCY:${r.tab_name}]\n${r.content.trim()}`).join('\n\n');
+  } catch (_) {
+    return '';
+  }
+}
+
+/**
+ * Build grounded prompt for live LLM execution using project context, harness files,
+ * keyword/BM25 retrieved snippets, live web search (if configured by Admin), real team roster,
+ * shared Agency DNA / SOPs (if configured), and saved department blueprints.
+ */
+function buildAgentPrompts(targetAgent, skill, task, project, harnessFiles, ragContext, inputData, { webSearch, teamRoster, blueprints, agencyContext, skillDirectives, brandAndLeadsContext } = {}) {
   const client = project?.client_name || project?.name || 'Client';
   const harnessSummary = (harnessFiles || [])
     .slice(0, 8)
-    .map((f) => `- ${f.filename || f.name || 'file'} (${f.category || 'general'})`)
+    .map((f) => `- ${f.original_name || f.filename || f.name || 'file'} (${f.file_category || f.category || 'general'})`)
     .join('\n') || 'None uploaded';
+
+  const bk = brandAndLeadsContext?.brandKit || null;
+  const brandKitBlock = bk && bk.configured
+    ? [
+        `Brand Name: ${bk.brand_name}`,
+        `Colors: Primary ${bk.primary_color}, Accent ${bk.accent_color}`,
+        bk.font_family ? `Font: ${bk.font_family}` : '',
+        bk.tagline ? `Tagline: ${bk.tagline}` : '',
+        bk.tone_of_voice ? `Tone of Voice: ${bk.tone_of_voice}` : '',
+        bk.cta_text ? `Preferred CTA: ${bk.cta_text}` : '',
+        bk.guidelines ? `Client Brand Guidelines:\n${bk.guidelines}` : ''
+      ].filter(Boolean).join('\n')
+    : (project?.guidelines || 'Standard agency quality');
+
+  const attachedDocsBlock = brandAndLeadsContext?.docExcerptsText
+    ? `\n[ATTACHED DOCUMENTS & BRAND GUIDELINES CONTENT]\n${brandAndLeadsContext.docExcerptsText}`
+    : '';
+
+  const leadBrandingBlock = brandAndLeadsContext?.leadBrandingText
+    ? `\n[PROJECT LEADS & PER-LEAD BRANDING DATA]\n${brandAndLeadsContext.leadBrandingText}`
+    : '';
 
   const ragSummary = (ragContext || [])
     .slice(0, 5)
@@ -650,6 +692,7 @@ function buildAgentPrompts(targetAgent, skill, task, project, harnessFiles, ragC
   const systemPrompt = [
     `You are ${targetAgent.name} (${targetAgent.roleTitle}) in the ${targetAgent.department.toUpperCase()} department of Marketing OS.`,
     targetAgent.systemDirective,
+    agencyContext ? `SHARED AGENCY DNA & SOP STANDARDS:\n${agencyContext}` : '',
     skillDirectives ? `ACTIVE INSTALLED SKILLS (MUST FOLLOW):\n${skillDirectives}` : '',
     blueprints ? `Custom Admin Blueprints:\n${blueprints}` : '',
     'STRICT HONESTY RULES:',
@@ -666,13 +709,15 @@ function buildAgentPrompts(targetAgent, skill, task, project, harnessFiles, ragC
     `Description: ${task.description || 'N/A'}`,
     `Client: ${client}`,
     `Campaign Goal: ${project?.goal || 'N/A'}`,
-    `Brand Guidelines: ${project?.guidelines || 'Standard agency quality'}`,
+    `Client Brand Kit & Guidelines:\n${brandKitBlock}`,
     `Input JSON: ${JSON.stringify(inputData || {})}`,
     `Real Workspace Team Roster:\n${rosterSummary}`,
     `Harness Files:\n${harnessSummary}`,
+    attachedDocsBlock,
+    leadBrandingBlock,
     `Knowledge Base Snippets:\n${ragSummary}`,
     `Live Web Search Results:\n${webSummary}`
-  ].join('\n');
+  ].filter(Boolean).join('\n');
 
   return { systemPrompt, userPrompt };
 }
@@ -685,9 +730,10 @@ function buildAgentPrompts(targetAgent, skill, task, project, harnessFiles, ragC
  * - Enforces strict DB integrity: NEVER reports success if a required DB write fails
  */
 async function executeAgentTask(task, project, harnessFiles = [], options = {}) {
-  const targetDb = options.db || db;
+  const skipDbPersistence = Boolean(options.skipDbPersistence);
+  const targetDb = skipDbPersistence ? null : (options.db || db);
   const startTime = Date.now();
-  const runId = uuidv4();
+  const runId = options.runId || uuidv4();
   const pipeline = (task.pipeline || 'creative').toLowerCase();
   const isProd = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
   const allowSimulatedFallback = !isProd && (process.env.ALLOW_SIMULATED_FALLBACK === 'true' || options.allowSimulatedFallback === true);
@@ -715,30 +761,35 @@ async function executeAgentTask(task, project, harnessFiles = [], options = {}) 
   }
 
   const skill = targetAgent.getSkill(sopSlug) || Object.values(targetAgent.skills)[0];
-  const activeCfg = getActiveLLMConfig ? getActiveLLMConfig(targetDb, false) : { provider: 'ollama', default_model: 'llama3.2' };
+  const activeCfg = options.overrideCandidates?.[0]
+    || (targetDb && getActiveLLMConfig ? getActiveLLMConfig(targetDb, false) : null)
+    || { provider: 'ollama', default_model: process.env.OLLAMA_MODEL || 'qwen2.5:7b' };
 
-  // 2. Record `running` audit entry in `agent_runs`
-  targetDb.prepare(`
-    INSERT INTO agent_runs (
-      id, task_id, project_id, agent_id, agent_name, department, skill_slug,
-      provider, model, status, data_source, attempt_count, duration_ms
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'running', 'live_llm', 0, 0)
-  `).run(
-    runId,
-    task.id || null,
-    project?.id || task.project_id || null,
-    targetAgent.id,
-    targetAgent.name,
-    targetAgent.department,
-    sopSlug,
-    activeCfg?.provider || 'unconfigured',
-    activeCfg?.default_model || 'unconfigured'
-  );
+  // 2. Record `running` audit entry in `agent_runs` (when DB-backed)
+  if (targetDb) {
+    targetDb.prepare(`
+      INSERT INTO agent_runs (
+        id, task_id, project_id, agent_id, agent_name, department, skill_slug,
+        provider, model, status, data_source, attempt_count, duration_ms
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'running', 'live_llm', 0, 0)
+    `).run(
+      runId,
+      task.id || null,
+      project?.id || task.project_id || null,
+      targetAgent.id,
+      targetAgent.name,
+      targetAgent.department,
+      sopSlug,
+      activeCfg?.provider || 'unconfigured',
+      activeCfg?.default_model || activeCfg?.model || 'unconfigured'
+    );
+  }
 
   try {
-    // 3. Load Keyword/BM25 Knowledge Base context, real Team Roster, saved Blueprints, and optional Live Web Search
-    let ragContext = [];
-    if (rag && typeof rag.searchChunks === 'function' && project?.id) {
+    // 3. Load Knowledge Base context, real Team Roster, Agency DNA, saved Blueprints, and optional Live Web Search
+    const remoteCtx = options.remoteContext || null;
+    let ragContext = Array.isArray(remoteCtx?.ragContext) ? remoteCtx.ragContext : [];
+    if (!remoteCtx && rag && typeof rag.searchChunks === 'function' && project?.id) {
       try {
         ragContext = rag.searchChunks(project.id, `${task.title} ${task.description || ''}`, 5) || [];
       } catch (ragErr) {
@@ -746,18 +797,42 @@ async function executeAgentTask(task, project, harnessFiles = [], options = {}) 
       }
     }
 
-    let teamRoster = [];
-    try {
-      teamRoster = targetDb.prepare("SELECT name, role, department FROM users WHERE role != 'client'").all();
-    } catch (_) {}
+    let teamRoster = Array.isArray(remoteCtx?.teamRoster) ? remoteCtx.teamRoster : [];
+    if (!remoteCtx && targetDb) {
+      try {
+        teamRoster = targetDb.prepare("SELECT name, role, department FROM users WHERE role != 'client'").all();
+      } catch (_) {}
+    }
 
-    const blueprints = loadAgentBlueprints(targetDb, targetAgent.department);
+    const blueprints = remoteCtx?.blueprints !== undefined
+      ? remoteCtx.blueprints
+      : loadAgentBlueprints(targetDb, targetAgent.department);
+    const agencyContext = remoteCtx?.agencyContext !== undefined
+      ? remoteCtx.agencyContext
+      : loadAgencyContext(targetDb);
     const skillBundle = buildSkillDirectives(targetAgent.department, task.pipeline || sopSlug);
-    const webSearch = targetAgent.department === 'research'
-      ? await fetchLiveWebSearch(targetDb, `${project?.client_name || ''} ${task.title} ${project?.goal || ''}`.trim())
-      : { configured: false, results: [] };
+    const webSearch = remoteCtx?.webSearch
+      ? remoteCtx.webSearch
+      : (targetAgent.department === 'research' && targetDb
+          ? await fetchLiveWebSearch(targetDb, `${project?.client_name || ''} ${task.title} ${project?.goal || ''}`.trim())
+          : { configured: false, results: [] });
 
-    // 4. Attempt Real LLM Execution via llmClient (with timeout, backoff retries & failover)
+    let projectLeads = Array.isArray(remoteCtx?.projectLeads) ? remoteCtx.projectLeads : [];
+    if (!remoteCtx && targetDb && project?.id) {
+      try {
+        projectLeads = targetDb.prepare('SELECT * FROM leads WHERE project_id = ? ORDER BY icp_score DESC, created_at DESC LIMIT 30').all(project.id);
+      } catch (_) {}
+    }
+
+    const uploadDir = process.env.UPLOAD_DIR || path.join(__dirname, '../uploads');
+    const brandAndLeadsContext = remoteCtx?.brandAndLeadsContext || extractProjectBrandAndLeadsContext({
+      project,
+      harnessFiles,
+      dbLeads: projectLeads,
+      uploadDir
+    });
+
+    // 4. Attempt Real LLM Execution via Unified llmClient (with timeout, backoff retries & failover)
     const { systemPrompt, userPrompt } = buildAgentPrompts(
       targetAgent,
       skill,
@@ -766,7 +841,7 @@ async function executeAgentTask(task, project, harnessFiles = [], options = {}) 
       harnessFiles,
       ragContext,
       inputData,
-      { webSearch, teamRoster, blueprints, skillDirectives: skillBundle.promptBlock }
+      { webSearch, teamRoster, blueprints, agencyContext, skillDirectives: skillBundle.promptBlock, brandAndLeadsContext }
     );
 
     const llmRes = options.skipLiveLLM
@@ -774,8 +849,10 @@ async function executeAgentTask(task, project, harnessFiles = [], options = {}) 
       : await invokeLLM(targetDb, {
           systemPrompt,
           userPrompt,
+          expectJson: options.expectJson !== undefined ? options.expectJson : true,
+          overrideCandidates: options.overrideCandidates || null,
           maxRetries: options.maxRetries !== undefined ? options.maxRetries : 1,
-          baseBackoffMs: options.baseBackoffMs !== undefined ? options.baseBackoffMs : 150,
+          baseBackoffMs: options.baseBackoffMs !== undefined ? options.baseBackoffMs : 200,
           timeoutMs: options.timeoutMs || null
         });
 
@@ -785,7 +862,7 @@ async function executeAgentTask(task, project, harnessFiles = [], options = {}) 
     let isSimulated = false;
     let fallbackReason = null;
     let usedProvider = activeCfg?.provider || 'unconfigured';
-    let usedModel = activeCfg?.default_model || 'unconfigured';
+    let usedModel = activeCfg?.default_model || activeCfg?.model || 'unconfigured';
 
     if (llmRes.ok) {
       dataSource = 'live_llm';
@@ -827,9 +904,9 @@ async function executeAgentTask(task, project, harnessFiles = [], options = {}) 
     } else {
       // HONEST PRODUCTION BEHAVIOR: Refuse to fabricate fake data or fake leads when no live LLM is connected!
       const err = new Error(
-        `No live LLM provider is connected (${llmRes.error || 'unconfigured'}). Go to Settings → LLM Providers, configure an OpenAI, Anthropic, or Gemini API key (or live endpoint), click Save & Test Ping, and set it as Primary before running agents.`
+        `No live LLM provider is connected (${llmRes.error || 'unconfigured'}). Go to Settings → LLM Providers, configure Ollama (with Local Worker) or an OpenAI, Anthropic, or Gemini API key, click Save & Test Ping, and set it as Primary before running agents.`
       );
-      err.code = 'LLM_NOT_CONFIGURED';
+      err.code = llmRes.errorCode || 'LLM_NOT_CONFIGURED';
       err.statusCode = 503;
       throw err;
     }
@@ -846,11 +923,16 @@ async function executeAgentTask(task, project, harnessFiles = [], options = {}) 
     );
     outputJson.quality_audit = qualityAudit;
 
-    // 5. Attach Standardized Execution Metadata
+    const durationMs = Date.now() - startTime;
+
+    // 5. Attach Standardized Execution Metadata (explicit evidence of real model execution)
     outputJson.metadata = {
       pipeline: task.pipeline || 'landing-page',
       provider: usedProvider,
       model: usedModel,
+      status: 'succeeded',
+      duration_ms: durationMs,
+      usage: llmRes.usage || null,
       agent_id: targetAgent.id,
       agent_name: targetAgent.name,
       department: targetAgent.department,
@@ -869,84 +951,86 @@ async function executeAgentTask(task, project, harnessFiles = [], options = {}) 
     let approvalId = null;
     let persistedLeadsCount = 0;
 
-    const persistSideEffects = targetDb.transaction(() => {
-      // 6a. Persist discovered leads for lead_research into actual `leads` schema
-      if (sopSlug === 'lead_research' && Array.isArray(outputJson.discovered_leads) && (project?.id || task.project_id)) {
-        const targetProjectId = project?.id || task.project_id;
-        const insertLead = targetDb.prepare(`
-          INSERT INTO leads (id, project_id, full_name, email, phone, job_title, icp_score, status, source_evidence)
-          VALUES (?, ?, ?, ?, ?, ?, ?, 'new', ?)
-        `);
-        for (const l of outputJson.discovered_leads) {
-          insertLead.run(
-            uuidv4(),
-            targetProjectId,
-            l.name || l.full_name || 'Prospect Lead',
-            l.email || null,
-            l.phone || null,
-            l.title || l.job_title || 'Decision Maker',
-            typeof l.icp_score === 'number' ? l.icp_score : 85,
-            JSON.stringify({
-              data_source: dataSource,
-              is_simulated: isSimulated,
-              run_id: runId,
-              company: l.company || null,
-              location: l.location || null
-            })
-          );
-          persistedLeadsCount++;
+    if (targetDb) {
+      const persistSideEffects = targetDb.transaction(() => {
+        // 6a. Persist discovered leads for lead_research into actual `leads` schema
+        if (sopSlug === 'lead_research' && Array.isArray(outputJson.discovered_leads) && (project?.id || task.project_id)) {
+          const targetProjectId = project?.id || task.project_id;
+          const insertLead = targetDb.prepare(`
+            INSERT INTO leads (id, project_id, full_name, email, phone, job_title, icp_score, status, source_evidence)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'new', ?)
+          `);
+          for (const l of outputJson.discovered_leads) {
+            insertLead.run(
+              uuidv4(),
+              targetProjectId,
+              l.name || l.full_name || 'Prospect Lead',
+              l.email || null,
+              l.phone || null,
+              l.title || l.job_title || 'Decision Maker',
+              typeof l.icp_score === 'number' ? l.icp_score : 85,
+              JSON.stringify({
+                data_source: dataSource,
+                is_simulated: isSimulated,
+                run_id: runId,
+                company: l.company || null,
+                location: l.location || null
+              })
+            );
+            persistedLeadsCount++;
+          }
         }
-      }
 
-      // 6b. Queue Human Approval Gate if required (throws on DB failure!)
-      if (requiresApproval) {
-        approvalId = uuidv4();
-        targetDb.prepare(`
-          INSERT INTO approvals (id, task_id, project_id, department, agent_name, action_type, title, summary, preview_data, status)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
-        `).run(
-          approvalId,
-          task.id || null,
-          project?.id || task.project_id || null,
-          targetAgent.department,
-          targetAgent.name,
-          outputJson.proposed_action || `Execute ${task.title}`,
-          `Approval Required: ${task.title}`,
-          outputJson.summary || 'Agent output generated requiring human sign-off.',
-          JSON.stringify(outputJson.sequence || outputJson.html || outputJson.summary)
-        );
-      }
-    });
+        // 6b. Queue Human Approval Gate if required (throws on DB failure!)
+        if (requiresApproval) {
+          approvalId = uuidv4();
+          targetDb.prepare(`
+            INSERT INTO approvals (id, task_id, project_id, department, agent_name, action_type, title, summary, preview_data, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+          `).run(
+            approvalId,
+            task.id || null,
+            project?.id || task.project_id || null,
+            targetAgent.department,
+            targetAgent.name,
+            outputJson.proposed_action || `Execute ${task.title}`,
+            `Approval Required: ${task.title}`,
+            outputJson.summary || 'Agent output generated requiring human sign-off.',
+            JSON.stringify(outputJson.sequence || outputJson.html || outputJson.summary)
+          );
+        }
+      });
 
-    persistSideEffects();
+      persistSideEffects();
 
-    // 7. Mark agent_run as `succeeded`
-    const durationMs = Date.now() - startTime;
-    targetDb.prepare(`
-      UPDATE agent_runs SET
-        provider = ?,
-        model = ?,
-        status = 'succeeded',
-        data_source = ?,
-        attempt_count = ?,
-        duration_ms = ?,
-        metadata_json = ?,
-        completed_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).run(
-      usedProvider,
-      usedModel,
-      dataSource,
-      llmRes.attempts || 0,
-      durationMs,
-      JSON.stringify({
-        requires_approval: requiresApproval,
-        approval_id: approvalId,
-        persisted_leads: persistedLeadsCount,
-        fallback_reason: fallbackReason
-      }),
-      runId
-    );
+      // 7. Mark agent_run as `succeeded`
+      targetDb.prepare(`
+        UPDATE agent_runs SET
+          provider = ?,
+          model = ?,
+          status = 'succeeded',
+          data_source = ?,
+          attempt_count = ?,
+          duration_ms = ?,
+          metadata_json = ?,
+          completed_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(
+        usedProvider,
+        usedModel,
+        dataSource,
+        llmRes.attempts || 0,
+        durationMs,
+        JSON.stringify({
+          requires_approval: requiresApproval,
+          approval_id: approvalId,
+          persisted_leads: persistedLeadsCount,
+          fallback_reason: fallbackReason,
+          usage: llmRes.usage || null
+        }),
+        runId
+      );
+    }
 
     return {
       runId,
@@ -957,8 +1041,13 @@ async function executeAgentTask(task, project, harnessFiles = [], options = {}) 
       dataSource,
       isSimulated,
       fallbackReason,
+      provider: usedProvider,
+      model: usedModel,
+      durationMs,
+      usage: llmRes.usage || null,
       attempts: llmRes.attempts || 0,
       persistedLeadsCount,
+      sopSlug,
       agent: targetAgent
     };
   } catch (err) {
@@ -966,29 +1055,31 @@ async function executeAgentTask(task, project, harnessFiles = [], options = {}) 
     console.error(`[agentFramework ERROR] Run ${runId} failed for task ${task.id}: ${err.message}`);
 
     // Mark agent_runs as `failed` and record incident in `error_log`
-    try {
-      targetDb.prepare(`
-        UPDATE agent_runs SET
-          status = 'failed',
-          duration_ms = ?,
-          error_message = ?,
-          completed_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-      `).run(durationMs, err.message, runId);
+    if (targetDb) {
+      try {
+        targetDb.prepare(`
+          UPDATE agent_runs SET
+            status = 'failed',
+            duration_ms = ?,
+            error_message = ?,
+            completed_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `).run(durationMs, err.message, runId);
 
-      targetDb.prepare(`
-        INSERT INTO error_log (id, correlation_id, category, code, message, stack_trace, context_json, severity)
-        VALUES (?, ?, 'AGENT_EXECUTION_ERROR', ?, ?, ?, ?, 'ERROR')
-      `).run(
-        uuidv4(),
-        runId,
-        err.code || 'AGENT_RUN_FAILED',
-        err.message,
-        (err.stack || '').slice(0, 1500),
-        JSON.stringify({ source: 'agent_framework', task_id: task.id || null, project_id: project?.id || task.project_id || null })
-      );
-    } catch (logErr) {
-      console.error(`[agentFramework] Secondary error while logging failure: ${logErr.message}`);
+        targetDb.prepare(`
+          INSERT INTO error_log (id, correlation_id, category, code, message, stack_trace, context_json, severity)
+          VALUES (?, ?, 'AGENT_EXECUTION_ERROR', ?, ?, ?, ?, 'ERROR')
+        `).run(
+          uuidv4(),
+          runId,
+          err.code || 'AGENT_RUN_FAILED',
+          err.message,
+          (err.stack || '').slice(0, 1500),
+          JSON.stringify({ source: 'agent_framework', task_id: task.id || null, project_id: project?.id || task.project_id || null })
+        );
+      } catch (logErr) {
+        console.error(`[agentFramework] Secondary error while logging failure: ${logErr.message}`);
+      }
     }
 
     throw err;

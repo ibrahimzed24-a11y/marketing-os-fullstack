@@ -1417,32 +1417,56 @@ function downloadActiveDeliverable() {
   showToast('Exported grounded Markdown deliverable report.');
 }
 
-// --- Preview Modal for HTML Deliverables ---
-async function openLiveHtmlPreview(taskId) {
-  try {
-    const res = await apiFetch('/api/tasks/' + taskId);
-    if (res.ok) {
-      const data = await res.json();
-      const out = JSON.parse(data.task.output_json || '{}');
-      if (out.html) {
-        document.getElementById('previewModalTitle').textContent = data.task.title + ' — Interactive Dual-Branded Preview';
-        document.getElementById('previewModalFrame').srcdoc = out.html;
-        document.getElementById('previewModal').classList.remove('hidden');
-        return;
+// --- Preview Modal for HTML Deliverables & Grounded Harness Prototypes ---
+async function openLiveHtmlPreview(taskId, projectId) {
+  const modal = document.getElementById('previewModal');
+  const titleEl = document.getElementById('previewModalTitle');
+  const frame = document.getElementById('previewModalFrame');
+  if (!modal || !frame) return;
+
+  // Always clear stale src / srcdoc so switching previews never shows a blank or previous frame
+  frame.removeAttribute('src');
+  frame.removeAttribute('srcdoc');
+
+  const activeProj = typeof getSelectedProject === 'function' ? getSelectedProject() : null;
+  const resolvedTaskId = (taskId && taskId !== 'active-task') ? taskId : (activeProj?.activeTask?.id || '');
+  const resolvedProjectId = projectId || activeProj?.id || state.selectedProjectId || '';
+
+  const endpoints = [];
+  if (resolvedTaskId) endpoints.push('/api/tasks/' + encodeURIComponent(resolvedTaskId) + '/preview');
+  if (resolvedProjectId) endpoints.push('/api/projects/' + encodeURIComponent(resolvedProjectId) + '/preview');
+
+  for (const url of endpoints) {
+    try {
+      const res = await apiFetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.html) {
+          if (titleEl) titleEl.textContent = data.title || 'Campaign Deliverable Live Preview';
+          frame.srcdoc = data.html;
+          modal.classList.remove('hidden');
+          return;
+        }
       }
+    } catch (e) {
+      console.warn('[Preview] Endpoint error for ' + url + ':', e.message);
     }
-  } catch (e) {
-    console.warn('[Preview] Fallback to client generator');
   }
 
-  // Fallback demo iframe
-  document.getElementById('previewModalTitle').textContent = 'Campaign Deliverable Live Preview';
-  document.getElementById('previewModalFrame').src = '/valioz-preview.html';
-  document.getElementById('previewModal').classList.remove('hidden');
+  // Final honest fallback if API is unreachable
+  if (titleEl) titleEl.textContent = 'Campaign Deliverable Live Preview';
+  frame.srcdoc = '<!doctype html><html><body style="font-family:sans-serif;padding:32px;color:#0f172a;background:#f8fafc;"><h3>Preview Unavailable</h3><p>Select a project with an uploaded HTML template or completed agent deliverable to preview it here.</p></body></html>';
+  modal.classList.remove('hidden');
 }
 
 function closePreviewModal() {
-  document.getElementById('previewModal')?.classList.add('hidden');
+  const modal = document.getElementById('previewModal');
+  const frame = document.getElementById('previewModalFrame');
+  if (frame) {
+    frame.removeAttribute('srcdoc');
+    frame.removeAttribute('src');
+  }
+  modal?.classList.add('hidden');
 }
 
 // --- SAVED LOGINS & TOOLS DATABASE CONTROLLERS ---
@@ -2050,7 +2074,7 @@ function renderWorkbenchOutput() {
               '<h4 class="text-base font-bold mt-0.5">' + escapeHtml(deliverable.title || 'Responsive Landing Page') + '</h4>' +
               '<p class="text-xs text-indigo-100 mt-1 max-w-xl">' + escapeHtml(deliverable.summary || 'High-conversion responsive landing page with Tailwind CSS.') + '</p>' +
             '</div>' +
-            '<button onclick="openLiveHtmlPreview(\'' + taskId + '\')" class="bg-white text-indigo-900 font-bold px-4 py-2 rounded-xl text-xs shadow hover:bg-slate-100 transition">' +
+            '<button onclick="openLiveHtmlPreview(\'' + escapeHtml(taskId) + '\', \'' + escapeHtml(proj.id || '') + '\')" class="bg-white text-indigo-900 font-bold px-4 py-2 rounded-xl text-xs shadow hover:bg-slate-100 transition">' +
               '🌐 Open Fullscreen Preview →' +
             '</button>' +
           '</div>' +
@@ -2128,7 +2152,9 @@ function renderWorkbenchOutput() {
           '</div>' +
         '</div>';
     } else {
-      // Default / initial staged view
+      // Default / grounded harness preview view
+      const activeTaskId = proj.activeTask?.id || '';
+      const hasHtmlHarness = (proj.harnessFiles || []).some(f => /\.html?$/i.test(f.name || f.original_name || ''));
       vp.innerHTML =
         '<div class="p-5 space-y-4">' +
           '<div class="flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-teal-700 via-indigo-700 to-purple-700 text-white p-4 rounded-xl">' +
@@ -2137,16 +2163,41 @@ function renderWorkbenchOutput() {
               '<h4 class="text-base font-bold mt-0.5">' + escapeHtml(proj.name) + '</h4>' +
               '<p class="text-xs text-teal-100 mt-1">' + escapeHtml(proj.goal || 'Production deliverable pipeline.') + '</p>' +
             '</div>' +
-            '<button onclick="openLiveHtmlPreview(\'active-task\')" class="bg-white text-indigo-900 font-bold px-4 py-2 rounded-xl text-xs shadow hover:bg-slate-100 transition">' +
-              '🌐 Open Preview Modal →' +
-            '</button>' +
+            '<div class="flex flex-wrap items-center gap-2">' +
+              '<button onclick="openBrandKitModal(\'' + escapeHtml(proj.id || '') + '\')" class="bg-white/15 hover:bg-white/25 text-white border border-white/30 font-bold px-3.5 py-2 rounded-xl text-xs transition">' +
+                '🎨 Brand Kit' +
+              '</button>' +
+              '<button onclick="openLiveHtmlPreview(\'' + escapeHtml(activeTaskId) + '\', \'' + escapeHtml(proj.id || '') + '\')" class="bg-white text-indigo-900 font-bold px-4 py-2 rounded-xl text-xs shadow hover:bg-slate-100 transition">' +
+                '🌐 Open Preview Modal →' +
+              '</button>' +
+            '</div>' +
           '</div>' +
-          '<div class="grid sm:grid-cols-3 gap-3 text-xs">' +
-            '<div class="card-subtle p-3.5"><div class="text-[10px] text-teal-600 font-bold uppercase">Pipeline Squad</div><div class="font-bold mt-1">' + pipe.squadNames.join(', ') + '</div><p class="text-[11px] text-[var(--text-soft)] mt-1">Autonomous multi-agent execution squad.</p></div>' +
-            '<div class="card-subtle p-3.5"><div class="text-[10px] text-indigo-600 font-bold uppercase">Execution Stage</div><div class="font-bold mt-1">' + (proj.stage || 'In Review') + '</div><p class="text-[11px] text-[var(--text-soft)] mt-1">Grounded in verified project harness briefs.</p></div>' +
-            '<div class="card-subtle p-3.5"><div class="text-[10px] text-emerald-600 font-bold uppercase">Gate G2 Compliance</div><div class="font-bold mt-1">Production Staged</div><p class="text-[11px] text-[var(--text-soft)] mt-1">Strict human-in-the-loop consent required before release.</p></div>' +
-          '</div>' +
+          (hasHtmlHarness
+            ? '<div class="border border-[var(--border)] rounded-xl overflow-hidden shadow-inner bg-white">' +
+                '<div class="bg-slate-100 dark:bg-slate-800 px-3 py-1.5 border-b border-[var(--border)] flex items-center justify-between text-[11px] text-[var(--text-soft)]">' +
+                  '<span class="flex items-center gap-1.5 font-medium"><span class="w-2 h-2 rounded-full bg-emerald-500"></span> Live Grounded Harness Preview</span>' +
+                  '<span class="mono">HTML + Uploaded Assets</span>' +
+                '</div>' +
+                '<iframe id="inlineHarnessPreviewFrame" class="w-full h-[520px] border-0 bg-white" title="Inline Grounded Preview"></iframe>' +
+              '</div>'
+            : '<div class="grid sm:grid-cols-3 gap-3 text-xs">' +
+                '<div class="card-subtle p-3.5"><div class="text-[10px] text-teal-600 font-bold uppercase">Pipeline Squad</div><div class="font-bold mt-1">' + pipe.squadNames.join(', ') + '</div><p class="text-[11px] text-[var(--text-soft)] mt-1">Autonomous multi-agent execution squad.</p></div>' +
+                '<div class="card-subtle p-3.5"><div class="text-[10px] text-indigo-600 font-bold uppercase">Execution Stage</div><div class="font-bold mt-1">' + (proj.stage || 'In Review') + '</div><p class="text-[11px] text-[var(--text-soft)] mt-1">Grounded in verified project harness briefs.</p></div>' +
+                '<div class="card-subtle p-3.5"><div class="text-[10px] text-emerald-600 font-bold uppercase">Gate G2 Compliance</div><div class="font-bold mt-1">Production Staged</div><p class="text-[11px] text-[var(--text-soft)] mt-1">Strict human-in-the-loop consent required before release.</p></div>' +
+              '</div>') +
         '</div>';
+
+      if (hasHtmlHarness && proj.id) {
+        const previewEndpoint = activeTaskId
+          ? '/api/tasks/' + encodeURIComponent(activeTaskId) + '/preview'
+          : '/api/projects/' + encodeURIComponent(proj.id) + '/preview';
+        apiFetch(previewEndpoint).then(r => r.ok ? r.json() : null).then(data => {
+          const inlineFrame = document.getElementById('inlineHarnessPreviewFrame');
+          if (inlineFrame && data && data.html) {
+            inlineFrame.srcdoc = data.html;
+          }
+        }).catch(() => {});
+      }
     }
   } else if (state.outputTab === 'Code') {
     vp.innerHTML = '<div class="p-4 bg-slate-950 text-lime-300 font-mono text-xs overflow-x-auto"><pre>' +
@@ -2657,6 +2708,57 @@ function escapeHtml(str) {
 }
 
 let latestRagResults = [];
+let activeKbTab = 'docs';
+let activeKbCategoryFilter = 'all';
+let knowledgeSummaryCache = null;
+let knowledgeFilesCache = [];
+let knowledgeProposalsCache = [];
+let currentEditingProposalLeadId = null;
+let knowledgeUploadMode = 'file';
+let proposalSearchDebounceTimer = null;
+
+function switchKnowledgeTab(tabName) {
+  activeKbTab = tabName;
+  ['docs', 'proposals', 'search'].forEach(t => {
+    const pane = document.getElementById(`kbTabPane-${t}`);
+    const btn = document.getElementById(`kbTabBtn-${t}`);
+    if (pane) {
+      if (t === tabName) pane.classList.remove('hidden');
+      else pane.classList.add('hidden');
+    }
+    if (btn) {
+      if (t === tabName) {
+        btn.className = 'px-3.5 py-1.5 text-xs font-bold rounded-lg bg-indigo-600 text-white shadow-sm';
+      } else {
+        btn.className = 'px-3.5 py-1.5 text-xs font-semibold rounded-lg text-[var(--text-soft)] hover:bg-[var(--border)] transition';
+      }
+    }
+  });
+
+  if (tabName === 'proposals' && (!knowledgeProposalsCache || knowledgeProposalsCache.length === 0)) {
+    renderKnowledgeProposals();
+  } else if (tabName === 'search') {
+    runRagSemanticSearch();
+  }
+}
+
+function filterKnowledgeCategory(category) {
+  activeKbCategoryFilter = category;
+  document.querySelectorAll('#kbCategoryFilters .kb-cat-pill').forEach(btn => {
+    const cat = btn.getAttribute('data-cat');
+    if (cat === category) {
+      btn.className = 'kb-cat-pill active px-3 py-1 rounded-full text-[11px] font-bold bg-indigo-600 text-white shadow-sm';
+    } else {
+      btn.className = 'kb-cat-pill px-3 py-1 rounded-full text-[11px] font-semibold bg-[var(--border)] text-[var(--text-soft)] hover:text-white transition';
+    }
+  });
+  renderKnowledgeDocuments();
+}
+
+function filterKnowledgeTab(category) {
+  switchKnowledgeTab('docs');
+  filterKnowledgeCategory(category);
+}
 
 async function renderRagView() {
   const selEl = document.getElementById('ragProjectSelect');
@@ -2667,18 +2769,439 @@ async function renderRagView() {
   }
 
   if (!authToken) return;
-  const badge = document.getElementById('ragChunkCountBadge');
   const proj = getSelectedProject();
-  if (proj) {
+  if (!proj) return;
+
+  try {
+    const res = await apiFetch(`/api/projects/${proj.id}/knowledge`);
+    if (res.ok) {
+      const data = await res.json();
+      knowledgeSummaryCache = data.summary || null;
+      knowledgeFilesCache = data.files || [];
+
+      // Update stat counters
+      const cats = data.summary?.categories || {};
+      const statMR = document.getElementById('statMarketResearch');
+      const statGaps = document.getElementById('statGaps');
+      const statBrand = document.getElementById('statBrand');
+      const statProf = document.getElementById('statProfiles');
+      const statOff = document.getElementById('statOffers');
+      const statProp = document.getElementById('statProposals');
+      const badgeChunks = document.getElementById('ragChunkCountBadge');
+      const docsCountLabel = document.getElementById('kbDocsTabCount');
+      const propCountLabel = document.getElementById('kbProposalsTabCount');
+
+      if (statMR) statMR.textContent = `${cats.market_research?.documents?.length || 0} docs`;
+      if (statGaps) statGaps.textContent = `${cats.gaps_opportunities?.documents?.length || 0} docs`;
+      if (statBrand) statBrand.textContent = `${cats.brand_guidelines?.documents?.length || 0} docs`;
+      if (statProf) statProf.textContent = `${cats.customer_profiles?.documents?.length || 0} docs`;
+      if (statOff) statOff.textContent = `${cats.offer_frameworks?.documents?.length || 0} docs`;
+
+      const pMet = data.proposals_metric || {};
+      if (statProp) statProp.textContent = `${pMet.total || 0} / ${pMet.total_leads || 0}`;
+      if (propCountLabel) propCountLabel.textContent = `${pMet.total || 0}`;
+      if (docsCountLabel) docsCountLabel.textContent = `${knowledgeFilesCache.length || data.summary?.total_documents || 0}`;
+      if (badgeChunks) badgeChunks.textContent = `${data.summary?.total_chunks || 0} chunks indexed`;
+
+      renderKnowledgeDocuments();
+      renderKnowledgeProposals();
+    }
+  } catch (e) {
+    console.warn('[renderRagView] Error fetching knowledge summary:', e.message);
+  }
+}
+
+function renderKnowledgeDocuments() {
+  const container = document.getElementById('kbDocumentsList');
+  if (!container) return;
+
+  let filtered = knowledgeFilesCache || [];
+  if (activeKbCategoryFilter !== 'all') {
+    const targetMap = {
+      market_research: ['Market Research', 'market_research'],
+      gaps_opportunities: ['Competitor Gaps', 'Spreadsheet', 'gaps_opportunities'],
+      brand_guidelines: ['Brand Guidelines', 'Image Asset', 'brand_guidelines'],
+      customer_profiles: ['Customer Profiles', 'customer_profiles'],
+      offer_frameworks: ['Offer Frameworks', 'offer_frameworks']
+    };
+    const allowed = targetMap[activeKbCategoryFilter] || [activeKbCategoryFilter];
+    filtered = filtered.filter(f => allowed.some(a => String(f.file_category).toLowerCase().includes(a.toLowerCase())));
+  }
+
+  if (filtered.length === 0) {
+    container.innerHTML = `
+      <div class="card-surface p-8 text-center space-y-2 border border-dashed border-[var(--border)] rounded-xl">
+        <span class="text-3xl block">📂</span>
+        <div class="font-bold text-xs">No documents in this category yet.</div>
+        <p class="text-[11px] text-[var(--text-soft)]">Upload market research, competitor gap sheets, PDFs, or write brand/offer documents to populate this partition.</p>
+        <button onclick="openKnowledgeUploadModal('${activeKbCategoryFilter === 'all' ? 'market_research' : activeKbCategoryFilter}')" class="btn-primary text-xs px-4 py-1.5 font-bold mt-2">+ Upload Document</button>
+      </div>
+    `;
+    return;
+  }
+
+  const categoryPill = (cat) => {
+    const c = String(cat || '').toLowerCase();
+    if (c.includes('gap')) return '<span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">🔍 Gaps &amp; Opportunities</span>';
+    if (c.includes('brand') || c.includes('image')) return '<span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-teal-500/15 text-teal-700 dark:text-teal-300 border border-teal-500/30">🎨 Brand Guidelines</span>';
+    if (c.includes('profile') || c.includes('customer')) return '<span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30">👥 Customer Profiles</span>';
+    if (c.includes('offer') || c.includes('framework')) return '<span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-purple-500/15 text-purple-700 dark:text-purple-300 border border-purple-500/30">💎 Offer Frameworks</span>';
+    return '<span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30">📊 Market Research</span>';
+  };
+
+  container.innerHTML = filtered.map(f => {
+    const sizeKb = (f.size / 1024).toFixed(1);
+    const dateStr = f.created_at ? new Date(f.created_at).toLocaleDateString() : '';
+    return `
+      <div class="card-surface p-3.5 border border-[var(--border)] rounded-xl flex flex-wrap items-center justify-between gap-3 hover:border-indigo-500/40 transition">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="w-8 h-8 rounded-lg bg-[var(--bg-soft)] border border-[var(--border)] grid place-items-center font-mono text-xs font-bold text-indigo-500 shrink-0">
+            ${f.original_name.endsWith('.pdf') ? 'PDF' : (f.original_name.endsWith('.csv') || f.original_name.endsWith('.xlsx') ? 'XLS' : 'MD')}
+          </div>
+          <div class="min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="font-bold text-xs truncate max-w-sm">${escapeHtml(f.original_name)}</span>
+              ${categoryPill(f.file_category)}
+            </div>
+            <div class="text-[10px] text-[var(--text-soft)] mt-0.5 flex items-center gap-2">
+              <span>${sizeKb} KB</span>
+              <span>&bull;</span>
+              <span>${escapeHtml(f.parsed_summary || 'Indexed')}</span>
+              <span>&bull;</span>
+              <span>${dateStr}</span>
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="downloadKnowledgeFile('${f.id}')" class="btn-outline px-2.5 py-1 text-xs" title="Download">⬇️</button>
+          ${state.currentUserRole !== 'client' ? `<button onclick="deleteKnowledgeFile('${f.id}')" class="btn-outline px-2.5 py-1 text-xs text-rose-500 hover:border-rose-500" title="Delete">🗑️</button>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function renderKnowledgeProposals() {
+  const tbody = document.getElementById('kbProposalsTableBody');
+  const countLabel = document.getElementById('kbProposalCountLabel');
+  if (!tbody) return;
+
+  const proj = getSelectedProject();
+  if (!proj) return;
+
+  const searchInput = document.getElementById('kbProposalSearchInput');
+  const statusFilter = document.getElementById('kbProposalStatusFilter');
+  const search = searchInput ? searchInput.value.trim() : '';
+  const status = statusFilter ? statusFilter.value : 'all';
+
+  tbody.innerHTML = `<tr><td colspan="6" class="p-5 text-center text-xs text-[var(--text-soft)]"><span class="animate-spin inline-block mr-1.5">◐</span> Loading customized proposals from Knowledge Base...</td></tr>`;
+
+  try {
+    const res = await apiFetch(`/api/projects/${proj.id}/proposals?search=${encodeURIComponent(search)}&status=${encodeURIComponent(status)}&limit=150`);
+    if (!res.ok) throw new Error('Failed to load proposals');
+    const data = await res.json();
+    knowledgeProposalsCache = data.proposals || [];
+
+    if (countLabel) countLabel.textContent = `${data.total || knowledgeProposalsCache.length} proposals`;
+
+    if (knowledgeProposalsCache.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="6" class="p-8 text-center text-xs text-[var(--text-soft)]">
+            <span class="text-2xl block mb-1">🎯</span>
+            No proposals found. Click <button onclick="triggerBulkProposalGeneration()" class="font-bold text-indigo-600 dark:text-indigo-400 underline">Generate Lead Proposals</button> to synthesize proposals for all project leads grounded in your Knowledge Base.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = knowledgeProposalsCache.map(p => {
+      const isCustom = p.status === 'customized';
+      const statusBadge = isCustom
+        ? `<span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30">Customized</span>`
+        : `<span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">Grounded</span>`;
+
+      const ratingText = p.google_rating ? `${p.google_rating}★ (${p.reviews || 0})` : 'Audited';
+      const locText = [p.city, p.province].filter(Boolean).join(', ') || 'Canada';
+
+      return `
+        <tr class="hover:bg-[var(--surface-hover)] transition">
+          <td class="p-3 align-top min-w-[170px]">
+            <div class="font-bold text-xs text-[var(--text)]">${escapeHtml(p.clinic_name)}</div>
+            <div class="text-[10px] text-[var(--text-soft)]">${escapeHtml(locText)} &bull; ${ratingText}</div>
+            <div class="text-[10px] font-mono text-[var(--text-faint)] truncate max-w-[150px]">${escapeHtml(p.email || '')}</div>
+          </td>
+          <td class="p-3 align-top max-w-[260px]">
+            <div class="text-[11px] text-[var(--text-soft)] line-clamp-2" title="${escapeHtml(p.identified_gaps)}">
+              ${escapeHtml(p.identified_gaps)}
+            </div>
+          </td>
+          <td class="p-3 align-top max-w-[260px]">
+            <div class="text-[11px] text-[var(--text-soft)] line-clamp-2" title="${escapeHtml(p.custom_angle)}">
+              ${escapeHtml(p.custom_angle)}
+            </div>
+          </td>
+          <td class="p-3 align-top max-w-[240px]">
+            <div class="text-[11px] font-medium text-[var(--text-soft)] line-clamp-2" title="${escapeHtml(p.recommended_offer)}">
+              ${escapeHtml(p.recommended_offer)}
+            </div>
+          </td>
+          <td class="p-3 align-top whitespace-nowrap">
+            ${statusBadge}
+          </td>
+          <td class="p-3 align-top text-right whitespace-nowrap space-x-1">
+            <button onclick="openEditLeadProposalModal('${p.lead_id}')" class="btn-outline px-2 py-1 text-[11px] font-bold" title="Edit Proposal">✏️ Edit</button>
+            <button onclick="previewDualBrandedEmailForLead('${p.lead_id}')" class="btn-ink px-2 py-1 text-[11px] font-bold" title="Preview Dual-Branded Email">👁️ Preview</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  } catch (err) {
+    tbody.innerHTML = `<tr><td colspan="6" class="p-5 text-center text-xs text-rose-500">Error loading proposals: ${err.message}</td></tr>`;
+  }
+}
+
+function debounceProposalSearch() {
+  clearTimeout(proposalSearchDebounceTimer);
+  proposalSearchDebounceTimer = setTimeout(renderKnowledgeProposals, 300);
+}
+
+async function triggerBulkProposalGeneration() {
+  const proj = getSelectedProject();
+  if (!proj) return;
+
+  showToast('Synthesizing customized proposals from project Knowledge Base & research files...');
+  try {
+    const res = await apiFetch(`/api/projects/${proj.id}/proposals/generate-bulk`, { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to generate proposals');
+
+    showToast(`⚡ ${data.message || 'Customized proposals generated!'}`);
+    renderRagView();
+    switchKnowledgeTab('proposals');
+  } catch (err) {
+    showToast(`Proposal generation error: ${err.message}`);
+  }
+}
+
+async function openEditLeadProposalModal(leadId) {
+  const proj = getSelectedProject();
+  if (!proj) return;
+
+  currentEditingProposalLeadId = leadId;
+  const modal = document.getElementById('editLeadProposalModal');
+  if (!modal) return;
+
+  try {
+    const res = await apiFetch(`/api/projects/${proj.id}/leads/${leadId}/proposal`);
+    if (!res.ok) throw new Error('Could not load proposal');
+    const { proposal } = await res.json();
+
+    document.getElementById('elpLeadId').value = leadId;
+    document.getElementById('elpClinicHeader').textContent = proposal.clinic_name || 'Clinic';
+    document.getElementById('elpCity').textContent = [proposal.city, proposal.province].filter(Boolean).join(', ') || 'Canada';
+    document.getElementById('elpRating').textContent = proposal.google_rating ? `${proposal.google_rating}★ (${proposal.reviews || 0})` : 'Audited';
+    document.getElementById('elpEmail').textContent = proposal.email || '—';
+    document.getElementById('elpWebsite').textContent = proposal.website ? proposal.website.replace(/^https?:\/\//, '') : 'No website';
+
+    document.getElementById('elpGapsInput').value = proposal.identified_gaps || '';
+    document.getElementById('elpPitchInput').value = proposal.custom_angle || '';
+    document.getElementById('elpOfferInput').value = proposal.recommended_offer || '';
+    document.getElementById('elpRoiInput').value = proposal.roi_projection || '';
+    document.getElementById('elpCtaInput').value = proposal.custom_cta || '';
+
+    modal.classList.remove('hidden');
+  } catch (err) {
+    showToast(`Error opening proposal editor: ${err.message}`);
+  }
+}
+
+function closeEditLeadProposalModal() {
+  const modal = document.getElementById('editLeadProposalModal');
+  if (modal) modal.classList.add('hidden');
+  currentEditingProposalLeadId = null;
+}
+
+async function saveLeadCustomProposal() {
+  const proj = getSelectedProject();
+  const leadId = document.getElementById('elpLeadId')?.value || currentEditingProposalLeadId;
+  if (!proj || !leadId) return;
+
+  const gaps = document.getElementById('elpGapsInput')?.value || '';
+  const pitch = document.getElementById('elpPitchInput')?.value || '';
+  const offer = document.getElementById('elpOfferInput')?.value || '';
+  const roi = document.getElementById('elpRoiInput')?.value || '';
+  const cta = document.getElementById('elpCtaInput')?.value || '';
+
+  try {
+    const res = await apiFetch(`/api/projects/${proj.id}/leads/${leadId}/proposal`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        identified_gaps: gaps,
+        custom_angle: pitch,
+        recommended_offer: offer,
+        roi_projection: roi,
+        custom_cta: cta,
+        status: 'customized'
+      })
+    });
+
+    if (!res.ok) throw new Error('Failed to update proposal');
+    showToast('Saved customized proposal. All dual-branded emails will use this updated data.');
+    closeEditLeadProposalModal();
+    renderKnowledgeProposals();
+  } catch (err) {
+    showToast(`Save error: ${err.message}`);
+  }
+}
+
+function previewEmailForCurrentCustomizedLead() {
+  if (currentEditingProposalLeadId) {
+    previewDualBrandedEmailForLead(currentEditingProposalLeadId);
+  }
+}
+
+function previewDualBrandedEmailForLead(leadId) {
+  const proj = getSelectedProject();
+  if (!proj) return;
+  // Open existing deliverable preview modal
+  openDeliverablePreviewModal(null, proj.id);
+}
+
+function openKnowledgeUploadModal(defaultCategory = 'market_research') {
+  const modal = document.getElementById('knowledgeUploadModal');
+  if (!modal) return;
+  const catSel = document.getElementById('kuCategorySelect');
+  if (catSel) catSel.value = defaultCategory;
+  setKnowledgeUploadMode('file');
+  const fileInput = document.getElementById('kuFileInput');
+  if (fileInput) fileInput.value = '';
+  const info = document.getElementById('kuSelectedFileInfo');
+  if (info) { info.textContent = ''; info.classList.add('hidden'); }
+  modal.classList.remove('hidden');
+}
+
+function closeKnowledgeUploadModal() {
+  const modal = document.getElementById('knowledgeUploadModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function setKnowledgeUploadMode(mode) {
+  knowledgeUploadMode = mode;
+  const fileSec = document.getElementById('kuFileSection');
+  const textSec = document.getElementById('kuTextSection');
+  const btnFile = document.getElementById('kuModeBtn-file');
+  const btnText = document.getElementById('kuModeBtn-text');
+
+  if (mode === 'file') {
+    if (fileSec) fileSec.classList.remove('hidden');
+    if (textSec) textSec.classList.add('hidden');
+    if (btnFile) btnFile.className = 'px-3 py-1 rounded-full text-xs font-bold bg-indigo-600 text-white';
+    if (btnText) btnText.className = 'px-3 py-1 rounded-full text-xs font-semibold text-[var(--text-soft)] hover:bg-[var(--border)]';
+  } else {
+    if (fileSec) fileSec.classList.add('hidden');
+    if (textSec) textSec.classList.remove('hidden');
+    if (btnFile) btnFile.className = 'px-3 py-1 rounded-full text-xs font-semibold text-[var(--text-soft)] hover:bg-[var(--border)]';
+    if (btnText) btnText.className = 'px-3 py-1 rounded-full text-xs font-bold bg-indigo-600 text-white';
+  }
+}
+
+function handleKnowledgeFileSelected(input) {
+  const info = document.getElementById('kuSelectedFileInfo');
+  if (input.files && input.files[0]) {
+    const f = input.files[0];
+    if (info) {
+      info.textContent = `Selected: ${f.name} (${(f.size / 1024).toFixed(1)} KB)`;
+      info.classList.remove('hidden');
+    }
+  }
+}
+
+async function submitKnowledgeItem() {
+  const proj = getSelectedProject();
+  if (!proj) return;
+  const category = document.getElementById('kuCategorySelect')?.value || 'market_research';
+  const submitBtn = document.getElementById('kuSubmitBtn');
+
+  if (knowledgeUploadMode === 'file') {
+    const fileInput = document.getElementById('kuFileInput');
+    if (!fileInput || !fileInput.files || !fileInput.files[0]) {
+      showToast('Please select a file to upload (PDF, CSV, XLSX, MD, or TXT).');
+      return;
+    }
+    const file = fileInput.files[0];
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('category', category);
+
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Ingesting & Chunking...'; }
     try {
-      const res = await apiFetch(`/api/projects/${proj.id}/rag/chunks`, {
-        
+      const res = await apiFetch(`/api/projects/${proj.id}/knowledge/upload`, {
+        method: 'POST',
+        body: formData
       });
-      if (res.ok) {
-        const data = await res.json();
-        if (badge) badge.textContent = `${data.count || 0} assets indexed`;
-      }
-    } catch (e) {}
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+
+      showToast(`Ingested ${file.name} into Knowledge Base (${data.chunks_created || 0} chunks, ${data.total_tokens || 0} tokens)!`);
+      closeKnowledgeUploadModal();
+      renderRagView();
+    } catch (err) {
+      showToast(`Upload error: ${err.message}`);
+    } finally {
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '⚡ Ingest into Knowledge Base'; }
+    }
+  } else {
+    const title = document.getElementById('kuDocTitleInput')?.value?.trim();
+    const content = document.getElementById('kuDocContentInput')?.value?.trim();
+    if (!title || !content) {
+      showToast('Title and document content are required.');
+      return;
+    }
+
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Ingesting...'; }
+    try {
+      const res = await apiFetch(`/api/projects/${proj.id}/knowledge/document`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, content, category })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to create document');
+
+      showToast(`Saved & indexed "${title}" into Knowledge Base (${data.chunks_created || 0} chunks)!`);
+      closeKnowledgeUploadModal();
+      renderRagView();
+    } catch (err) {
+      showToast(`Error: ${err.message}`);
+    } finally {
+      if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '⚡ Ingest into Knowledge Base'; }
+    }
+  }
+}
+
+async function downloadKnowledgeFile(fileId) {
+  const proj = getSelectedProject();
+  if (!proj) return;
+  window.open(`/api/projects/${proj.id}/harness/${fileId}/download?token=${encodeURIComponent(authToken)}`, '_blank');
+}
+
+async function deleteKnowledgeFile(fileId) {
+  const proj = getSelectedProject();
+  if (!proj) return;
+  if (!confirm('Are you sure you want to remove this document and all its indexed chunks from the project Knowledge Base?')) return;
+
+  try {
+    const res = await apiFetch(`/api/projects/${proj.id}/knowledge/${fileId}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Delete failed');
+
+    showToast(data.message || 'Deleted document from Knowledge Base.');
+    renderRagView();
+  } catch (err) {
+    showToast(`Delete error: ${err.message}`);
   }
 }
 
@@ -2686,15 +3209,17 @@ function selectProjectFromRag(projectId) {
   state.selectedProjectId = projectId;
   saveState();
   renderAll();
-  runRagSemanticSearch();
+  renderRagView();
 }
 
 async function runRagSemanticSearch() {
   const queryInput = document.getElementById('ragQueryInput');
+  const catSelect = document.getElementById('ragCategoryFilterSelect');
   const topKSelect = document.getElementById('ragTopKSelect');
   const resultsContainer = document.getElementById('ragSearchResultsList');
 
   const query = queryInput ? queryInput.value.trim() : '';
+  const category = catSelect ? catSelect.value : '';
   const topK = topKSelect ? Number(topKSelect.value) : 5;
   const proj = getSelectedProject();
 
@@ -2712,10 +3237,9 @@ async function runRagSemanticSearch() {
     const res = await apiFetch(`/api/projects/${proj.id}/rag/search`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        
+        'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ query, top_k: topK })
+      body: JSON.stringify({ query, top_k: topK, category: category || null })
     });
 
     const data = await res.json();
@@ -2725,16 +3249,19 @@ async function runRagSemanticSearch() {
 
     if (!resultsContainer) return;
     if (latestRagResults.length === 0) {
-      resultsContainer.innerHTML = `<div class="p-4 text-center text-xs text-[var(--text-soft)]">No matching chunks found in project harness for "${query}". Ingest more documents below.</div>`;
+      resultsContainer.innerHTML = `<div class="p-4 text-center text-xs text-[var(--text-soft)]">No matching chunks found in project harness for "${escapeHtml(query)}". Ingest more documents in the Documents tab.</div>`;
       return;
     }
+
+    const catBadge = (cat) => `<span class="text-[9px] px-1.5 py-0.5 rounded-full font-bold bg-indigo-500/15 text-indigo-700 dark:text-indigo-300">${escapeHtml(cat || 'Knowledge')}</span>`;
 
     resultsContainer.innerHTML = latestRagResults.map((r, i) => `
       <div class="card-surface p-3.5 space-y-2 border border-[var(--border)] hover:border-indigo-500/50 transition">
         <div class="flex items-center justify-between gap-2 flex-wrap">
           <div class="flex items-center gap-1.5 min-w-0">
             <span class="w-5 h-5 rounded-full bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 font-mono text-[10px] grid place-items-center font-bold">#${i+1}</span>
-            <span class="font-bold text-xs truncate">${r.document_name}</span>
+            <span class="font-bold text-xs truncate">${escapeHtml(r.document_name)}</span>
+            ${catBadge(r.category)}
             <span class="text-[10px] mono text-[var(--text-faint)]">chunk ${r.chunk_index} &bull; ${r.token_count} tokens</span>
           </div>
           <div class="flex items-center gap-1.5">
@@ -2783,46 +3310,7 @@ function insertChunkIntoTask(index) {
 }
 
 async function ingestNewRagDocument() {
-  if (state.currentUserRole === 'client') {
-    showToast('Client role is read-only. Switch to Member, Manager, or Admin.');
-    return;
-  }
-
-  const nameInput = document.getElementById('ragNewDocName');
-  const contentInput = document.getElementById('ragNewDocContent');
-  const docName = nameInput ? nameInput.value.trim() : '';
-  const content = contentInput ? contentInput.value.trim() : '';
-  const proj = getSelectedProject();
-
-  if (!proj) return;
-  if (!docName || !content) {
-    showToast('Source filename and document content are required.');
-    return;
-  }
-
-  try {
-    const res = await apiFetch(`/api/projects/${proj.id}/rag/ingest`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        
-      },
-      body: JSON.stringify({ document_name: docName, content })
-    });
-
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Failed to ingest document');
-
-    showToast(`Successfully indexed ${docName} into project RAG (${data.chunks_created} chunks, ${data.total_tokens} tokens)!`);
-    renderRagView();
-
-    // Auto-search for the newly ingested document
-    const queryInput = document.getElementById('ragQueryInput');
-    if (queryInput) queryInput.value = docName.replace(/[._-]/g, ' ');
-    runRagSemanticSearch();
-  } catch (err) {
-    showToast(`Ingestion error: ${err.message}`);
-  }
+  openKnowledgeUploadModal('market_research');
 }
 
 function copyAntigravityRagPrompt() {
@@ -3295,12 +3783,21 @@ async function saveExternalIntegration(slug) {
   const provEl = document.getElementById(`ext-prov-${slug}`);
   const urlEl = document.getElementById(`ext-url-${slug}`);
   const keyEl = document.getElementById(`ext-key-${slug}`);
+  const fromEl = document.getElementById(`ext-from-${slug}`);
+  const fromNameEl = document.getElementById(`ext-fromname-${slug}`);
   const payload = {
     slug,
     provider: provEl?.value?.trim(),
     endpoint_url: urlEl?.value?.trim(),
     ...(keyEl?.value ? { api_key: keyEl.value.trim() } : {})
   };
+  if (fromEl || fromNameEl) {
+    payload.config = {
+      from_email: fromEl?.value?.trim() || '',
+      smtp_user: fromEl?.value?.trim() || '',
+      from_name: fromNameEl?.value?.trim() || ''
+    };
+  }
   showToast(`Saving integration (${slug})...`);
   try {
     const res = await apiFetch('/api/admin/integrations', {
@@ -3359,16 +3856,28 @@ function renderExternalIntegrations() {
         '</div>' +
         '<div class="space-y-2 mt-3 text-xs">' +
           '<div>' +
-            '<label class="block text-[10px] font-semibold text-[var(--text-soft)] uppercase mb-1">Provider</label>' +
-            '<input id="ext-prov-' + item.slug + '" type="text" value="' + escapeHtml(item.provider || '') + '" class="input-field text-xs mono py-1 px-2.5" />' +
+            '<label class="block text-[10px] font-semibold text-[var(--text-soft)] uppercase mb-1">' + (item.slug === 'email_dispatch' ? 'Provider (smtp / resend / webhook)' : 'Provider') + '</label>' +
+            '<input id="ext-prov-' + item.slug + '" type="text" value="' + escapeHtml(item.provider || '') + '" placeholder="' + (item.slug === 'email_dispatch' ? 'smtp or resend' : '') + '" class="input-field text-xs mono py-1 px-2.5" />' +
           '</div>' +
           '<div>' +
-            '<label class="block text-[10px] font-semibold text-[var(--text-soft)] uppercase mb-1">Endpoint / Webhook URL</label>' +
-            '<input id="ext-url-' + item.slug + '" type="text" value="' + escapeHtml(item.endpoint_url || '') + '" placeholder="https://..." class="input-field text-xs mono py-1 px-2.5" />' +
+            '<label class="block text-[10px] font-semibold text-[var(--text-soft)] uppercase mb-1">' + (item.slug === 'email_dispatch' ? 'SMTP Host:Port or API/Webhook URL' : 'Endpoint / Webhook URL') + '</label>' +
+            '<input id="ext-url-' + item.slug + '" type="text" value="' + escapeHtml(item.endpoint_url || '') + '" placeholder="' + (item.slug === 'email_dispatch' ? 'smtp.gmail.com:465 or https://api.resend.com/emails' : 'https://...') + '" class="input-field text-xs mono py-1 px-2.5" />' +
           '</div>' +
+          (item.slug === 'email_dispatch'
+            ? '<div class="grid grid-cols-2 gap-2">' +
+                '<div>' +
+                  '<label class="block text-[10px] font-semibold text-[var(--text-soft)] uppercase mb-1">From / SMTP Email</label>' +
+                  '<input id="ext-from-' + item.slug + '" type="email" value="' + escapeHtml(item.config?.from_email || item.config?.smtp_user || '') + '" placeholder="sales@domain.com" class="input-field text-xs mono py-1 px-2" />' +
+                '</div>' +
+                '<div>' +
+                  '<label class="block text-[10px] font-semibold text-[var(--text-soft)] uppercase mb-1">Sender Name</label>' +
+                  '<input id="ext-fromname-' + item.slug + '" type="text" value="' + escapeHtml(item.config?.from_name || '') + '" placeholder="VALIOZ Health" class="input-field text-xs py-1 px-2" />' +
+                '</div>' +
+              '</div>'
+            : '') +
           '<div>' +
-            '<label class="block text-[10px] font-semibold text-[var(--text-soft)] uppercase mb-1">API Key (Encrypted Vault)</label>' +
-            '<input id="ext-key-' + item.slug + '" type="text" placeholder="' + escapeHtml(item.api_key || 'Enter API key...') + '" class="input-field text-xs mono py-1 px-2.5" />' +
+            '<label class="block text-[10px] font-semibold text-[var(--text-soft)] uppercase mb-1">' + (item.slug === 'email_dispatch' ? 'API Key / SMTP App Password (Vault)' : 'API Key (Encrypted Vault)') + '</label>' +
+            '<input id="ext-key-' + item.slug + '" type="text" placeholder="' + escapeHtml(item.api_key || 'Enter API key / App Password...') + '" class="input-field text-xs mono py-1 px-2.5" />' +
           '</div>' +
         '</div>' +
       '</div>' +
@@ -4017,10 +4526,15 @@ function renderApprovalsView() {
             </button>
           </div>
         ` : `
-          <div class="flex items-center gap-2 shrink-0">
+          <div class="flex flex-wrap items-center gap-2 shrink-0">
             <button onclick="openApprovalModal('${app.id}')" class="btn-outline px-3 py-1.5 rounded-xl text-xs font-semibold" title="View details">
               <span>🔍</span> <span>View Deliverable</span>
             </button>
+            ${app.status === 'approved' && ['super_admin', 'admin', 'owner'].includes(currentUser?.role || state.currentUserRole) ? `
+              <button onclick="openSendApprovedEmailsModal('${app.id}')" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white transition">
+                📧 Send Emails
+              </button>
+            ` : ''}
             ${app.status === 'approved' && app.execution_status !== 'externally_executed' ? `
               <button onclick="executeApprovedAction('${app.id}')" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition">
                 ⚡ Execute Externally
@@ -4142,13 +4656,39 @@ async function executeModalDecision(decision) {
   await submitApprovalDecision(approvalId, decision, notes);
 }
 
-let crmPipelineCache = { leads: [], deals: [], stage_counts: {} };
+let crmPipelineCache = { leads: [], deals: [], stage_counts: {}, total_leads: 0 };
+let crmSelectedProjectId = '';
+
+function populateCrmProjectSelector() {
+  const sel = document.getElementById('crmBulkProjectSelect');
+  if (!sel) return;
+  const currentVal = crmSelectedProjectId || sel.value || state.selectedProjectId || '';
+  const projects = Array.isArray(state.projects) ? state.projects : [];
+  sel.innerHTML = '<option value="">All Projects (Select one to import)</option>' + projects.map(p =>
+    `<option value="${escapeHtml(p.id)}" ${p.id === currentVal ? 'selected' : ''}>${escapeHtml(p.name)}${p.client ? ' — ' + escapeHtml(p.client) : ''}</option>`
+  ).join('');
+  if (currentVal && projects.some(p => p.id === currentVal)) {
+    sel.value = currentVal;
+    crmSelectedProjectId = currentVal;
+  } else if (!currentVal && projects.length === 1) {
+    sel.value = projects[0].id;
+    crmSelectedProjectId = projects[0].id;
+  }
+}
+
+function onCrmProjectFilterChange() {
+  const sel = document.getElementById('crmBulkProjectSelect');
+  crmSelectedProjectId = sel ? sel.value : '';
+  fetchSalesCrmData();
+}
 
 async function fetchSalesCrmData() {
   const role = currentUser?.role || state.currentUserRole || 'guest';
   if (!authToken || role === 'client' || role === 'guest') return;
+  populateCrmProjectSelector();
   try {
-    const res = await apiFetch('/api/crm/pipeline');
+    const qs = crmSelectedProjectId ? `?project_id=${encodeURIComponent(crmSelectedProjectId)}` : '';
+    const res = await apiFetch('/api/crm/pipeline' + qs);
     if (res.ok) {
       crmPipelineCache = await res.json();
       renderSalesAndResearchData();
@@ -4156,10 +4696,14 @@ async function fetchSalesCrmData() {
   } catch (err) {
     console.warn('[crm] Fetch pipeline error:', err.message);
   }
+  if (typeof fetchEmailSchedules === 'function') {
+    fetchEmailSchedules();
+  }
 }
 
 function renderSalesAndResearchData() {
-  const { leads = [], deals = [], stage_counts = {} } = crmPipelineCache || {};
+  populateCrmProjectSelector();
+  const { leads = [], deals = [], stage_counts = {}, total_leads } = crmPipelineCache || {};
 
   const setCount = (id, val) => {
     const el = document.getElementById(id);
@@ -4170,6 +4714,7 @@ function renderSalesAndResearchData() {
   setCount('salesCountQualified', stage_counts.qualified);
   setCount('salesCountProposal', stage_counts.proposal);
   setCount('salesCountWon', stage_counts.won);
+  setCount('salesLeadsCountBadge', total_leads !== undefined ? total_leads : leads.length);
 
   const researchLeadsEl = document.getElementById('researchLeadsContainer');
   if (researchLeadsEl) {
@@ -4208,18 +4753,910 @@ function renderSalesAndResearchData() {
   const salesLeadsEl = document.getElementById('salesLeadsContainer');
   if (salesLeadsEl) {
     if (leads.length === 0) {
-      salesLeadsEl.innerHTML = '<div class="p-4 text-center rounded-xl border border-dashed border-[var(--border)]">No CRM leads yet.</div>';
+      salesLeadsEl.innerHTML = '<div class="p-4 text-center rounded-xl border border-dashed border-[var(--border)]">No CRM leads yet. Select a project above and upload a CSV or XLSX leads file to bulk import.</div>';
     } else {
-      salesLeadsEl.innerHTML = leads.slice(0, 15).map(l => `
-        <div class="p-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] flex items-center justify-between gap-2">
-          <div class="min-w-0">
-            <div class="font-bold text-[var(--text)] truncate">${escapeHtml(l.full_name)}</div>
-            <div class="text-[11px] text-[var(--text-soft)] truncate">${escapeHtml(l.email || 'No email')} · ICP ${l.icp_score || 0}%</div>
+      salesLeadsEl.innerHTML = leads.slice(0, 150).map(l => {
+        let ev = {};
+        try { ev = JSON.parse(l.source_evidence || '{}'); } catch (_) {}
+        const loc = ev.city ? `${ev.city}${ev.province ? ', ' + ev.province : ''}` : '';
+        return `
+          <div class="p-2.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] flex items-center justify-between gap-2">
+            <div class="min-w-0">
+              <div class="font-bold text-[var(--text)] truncate">${escapeHtml(l.full_name)} ${l.project_name ? `<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-slate-500/15 text-[var(--text-soft)] ml-1">${escapeHtml(l.project_name)}</span>` : ''}</div>
+              <div class="text-[11px] text-[var(--text-soft)] truncate">${escapeHtml(l.email || 'No email')}${loc ? ' · ' + escapeHtml(loc) : ''}${l.phone ? ' · ' + escapeHtml(l.phone) : ''} · ICP ${l.icp_score || 0}%</div>
+            </div>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase shrink-0 ${l.status === 'contacted' ? 'bg-emerald-500/15 text-emerald-500' : 'bg-[var(--bg-soft)]'}">${escapeHtml(l.status)}</span>
           </div>
-          <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-[var(--bg-soft)]">${escapeHtml(l.status)}</span>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
+  }
+}
+
+// --- BULK CSV / XLSX LEADS IMPORT & EMAIL OUTREACH STAGING ---
+async function importBulkLeadsCsv() {
+  const projSel = document.getElementById('crmBulkProjectSelect');
+  const fileInput = document.getElementById('crmBulkCsvFile');
+  const statusEl = document.getElementById('crmBulkImportStatus');
+
+  const projectId = projSel?.value || state.selectedProjectId || (state.projects[0]?.id || '');
+  if (!projectId) {
+    showToast('Select a Target Project first before importing leads.');
+    return;
+  }
+  const file = fileInput?.files?.[0];
+  if (!file) {
+    showToast('Choose a .CSV or .XLSX leads file first.');
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  showToast(`Importing leads from ${file.name}...`);
+  try {
+    const res = await apiFetch(`/api/projects/${encodeURIComponent(projectId)}/leads/import`, {
+      method: 'POST',
+      body: formData
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.ok) {
+      if (fileInput) fileInput.value = '';
+      if (statusEl) {
+        statusEl.textContent = `✓ Imported ${data.imported_count} new leads into "${data.project_name}" (${data.skipped_duplicates} duplicates skipped, ${data.total_parsed} rows parsed from ${data.file_name}).${data.logo_fetch_started ? ' 🔄 Auto-fetching real clinic logos from website URLs...' : ''}`;
+        statusEl.classList.remove('hidden');
+      }
+      showToast(`Imported ${data.imported_count} leads into ${data.project_name}!`);
+      crmSelectedProjectId = projectId;
+      await fetchSalesCrmData();
+      if (data.logo_fetch_started) {
+        pollLeadLogoFetchStatus(projectId);
+      }
+    } else {
+      showToast(`Import failed: ${data.error || 'Could not parse file'}`);
+    }
+  } catch (err) {
+    showToast(`Import error: ${err.message}`);
+  }
+}
+
+async function queueCrmEmailApproval() {
+  const projSel = document.getElementById('crmBulkProjectSelect');
+  const projectId = projSel?.value || state.selectedProjectId || (state.projects[0]?.id || '');
+  if (!projectId) {
+    showToast('Select a Target Project first.');
+    return;
+  }
+  const proj = (state.projects || []).find(p => p.id === projectId);
+  const projectLeads = (crmPipelineCache?.leads || []).filter(l => l.project_id === projectId && l.email);
+  const subject = prompt(
+    `Enter email subject for "${proj?.name || 'Project'}" (${projectLeads.length} leads with email).\nSupports [Clinic Name], [City], [First Name]:`,
+    `${proj?.name || 'Growth Opportunity'} for [Clinic Name]`
+  );
+  if (!subject) return;
+
+  try {
+    const res = await apiFetch('/api/approvals', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        project_id: projectId,
+        department: 'sales',
+        agent_name: 'Sales Agent',
+        action_type: 'email_send',
+        title: `Dual-Branded Email Campaign — ${proj?.name || 'Project'}`,
+        summary: `Prepared dual-branded outreach batch for ${projectLeads.length} project leads. Subject: "${subject}". Requires Admin approval before sending.`,
+        preview_data: JSON.stringify({
+          subject,
+          project_id: projectId,
+          eligible_leads_count: projectLeads.length
+        })
+      })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      showToast('✓ Dual-branded email campaign staged in Approvals! Approve it to unlock Send Emails.');
+      await fetchApprovals();
+      switchMainView('approvals');
+    } else {
+      showToast(`Error: ${data.error || 'Failed to stage approval'}`);
+    }
+  } catch (err) {
+    showToast(`Network error: ${err.message}`);
+  }
+}
+
+// --- CLIENT BRAND KIT & GUIDELINES MODAL (ADMINS & ALL PROJECT USERS) ---
+async function openBrandKitModal(projectId) {
+  const modal = document.getElementById('brandKitModal');
+  const sel = document.getElementById('bkProjectSelect');
+  if (!modal || !sel) return;
+
+  const projects = Array.isArray(state.projects) ? state.projects : [];
+  if (projects.length === 0) {
+    showToast('Create a project first before adding a Client Brand Kit.');
+    return;
+  }
+
+  const targetId = projectId || crmSelectedProjectId || state.selectedProjectId || projects[0].id;
+  sel.innerHTML = projects.map(p =>
+    `<option value="${escapeHtml(p.id)}" ${p.id === targetId ? 'selected' : ''}>${escapeHtml(p.name)}</option>`
+  ).join('');
+  sel.value = targetId;
+
+  modal.classList.remove('hidden');
+  await loadBrandKitForProject(targetId);
+}
+
+function closeBrandKitModal() {
+  document.getElementById('brandKitModal')?.classList.add('hidden');
+}
+
+async function loadBrandKitForProject(projectId) {
+  if (!projectId) return;
+  try {
+    const res = await apiFetch(`/api/projects/${encodeURIComponent(projectId)}/brand-kit`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const bk = data.brand_kit || {};
+    const setVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
+
+    setVal('bkBrandName', bk.brand_name || data.project_name || '');
+    setVal('bkPrimaryColor', bk.primary_color || '#063f4e');
+    setVal('bkPrimaryColorPicker', /^#[0-9a-fA-F]{6}$/.test(bk.primary_color || '') ? bk.primary_color : '#063f4e');
+    setVal('bkAccentColor', bk.accent_color || '#00a9a4');
+    setVal('bkAccentColorPicker', /^#[0-9a-fA-F]{6}$/.test(bk.accent_color || '') ? bk.accent_color : '#00a9a4');
+    setVal('bkTagline', bk.tagline || '');
+    setVal('bkTone', bk.tone_of_voice || '');
+    setVal('bkGuidelines', bk.guidelines || '');
+
+    const logoSel = document.getElementById('bkLogoFileSelect');
+    if (logoSel) {
+      const logos = data.available_logos || [];
+      logoSel.innerHTML = '<option value="">Auto-detect uploaded logo</option>' + logos.map(l =>
+        `<option value="${escapeHtml(l.id)}" ${l.id === bk.logo_file_id ? 'selected' : ''}>${escapeHtml(l.original_name)}</option>`
+      ).join('');
+    }
+
+    const attList = document.getElementById('bkAttachedList');
+    if (attList) {
+      const docs = data.attached_documents || [];
+      attList.innerHTML = docs.length > 0
+        ? 'Attached project files (read automatically by all agents): ' + docs.map(d => `<span class="inline-block px-1.5 py-0.5 rounded bg-[var(--surface)] border border-[var(--border)] mr-1 mb-1">${escapeHtml(d.original_name)}</span>`).join('')
+        : 'No files attached to this project yet.';
+    }
+  } catch (err) {
+    showToast(`Failed to load Brand Kit: ${err.message}`);
+  }
+}
+
+async function saveBrandKit() {
+  const projectId = document.getElementById('bkProjectSelect')?.value;
+  if (!projectId) return;
+  const payload = {
+    brand_name: document.getElementById('bkBrandName')?.value?.trim() || '',
+    primary_color: document.getElementById('bkPrimaryColor')?.value?.trim() || '#063f4e',
+    accent_color: document.getElementById('bkAccentColor')?.value?.trim() || '#00a9a4',
+    tagline: document.getElementById('bkTagline')?.value?.trim() || '',
+    tone_of_voice: document.getElementById('bkTone')?.value?.trim() || '',
+    logo_file_id: document.getElementById('bkLogoFileSelect')?.value || null,
+    guidelines: document.getElementById('bkGuidelines')?.value?.trim() || ''
+  };
+  try {
+    const res = await apiFetch(`/api/projects/${encodeURIComponent(projectId)}/brand-kit`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      showToast('✓ Client Brand Kit & Guidelines saved! Applied to dual-branded emails and all AI agents.');
+      closeBrandKitModal();
+      await syncFromBackend();
+    } else {
+      showToast(`Save failed: ${data.error || 'Unknown error'}`);
+    }
+  } catch (err) {
+    showToast(`Network error: ${err.message}`);
+  }
+}
+
+async function uploadBrandKitAsset() {
+  const projectId = document.getElementById('bkProjectSelect')?.value;
+  const fileInput = document.getElementById('bkAssetFile');
+  const file = fileInput?.files?.[0];
+  if (!projectId || !file) {
+    showToast('Choose a logo or brand guideline document first.');
+    return;
+  }
+  const fd = new FormData();
+  fd.append('file', file);
+  showToast(`Uploading ${file.name}...`);
+  try {
+    const res = await apiFetch(`/api/projects/${encodeURIComponent(projectId)}/harness`, {
+      method: 'POST',
+      body: fd
+    });
+    if (res.ok) {
+      if (fileInput) fileInput.value = '';
+      showToast(`✓ Attached ${file.name} to project harness.`);
+      await loadBrandKitForProject(projectId);
+      await syncFromBackend();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      showToast(`Upload failed: ${err.error || 'Error'}`);
+    }
+  } catch (err) {
+    showToast(`Upload error: ${err.message}`);
+  }
+}
+
+// --- ADMIN POST-APPROVAL EMAIL DISPATCH MODAL ---
+let activeSendEmailApprovalId = null;
+
+async function openSendApprovedEmailsModal(approvalId) {
+  const modal = document.getElementById('sendApprovedEmailsModal');
+  if (!modal) return;
+  activeSendEmailApprovalId = approvalId;
+
+  const banner = document.getElementById('sendEmailProviderBanner');
+  const listEl = document.getElementById('sendEmailLeadsList');
+  const resBox = document.getElementById('sendEmailResultBox');
+  const submitBtn = document.getElementById('sendEmailsSubmitBtn');
+  if (resBox) resBox.classList.add('hidden');
+  if (listEl) listEl.innerHTML = '<div class="p-3 text-center text-[var(--text-soft)]">Loading approved campaign &amp; leads...</div>';
+  modal.classList.remove('hidden');
+
+  try {
+    const res = await apiFetch(`/api/approvals/${encodeURIComponent(approvalId)}/email-preview-batch`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (banner) banner.innerHTML = `<span class="text-rose-500 font-bold">Error: ${escapeHtml(data.error || 'Could not load batch')}</span>`;
+      return;
+    }
+
+    const titleEl = document.getElementById('sendEmailModalTitle');
+    if (titleEl) titleEl.textContent = `📧 Send Emails — ${data.approval?.title || 'Approved Campaign'}`;
+
+    const fromInput = document.getElementById('sendEmailFrom');
+    const subjInput = document.getElementById('sendEmailSubject');
+    const testInput = document.getElementById('sendEmailTestRecipient');
+    if (fromInput) fromInput.value = data.email_provider?.from_email || '';
+    if (subjInput) subjInput.value = data.default_subject || '';
+    if (testInput) testInput.value = '';
+
+    const prov = data.email_provider || {};
+    if (banner) {
+      if (prov.configured) {
+        banner.className = 'p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300 text-xs';
+        banner.innerHTML = `<strong>✓ Email Provider Ready:</strong> ${escapeHtml(String(prov.provider).toUpperCase())} ${prov.from_email ? `(${escapeHtml(prov.from_email)})` : ''} · Template: <code>${escapeHtml(data.template_source)}</code>`;
+      } else {
+        banner.className = 'p-3 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300 text-xs';
+        banner.innerHTML = `<strong>⚠ Email Delivery Not Connected Yet:</strong> Configure SMTP (e.g. <code>smtp.gmail.com:465</code> + App Password), Resend API, or a Webhook under <strong>Settings → External Integrations → Email Delivery</strong> before sending real emails.`;
+      }
+    }
+    if (submitBtn) submitBtn.disabled = !prov.configured;
+
+    const leads = data.eligible_leads || [];
+    const countEl = document.getElementById('sendEmailLeadCount');
+    if (countEl) countEl.textContent = leads.length;
+
+    if (listEl) {
+      if (leads.length === 0) {
+        listEl.innerHTML = '<div class="p-4 text-center text-[var(--text-soft)]">No leads with valid email addresses found in this project. Import a CSV/XLSX in Sales &amp; CRM Pipeline, or enter a Test Recipient above.</div>';
+      } else {
+        listEl.innerHTML = leads.map(l => `
+          <label class="flex items-center justify-between gap-2 px-3 py-2 hover:bg-[var(--surface)] cursor-pointer">
+            <div class="flex items-center gap-2 min-w-0">
+              <input type="checkbox" class="send-email-lead-cb" value="${escapeHtml(l.id)}" data-sent="${l.already_sent ? '1' : '0'}" ${l.already_sent ? '' : 'checked'} />
+              <div class="min-w-0">
+                <div class="font-bold text-[var(--text)] truncate">${escapeHtml(l.full_name)}</div>
+                <div class="text-[11px] text-[var(--text-soft)] truncate">${escapeHtml(l.email)}${l.city ? ' · ' + escapeHtml(l.city) : ''}</div>
+              </div>
+            </div>
+            ${l.already_sent ? '<span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-500 font-bold shrink-0">Already Sent</span>' : '<span class="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-400 font-bold shrink-0">Ready</span>'}
+          </label>
+        `).join('');
+      }
+    }
+  } catch (err) {
+    if (banner) banner.innerHTML = `<span class="text-rose-500">Network error: ${escapeHtml(err.message)}</span>`;
+  }
+}
+
+function closeSendApprovedEmailsModal() {
+  document.getElementById('sendApprovedEmailsModal')?.classList.add('hidden');
+  activeSendEmailApprovalId = null;
+}
+
+function openSettingsFromEmailModal() {
+  closeSendApprovedEmailsModal();
+  switchMainView('adminSettings');
+}
+
+function selectEmailRecipients(mode) {
+  document.querySelectorAll('.send-email-lead-cb').forEach(cb => {
+    cb.checked = mode === 'unsent' ? cb.dataset.sent !== '1' : false;
+  });
+}
+
+async function sendApprovedEmailsNow() {
+  if (!activeSendEmailApprovalId) return;
+  const from_email = document.getElementById('sendEmailFrom')?.value?.trim() || '';
+  const subject = document.getElementById('sendEmailSubject')?.value?.trim() || '';
+  const test_recipient = document.getElementById('sendEmailTestRecipient')?.value?.trim() || '';
+  const lead_ids = [...document.querySelectorAll('.send-email-lead-cb:checked')].map(cb => cb.value);
+
+  if (!test_recipient && lead_ids.length === 0) {
+    showToast('Select at least one lead or enter a Test Recipient email.');
+    return;
+  }
+
+  const btn = document.getElementById('sendEmailsSubmitBtn');
+  const resBox = document.getElementById('sendEmailResultBox');
+  if (btn) { btn.disabled = true; btn.textContent = 'Sending...'; }
+
+  try {
+    const res = await apiFetch(`/api/approvals/${encodeURIComponent(activeSendEmailApprovalId)}/send-emails`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from_email, subject, lead_ids, test_recipient, limit: 100 })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (resBox) {
+      resBox.classList.remove('hidden');
+      if (res.ok && data.ok) {
+        resBox.className = 'p-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 text-xs space-y-1';
+        resBox.innerHTML = `<strong>✓ Dispatch Complete (${escapeHtml(data.provider)}):</strong> Sent: <b>${data.sent_count}</b> · Failed: <b>${data.failed_count}</b> · Skipped: <b>${data.skipped_count}</b>`;
+        showToast(`✓ Sent ${data.sent_count} real email(s) via ${data.provider}!`);
+        await fetchApprovals();
+        await fetchSalesCrmData();
+      } else {
+        resBox.className = 'p-3 rounded-xl border border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-300 text-xs space-y-1';
+        resBox.innerHTML = `<strong>⚠ Email Dispatch Stopped:</strong> ${escapeHtml(data.error || 'Provider rejected request')}`;
+        showToast(`Email dispatch error: ${data.error || 'Failed'}`);
+      }
+    }
+  } catch (err) {
+    showToast(`Network error: ${err.message}`);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '🚀 Send Emails Now'; }
+  }
+}
+
+// =============================================================================
+// LEAD LOGOS CAMPAIGN ASSETS MANAGER (DUAL-BRANDED LOCKUP)
+// =============================================================================
+
+async function openLeadLogosModal(projectId) {
+  const modal = document.getElementById('leadLogosModal');
+  const sel = document.getElementById('llProjectSelect');
+  if (!modal || !sel) return;
+
+  const projects = Array.isArray(state.projects) ? state.projects : [];
+  if (projects.length === 0) {
+    showToast('Create a project first before uploading lead logos.');
+    return;
+  }
+
+  const targetId = projectId || crmSelectedProjectId || state.selectedProjectId || projects[0].id;
+  sel.innerHTML = projects.map(p =>
+    `<option value="${escapeHtml(p.id)}" ${p.id === targetId ? 'selected' : ''}>${escapeHtml(p.name)}</option>`
+  ).join('');
+  sel.value = targetId;
+
+  const fb = document.getElementById('llUploadFeedback');
+  if (fb) fb.classList.add('hidden');
+
+  modal.classList.remove('hidden');
+  await loadLeadLogosForProject(targetId);
+}
+
+function closeLeadLogosModal() {
+  document.getElementById('leadLogosModal')?.classList.add('hidden');
+}
+
+async function loadLeadLogosForProject(projectId) {
+  if (!projectId) return;
+  const gallery = document.getElementById('llUploadedGallery');
+  const mappingEl = document.getElementById('llLeadsMappingList');
+  const hintEl = document.getElementById('llPrimaryLogoHint');
+  if (mappingEl) mappingEl.innerHTML = '<div class="p-3 text-center text-[var(--text-soft)]">Loading lead logos...</div>';
+
+  try {
+    const res = await apiFetch(`/api/projects/${encodeURIComponent(projectId)}/lead-logos`);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (mappingEl) mappingEl.innerHTML = `<div class="p-3 text-rose-500">Error: ${escapeHtml(data.error || 'Failed to load')}</div>`;
+      return;
+    }
+
+    if (hintEl) {
+      hintEl.innerHTML = data.primary_logo
+        ? `Primary Brand Logo: <strong>${escapeHtml(data.primary_logo.original_name)}</strong> &times; Lead Logo`
+        : 'Primary Brand Logo: auto-detected from project assets';
+    }
+
+    const logos = data.logos || [];
+    const leads = data.leads || [];
+    const logoCntEl = document.getElementById('llLogoCount');
+    const leadCntEl = document.getElementById('llLeadCount');
+    if (logoCntEl) logoCntEl.textContent = logos.length;
+    if (leadCntEl) leadCntEl.textContent = leads.length;
+
+    if (gallery) {
+      if (logos.length === 0) {
+        gallery.innerHTML = '<div class="text-[11px] text-[var(--text-soft)]">No lead logos uploaded yet for this project.</div>';
+      } else {
+        gallery.innerHTML = logos.map(l => `
+          <div class="px-2.5 py-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] flex items-center gap-2">
+            <span class="text-sm">🖼️</span>
+            <span class="font-semibold text-[11px] max-w-[180px] truncate">${escapeHtml(l.original_name)}</span>
+          </div>
+        `).join('');
+      }
+    }
+
+    if (mappingEl) {
+      if (leads.length === 0) {
+        mappingEl.innerHTML = '<div class="p-4 text-center text-[var(--text-soft)]">No CRM leads in this project yet. Import a CSV/XLSX in Sales &amp; CRM Pipeline first.</div>';
+      } else {
+        const logoOpts = (selectedId) => '<option value="">— No Logo (Use Clinic Badge) —</option>' + logos.map(lg =>
+          `<option value="${escapeHtml(lg.id)}" ${lg.id === selectedId ? 'selected' : ''}>${escapeHtml(lg.original_name)}</option>`
+        ).join('');
+
+        mappingEl.innerHTML = leads.map(lead => `
+          <div class="px-3 py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-[var(--surface)]">
+            <div class="min-w-0">
+              <div class="font-bold text-[var(--text)] truncate">${escapeHtml(lead.full_name)}</div>
+              <div class="text-[11px] text-[var(--text-soft)] truncate">${escapeHtml(lead.email || 'No email')}${lead.city ? ' · ' + escapeHtml(lead.city) : ''}</div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="text-[10px] px-1.5 py-0.5 rounded font-bold uppercase ${lead.match_type !== 'none' ? 'bg-emerald-500/15 text-emerald-500' : 'bg-slate-500/15 text-[var(--text-soft)]'}">${escapeHtml(lead.match_type)}</span>
+              <select onchange="assignLeadLogo('${escapeHtml(lead.id)}', this.value)" class="input-field text-[11px] py-1 px-2 max-w-[200px]">
+                ${logoOpts(lead.logo_file_id)}
+              </select>
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+  } catch (err) {
+    if (mappingEl) mappingEl.innerHTML = `<div class="p-3 text-rose-500">Network error: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+async function uploadLeadLogosBulk() {
+  const projectId = document.getElementById('llProjectSelect')?.value;
+  const input = document.getElementById('llBulkLogoFiles');
+  const fb = document.getElementById('llUploadFeedback');
+  const files = input?.files;
+  if (!projectId || !files || files.length === 0) {
+    showToast('Select one or more lead logo image files first.');
+    return;
+  }
+
+  const fd = new FormData();
+  for (let i = 0; i < files.length; i++) {
+    fd.append('files', files[i]);
+  }
+
+  showToast(`Uploading ${files.length} lead logo(s)...`);
+  try {
+    const res = await apiFetch(`/api/projects/${encodeURIComponent(projectId)}/lead-logos`, {
+      method: 'POST',
+      body: fd
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.ok) {
+      if (input) input.value = '';
+      if (fb) {
+        fb.textContent = `✓ Uploaded ${data.uploaded_count} lead logo(s) · Auto-matched ${data.matched_count} CRM lead(s)!`;
+        fb.classList.remove('hidden');
+      }
+      showToast(`Uploaded ${data.uploaded_count} lead logo(s) (${data.matched_count} auto-matched).`);
+      await loadLeadLogosForProject(projectId);
+    } else {
+      showToast(`Upload failed: ${data.error || 'Error'}`);
+    }
+  } catch (err) {
+    showToast(`Upload error: ${err.message}`);
+  }
+}
+
+async function assignLeadLogo(leadId, logoFileId) {
+  const projectId = document.getElementById('llProjectSelect')?.value;
+  try {
+    const res = await apiFetch(`/api/leads/${encodeURIComponent(leadId)}/logo`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ logo_file_id: logoFileId || null })
+    });
+    if (res.ok) {
+      showToast(logoFileId ? '✓ Lead logo assigned for dual-branded emails!' : 'Lead logo cleared.');
+      if (projectId) await loadLeadLogosForProject(projectId);
+    } else {
+      const err = await res.json().catch(() => ({}));
+      showToast(`Assignment failed: ${err.error || 'Error'}`);
+    }
+  } catch (err) {
+    showToast(`Network error: ${err.message}`);
+  }
+}
+
+let leadLogoPollTimer = null;
+
+async function autoFetchProjectLeadLogos(explicitProjectId) {
+  const projectId = explicitProjectId || document.getElementById('crmBulkProjectSelect')?.value || state.selectedProjectId || (state.projects[0]?.id || '');
+  if (!projectId) {
+    showToast('Select a Target Project first.');
+    return;
+  }
+  showToast('Starting automated clinic logo fetch from website URLs...');
+  try {
+    const res = await apiFetch(`/api/projects/${encodeURIComponent(projectId)}/lead-logos/auto-fetch`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ force_refresh: false })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      const statusEl = document.getElementById('crmBulkImportStatus');
+      if (statusEl) {
+        statusEl.textContent = '🔄 Fetching real clinic logos from website URLs in background...';
+        statusEl.classList.remove('hidden');
+      }
+      pollLeadLogoFetchStatus(projectId);
+    } else {
+      showToast(`Logo fetch failed: ${data.error || 'Error'}`);
+    }
+  } catch (err) {
+    showToast(`Network error: ${err.message}`);
+  }
+}
+
+function pollLeadLogoFetchStatus(projectId) {
+  if (leadLogoPollTimer) clearInterval(leadLogoPollTimer);
+  const checkOnce = async () => {
+    try {
+      const res = await apiFetch(`/api/projects/${encodeURIComponent(projectId)}/lead-logos/fetch-status`);
+      if (!res.ok) return;
+      const { job } = await res.json();
+      if (!job) return;
+      const msg = job.running
+        ? `🔄 Fetching real clinic logos: ${job.processed}/${job.total} checked (${job.fetched} fetched, ${job.failed} unavailable)...`
+        : `✓ Automated logo fetch complete: ${job.fetched} real clinic logo(s) loaded into Lead Logos (${job.failed} sites blocked/unavailable, ${job.skipped || 0} skipped).`;
+      const statusEl = document.getElementById('crmBulkImportStatus');
+      if (statusEl) {
+        statusEl.textContent = msg;
+        statusEl.classList.remove('hidden');
+      }
+      const fbEl = document.getElementById('llUploadFeedback');
+      if (fbEl) {
+        fbEl.textContent = msg;
+        fbEl.classList.remove('hidden');
+      }
+      if (!job.running) {
+        clearInterval(leadLogoPollTimer);
+        leadLogoPollTimer = null;
+        showToast(`✓ Loaded ${job.fetched} real clinic logos into Lead Logos!`);
+        const llModal = document.getElementById('leadLogosModal');
+        if (llModal && !llModal.classList.contains('hidden')) {
+          await loadLeadLogosForProject(projectId);
+        }
+      }
+    } catch (_) {}
+  };
+  checkOnce();
+  leadLogoPollTimer = setInterval(checkOnce, 2500);
+}
+
+// =============================================================================
+// SMART CALENDAR & TIMEZONE-AWARE EMAIL CAMPAIGN AUTO-SCHEDULER
+// =============================================================================
+
+let emailSchedulesCache = [];
+let schedCalViewDate = new Date();
+let schedSelectedDateStr = '';
+let schedTzInitialized = false;
+
+function formatYmd(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function initSchedulerDefaults() {
+  const dateInput = document.getElementById('schedDateInput');
+  const tzSel = document.getElementById('schedTimezoneSelect');
+  if (!schedSelectedDateStr) {
+    schedSelectedDateStr = formatYmd(new Date());
+  }
+  if (dateInput && !dateInput.value) {
+    dateInput.value = schedSelectedDateStr;
+  }
+  if (tzSel && !schedTzInitialized) {
+    schedTzInitialized = true;
+    try {
+      const detected = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (detected) {
+        const exists = [...tzSel.options].some(o => o.value === detected);
+        if (!exists) {
+          const opt = document.createElement('option');
+          opt.value = detected;
+          opt.textContent = `${detected} (Your Local Time)`;
+          tzSel.insertBefore(opt, tzSel.firstChild);
+        }
+        tzSel.value = detected;
+      }
+    } catch (_) {}
+  }
+}
+
+function renderSchedulerCalendar() {
+  initSchedulerDefaults();
+  const grid = document.getElementById('schedCalGrid');
+  const titleEl = document.getElementById('schedCalMonthTitle');
+  if (!grid || !titleEl) return;
+
+  const year = schedCalViewDate.getFullYear();
+  const month = schedCalViewDate.getMonth();
+  titleEl.textContent = schedCalViewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const todayStr = formatYmd(new Date());
+
+  // Map schedules by YYYY-MM-DD (from scheduled_local)
+  const byDate = {};
+  (emailSchedulesCache || []).forEach(s => {
+    const dayKey = String(s.scheduled_local || '').slice(0, 10);
+    if (!dayKey) return;
+    if (!byDate[dayKey]) byDate[dayKey] = [];
+    byDate[dayKey].push(s);
+  });
+
+  let html = '';
+  for (let i = 0; i < firstDay; i++) {
+    html += '<div class="h-10 rounded-lg opacity-30"></div>';
+  }
+  for (let day = 1; day <= daysInMonth; day++) {
+    const ymd = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const isToday = ymd === todayStr;
+    const isSelected = ymd === schedSelectedDateStr;
+    const items = byDate[ymd] || [];
+
+    const dots = items.slice(0, 3).map(it => {
+      const col = it.status === 'sent' ? 'bg-emerald-500'
+        : (it.status === 'scheduled' ? 'bg-indigo-500'
+        : (it.status === 'awaiting_approval' ? 'bg-amber-500' : 'bg-rose-500'));
+      return `<span class="w-1.5 h-1.5 rounded-full ${col}"></span>`;
+    }).join('');
+
+    const cls = isSelected
+      ? 'bg-indigo-600 text-white border-indigo-500 font-extrabold shadow-sm'
+      : (isToday ? 'bg-teal-500/15 text-teal-600 dark:text-teal-300 border-teal-500/40 font-bold' : 'bg-[var(--surface)] hover:bg-[var(--bg-soft)] border-[var(--border)]');
+
+    html += `
+      <button type="button" onclick="selectSchedulerDate('${ymd}')" class="h-10 rounded-lg border flex flex-col items-center justify-center gap-0.5 transition ${cls}" title="${items.length ? items.length + ' scheduled campaign(s)' : ymd}">
+        <span class="text-[11px] leading-none">${day}</span>
+        <span class="flex items-center gap-0.5 h-1.5">${dots}</span>
+      </button>
+    `;
+  }
+  grid.innerHTML = html;
+}
+
+function selectSchedulerDate(ymd) {
+  schedSelectedDateStr = ymd;
+  const dateInput = document.getElementById('schedDateInput');
+  if (dateInput) dateInput.value = ymd;
+  renderSchedulerCalendar();
+}
+
+function syncCalendarSelectionFromInput() {
+  const val = document.getElementById('schedDateInput')?.value;
+  if (!val) return;
+  schedSelectedDateStr = val;
+  const parts = val.split('-').map(Number);
+  if (parts.length === 3) {
+    schedCalViewDate = new Date(parts[0], parts[1] - 1, 1);
+  }
+  renderSchedulerCalendar();
+}
+
+function shiftSchedulerCalendarMonth(delta) {
+  schedCalViewDate = new Date(schedCalViewDate.getFullYear(), schedCalViewDate.getMonth() + delta, 1);
+  renderSchedulerCalendar();
+}
+
+function resetSchedulerCalendarToday() {
+  const now = new Date();
+  schedCalViewDate = new Date(now.getFullYear(), now.getMonth(), 1);
+  selectSchedulerDate(formatYmd(now));
+}
+
+function applySchedulePreset(preset) {
+  const d = new Date();
+  let timeStr = '09:00';
+  if (preset === 'in_5_min') {
+    d.setMinutes(d.getMinutes() + 5);
+    timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  } else if (preset === 'tomorrow_9am') {
+    d.setDate(d.getDate() + 1);
+    timeStr = '09:00';
+  } else if (preset === 'next_tue_10am') {
+    const diff = ((2 - d.getDay() + 7) % 7) || 7;
+    d.setDate(d.getDate() + diff);
+    timeStr = '10:00';
+  }
+  schedCalViewDate = new Date(d.getFullYear(), d.getMonth(), 1);
+  selectSchedulerDate(formatYmd(d));
+  const tEl = document.getElementById('schedTimeInput');
+  if (tEl) tEl.value = timeStr;
+}
+
+async function fetchEmailSchedules() {
+  const role = currentUser?.role || state.currentUserRole || 'guest';
+  if (!authToken || role === 'client' || role === 'guest') return;
+  initSchedulerDefaults();
+  try {
+    const qs = crmSelectedProjectId ? `?project_id=${encodeURIComponent(crmSelectedProjectId)}` : '';
+    const [schedRes, appRes] = await Promise.all([
+      apiFetch('/api/email-schedules' + qs),
+      apiFetch('/api/approvals?department=sales&status=all')
+    ]);
+    if (schedRes.ok) {
+      const data = await schedRes.json();
+      emailSchedulesCache = data.schedules || [];
+      const badge = document.getElementById('emailSchedulerEngineBadge');
+      if (badge) {
+        badge.textContent = data.scheduler?.is_running ? 'Auto-Send Active (15s tick)' : 'Serverless / Manual Tick';
+      }
+      renderSchedulerCalendar();
+      renderScheduledCampaignsList();
+    }
+    if (appRes.ok) {
+      const appData = await appRes.json();
+      const sel = document.getElementById('schedApprovalSelect');
+      if (sel) {
+        const prev = sel.value;
+        const items = (appData.approvals || []).filter(a =>
+          (!crmSelectedProjectId || a.project_id === crmSelectedProjectId) && a.status !== 'rejected'
+        );
+        sel.innerHTML = '<option value="">Auto-create pending Approval (approve before send)</option>' + items.map(a =>
+          `<option value="${escapeHtml(a.id)}">[${escapeHtml(a.status.toUpperCase())}] ${escapeHtml(a.title)}</option>`
+        ).join('');
+        if (prev && items.some(a => a.id === prev)) sel.value = prev;
+      }
+    }
+  } catch (err) {
+    console.warn('[scheduler] Fetch schedules error:', err.message);
+  }
+}
+
+function renderScheduledCampaignsList() {
+  const listEl = document.getElementById('scheduledCampaignsList');
+  if (!listEl) return;
+
+  if (!emailSchedulesCache || emailSchedulesCache.length === 0) {
+    listEl.innerHTML = '<div class="p-3 text-center rounded-xl border border-dashed border-[var(--border)] text-[var(--text-soft)]">No scheduled email campaigns yet. Pick a date, time, and timezone above to schedule auto-sending.</div>';
+    return;
+  }
+
+  const isAdmin = ['super_admin', 'admin', 'owner'].includes(currentUser?.role || state.currentUserRole);
+  listEl.innerHTML = emailSchedulesCache.map(s => {
+    const statusBadge = s.status === 'sent'
+      ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30'
+      : (s.status === 'scheduled' ? 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30'
+      : (s.status === 'awaiting_approval' ? 'bg-amber-500/15 text-amber-500 border-amber-500/30'
+      : (s.status === 'cancelled' ? 'bg-slate-500/15 text-[var(--text-soft)] border-[var(--border)]' : 'bg-rose-500/15 text-rose-500 border-rose-500/30')));
+
+    return `
+      <div class="p-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div class="min-w-0">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="font-bold text-[var(--text)] truncate">${escapeHtml(s.campaign_name)}</span>
+            <span class="text-[10px] px-2 py-0.5 rounded-full font-bold uppercase border ${statusBadge}">${escapeHtml(s.status)}</span>
+            ${s.project_name ? `<span class="text-[10px] text-[var(--text-soft)]">${escapeHtml(s.project_name)}</span>` : ''}
+          </div>
+          <div class="text-[11px] text-[var(--text-soft)] mt-0.5">
+            🕒 <strong>${escapeHtml(s.scheduled_local)}</strong> (${escapeHtml(s.timezone)}) &bull; Subject: ${escapeHtml(s.subject)}
+          </div>
+          ${s.sent_count || s.failed_count ? `<div class="text-[11px] text-emerald-500 mt-0.5">Sent: ${s.sent_count} · Failed: ${s.failed_count} · Skipped: ${s.skipped_count || 0}</div>` : ''}
+          ${s.last_error ? `<div class="text-[11px] text-amber-500 mt-0.5">⚠ ${escapeHtml(s.last_error)}</div>` : ''}
+        </div>
+        <div class="flex items-center gap-1.5 shrink-0">
+          ${isAdmin && ['scheduled', 'awaiting_approval', 'failed'].includes(s.status) ? `<button onclick="runScheduledEmailCampaignNow('${escapeHtml(s.id)}')" class="btn-outline px-2.5 py-1 text-[11px] font-bold text-emerald-500 border-emerald-500/30">▶ Run Now</button>` : ''}
+          ${['scheduled', 'awaiting_approval'].includes(s.status) ? `<button onclick="cancelScheduledEmailCampaign('${escapeHtml(s.id)}')" class="btn-outline px-2.5 py-1 text-[11px] font-semibold text-rose-500">Cancel</button>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function createScheduledEmailCampaign() {
+  const projectId = document.getElementById('crmBulkProjectSelect')?.value || state.selectedProjectId || (state.projects[0]?.id || '');
+  if (!projectId) {
+    showToast('Select a Target Project in Sales & CRM Pipeline first.');
+    return;
+  }
+  const campaign_name = document.getElementById('schedCampaignName')?.value?.trim();
+  const subject = document.getElementById('schedSubject')?.value?.trim();
+  const from_email = document.getElementById('schedFromEmail')?.value?.trim() || '';
+  const approval_id = document.getElementById('schedApprovalSelect')?.value || null;
+  const scheduled_date = document.getElementById('schedDateInput')?.value;
+  const scheduled_time = document.getElementById('schedTimeInput')?.value;
+  const timezone = document.getElementById('schedTimezoneSelect')?.value || 'America/Toronto';
+
+  if (!campaign_name || !subject || !scheduled_date || !scheduled_time) {
+    showToast('Fill in Campaign Name, Subject, Date, and Time to schedule.');
+    return;
+  }
+
+  try {
+    const res = await apiFetch('/api/email-schedules', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        project_id: projectId,
+        approval_id,
+        campaign_name,
+        subject,
+        from_email,
+        scheduled_date,
+        scheduled_time,
+        timezone
+      })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.ok) {
+      const st = data.schedule?.status;
+      showToast(st === 'scheduled'
+        ? `✓ Scheduled "${campaign_name}" for ${scheduled_date} ${scheduled_time} (${timezone}) — will auto-send on time!`
+        : `✓ Scheduled "${campaign_name}" (${scheduled_date} ${scheduled_time} ${timezone}) — approve it in Approvals to unlock auto-send!`);
+      if (document.getElementById('schedCampaignName')) document.getElementById('schedCampaignName').value = '';
+      await fetchEmailSchedules();
+      await fetchApprovals();
+    } else {
+      showToast(`Schedule failed: ${data.error || 'Unknown error'}`);
+    }
+  } catch (err) {
+    showToast(`Network error: ${err.message}`);
+  }
+}
+
+async function cancelScheduledEmailCampaign(id) {
+  try {
+    const res = await apiFetch(`/api/email-schedules/${encodeURIComponent(id)}/cancel`, { method: 'POST' });
+    if (res.ok) {
+      showToast('Scheduled campaign cancelled.');
+      await fetchEmailSchedules();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      showToast(`Cancel failed: ${err.error || 'Error'}`);
+    }
+  } catch (err) {
+    showToast(`Network error: ${err.message}`);
+  }
+}
+
+async function runScheduledEmailCampaignNow(id) {
+  showToast('Executing scheduled dual-branded email campaign...');
+  try {
+    const res = await apiFetch(`/api/email-schedules/${encodeURIComponent(id)}/run-now`, { method: 'POST' });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.ok) {
+      showToast(`✓ Dispatched! Sent: ${data.sent_count}, Failed: ${data.failed_count}, Skipped: ${data.skipped_count}`);
+    } else {
+      showToast(`⚠ ${data.error || data.message || 'Campaign did not send (' + data.status + ')'}`);
+    }
+    await fetchEmailSchedules();
+    await fetchSalesCrmData();
+    await fetchApprovals();
+  } catch (err) {
+    showToast(`Network error: ${err.message}`);
   }
 }
 

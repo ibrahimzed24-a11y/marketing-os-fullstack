@@ -21,9 +21,9 @@ const PROVIDER_METADATA = {
   ollama: {
     display_name: 'Ollama (Local Engine)',
     provider_type: 'local',
-    default_base_url: 'http://127.0.0.1:11434',
-    default_model: 'llama3.2:latest',
-    default_models: ['llama3.2:latest', 'mistral:latest', 'qwen2.5:latest', 'llama3.1:8b', 'deepseek-r1:latest'],
+    default_base_url: (process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434').trim(),
+    default_model: (process.env.OLLAMA_MODEL || 'qwen2.5:7b').trim(),
+    default_models: ['qwen2.5:7b', 'llama3.2:latest', 'mistral:latest', 'qwen2.5:latest', 'llama3.1:8b', 'deepseek-r1:latest'],
     requires_key: false
   },
   lmstudio: {

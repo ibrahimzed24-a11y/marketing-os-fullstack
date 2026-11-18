@@ -595,6 +595,67 @@ try {
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY(agent_slug, tab_name)
   );
+
+  -- 34. Local LLM Workers (Heartbeat & Health Registry for Vercel-to-Local Ollama Bridge)
+  CREATE TABLE IF NOT EXISTS local_workers (
+    worker_id TEXT PRIMARY KEY,
+    hostname TEXT,
+    provider TEXT DEFAULT 'ollama',
+    model TEXT,
+    ollama_status TEXT DEFAULT 'unknown',
+    models_json TEXT DEFAULT '[]',
+    status TEXT DEFAULT 'online',
+    last_heartbeat DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  -- 35. Scheduled Email Campaigns (Timezone-Aware Smart Calendar & Auto-Send Queue)
+  CREATE TABLE IF NOT EXISTS scheduled_email_campaigns (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    approval_id TEXT,
+    campaign_name TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    from_email TEXT DEFAULT '',
+    lead_ids_json TEXT DEFAULT '[]',
+    scheduled_at_utc TEXT NOT NULL,
+    scheduled_local TEXT NOT NULL,
+    timezone TEXT NOT NULL DEFAULT 'America/Toronto',
+    status TEXT DEFAULT 'scheduled' CHECK(status IN ('scheduled','running','sent','partial','failed','cancelled','awaiting_approval')),
+    sent_count INTEGER DEFAULT 0,
+    failed_count INTEGER DEFAULT 0,
+    skipped_count INTEGER DEFAULT 0,
+    last_error TEXT,
+    result_json TEXT DEFAULT '{}',
+    created_by TEXT,
+    executed_at TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_sched_email_due ON scheduled_email_campaigns(status, scheduled_at_utc);
+
+  -- 36. Lead Customized Proposals (Single Source of Truth for Outreach & Marketing Needs)
+  CREATE TABLE IF NOT EXISTS lead_customized_proposals (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    lead_id TEXT NOT NULL,
+    clinic_name TEXT,
+    identified_gaps TEXT,
+    custom_angle TEXT,
+    recommended_offer TEXT,
+    roi_projection TEXT,
+    custom_cta TEXT,
+    grounded_sources_json TEXT DEFAULT '[]',
+    status TEXT DEFAULT 'grounded' CHECK(status IN ('grounded','customized','approved','archived')),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(project_id, lead_id),
+    FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    FOREIGN KEY(lead_id) REFERENCES leads(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_proposals_project ON lead_customized_proposals(project_id);
+  CREATE INDEX IF NOT EXISTS idx_proposals_lead ON lead_customized_proposals(lead_id);
   `);
 
   // Safe runtime migrations for customizable guidelines and multi-format files
@@ -636,6 +697,14 @@ try {
     const pragmaHarness = db.prepare("PRAGMA table_info(harness_files)").all();
     if (!pragmaHarness.some(c => c.name === 'file_category')) {
       db.prepare("ALTER TABLE harness_files ADD COLUMN file_category TEXT DEFAULT 'General Asset'").run();
+    }
+
+    const pragmaRag = db.prepare("PRAGMA table_info(rag_chunks)").all();
+    if (!pragmaRag.some(c => c.name === 'category')) {
+      db.prepare("ALTER TABLE rag_chunks ADD COLUMN category TEXT DEFAULT 'market_research'").run();
+      try {
+        db.prepare("CREATE INDEX IF NOT EXISTS idx_rag_chunks_category ON rag_chunks(project_id, category)").run();
+      } catch (_) {}
     }
 
     // Verify tasks table supports 'needs_attention'

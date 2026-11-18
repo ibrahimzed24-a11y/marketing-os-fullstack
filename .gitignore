@@ -9,4 +9,6 @@ uploads/*
 data/*.db
 data/*.db-shm
 data/*.db-wal
+data/*.bak
+data/*
 .vercel

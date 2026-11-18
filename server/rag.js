@@ -22,6 +22,24 @@ const STOP_WORDS = new Set([
   'you', 'you\'d', 'you\'ll', 'you\'re', 'you\'ve', 'your', 'yours', 'yourself', 'yourselves'
 ]);
 
+const KNOWLEDGE_CATEGORIES = [
+  'market_research',     // Market Research & Industry Audits
+  'gaps_opportunities',  // Competitor Gaps & Growth Opportunities
+  'brand_guidelines',    // Brand Guidelines & Tone
+  'customer_profiles',   // Customer Profiles & ICP Personas
+  'offer_frameworks'     // Offer Frameworks, Deliverables & Pricing
+];
+
+function normalizeCategory(category) {
+  const c = String(category || '').trim().toLowerCase().replace(/[^a-z0-9_]/g, '_');
+  if (KNOWLEDGE_CATEGORIES.includes(c)) return c;
+  if (/gap|competitor|teardown/i.test(c)) return 'gaps_opportunities';
+  if (/brand|guideline|voice|tone|asset|spec/i.test(c)) return 'brand_guidelines';
+  if (/profile|persona|icp|customer|audience/i.test(c)) return 'customer_profiles';
+  if (/offer|price|pricing|framework|package/i.test(c)) return 'offer_frameworks';
+  return 'market_research';
+}
+
 function tokenize(text) {
   if (!text || typeof text !== 'string') return [];
   return text
@@ -112,18 +130,71 @@ function computeScore(queryTokens, queryLower, chunkContent, chunkKeywords) {
   return Math.min(Math.round(score * 10) / 10, 99.8);
 }
 
-function ingestDocument(projectId, documentName, content) {
+function parseCsvIntoSemanticText(content) {
+  if (!content || typeof content !== 'string') return content;
+  const lines = content.split(/\r?\n/).filter(l => l.trim().length > 0);
+  if (lines.length < 2) return content;
+  
+  // Basic CSV line splitter respecting quotes
+  const parseLine = (l) => {
+    const res = [];
+    let cur = '';
+    let inQuotes = false;
+    for (let i = 0; i < l.length; i++) {
+      const c = l[i];
+      if (c === '"') {
+        inQuotes = !inQuotes;
+      } else if (c === ',' && !inQuotes) {
+        res.push(cur.trim());
+        cur = '';
+      } else {
+        cur += c;
+      }
+    }
+    res.push(cur.trim());
+    return res;
+  };
+
+  const headers = parseLine(lines[0]);
+  if (headers.length < 2) return content;
+
+  const records = [];
+  for (let i = 1; i < lines.length; i++) {
+    const vals = parseLine(lines[i]);
+    if (!vals || vals.length === 0 || vals.every(v => !v)) continue;
+    const parts = [];
+    headers.forEach((h, idx) => {
+      const v = vals[idx] || '';
+      if (v) parts.push(`${h.replace(/[^a-zA-Z0-9_\s]/g, '').trim()}: ${v}`);
+    });
+    if (parts.length > 0) {
+      records.push(`[KNOWLEDGE RECORD #${i}] ${parts.join(' | ')}`);
+    }
+  }
+
+  return records.length > 0 ? records.join('\n\n') : content;
+}
+
+function ingestDocument(projectId, documentName, content, category = 'market_research') {
   if (!projectId || !documentName || !content) {
     throw new Error('projectId, documentName, and content are required');
   }
 
+  const resolvedCategory = normalizeCategory(category);
+
   // Remove existing chunks for this specific document to support clean idempotency
   db.prepare('DELETE FROM rag_chunks WHERE project_id=? AND document_name=?').run(projectId, documentName);
 
-  const chunks = chunkText(content);
+  // If file is CSV, convert to high-relevance semantic representation
+  let textToChunk = content;
+  if (documentName.toLowerCase().endsWith('.csv') || (typeof content === 'string' && content.slice(0, 100).includes(','))) {
+    textToChunk = parseCsvIntoSemanticText(content);
+  }
+
+  const chunks = chunkText(textToChunk);
   const insertStmt = db.prepare(`
-    INSERT INTO rag_chunks (id, project_id, document_name, chunk_index, content, token_count, keywords_json)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO rag_chunks (id, project_id, document_name, chunk_index, content, token_count, keywords_json, category)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const insertTx = db.transaction(() => {
@@ -139,7 +210,8 @@ function ingestDocument(projectId, documentName, content) {
         idx + 1,
         chunk,
         tokens.length,
-        JSON.stringify(Array.from(new Set(tokens)))
+        JSON.stringify(Array.from(new Set(tokens))),
+        resolvedCategory
       );
     });
     return totalTokens;
@@ -149,19 +221,27 @@ function ingestDocument(projectId, documentName, content) {
   return {
     ok: true,
     document_name: documentName,
+    category: resolvedCategory,
     chunks_created: chunks.length,
     total_tokens: totalTokens
   };
 }
 
-function searchChunks(projectId, query, topK = 5) {
+function searchChunks(projectId, query, topK = 5, category = null) {
   if (!projectId || !query) return [];
 
-  const chunks = db.prepare(`
-    SELECT id, document_name, chunk_index, content, token_count, keywords_json, created_at
-    FROM rag_chunks
-    WHERE project_id = ?
-  `).all(projectId);
+  const filterCategory = category ? normalizeCategory(category) : null;
+  const sql = filterCategory
+    ? `SELECT id, document_name, chunk_index, content, token_count, keywords_json, category, created_at
+       FROM rag_chunks
+       WHERE project_id = ? AND category = ?`
+    : `SELECT id, document_name, chunk_index, content, token_count, keywords_json, category, created_at
+       FROM rag_chunks
+       WHERE project_id = ?`;
+
+  const chunks = filterCategory
+    ? db.prepare(sql).all(projectId, filterCategory)
+    : db.prepare(sql).all(projectId);
 
   if (!chunks.length) return [];
 
@@ -180,6 +260,7 @@ function searchChunks(projectId, query, topK = 5) {
       id: chunk.id,
       document_name: chunk.document_name,
       chunk_index: chunk.chunk_index,
+      category: chunk.category || 'market_research',
       content: chunk.content,
       token_count: chunk.token_count,
       score,
@@ -192,33 +273,86 @@ function searchChunks(projectId, query, topK = 5) {
   return scored.slice(0, Number(topK) || 5);
 }
 
-function getProjectChunkCount(projectId) {
+function getProjectChunkCount(projectId, category = null) {
+  if (category) {
+    const row = db.prepare('SELECT COUNT(*) as cnt FROM rag_chunks WHERE project_id = ? AND category = ?').get(projectId, normalizeCategory(category));
+    return row ? row.cnt : 0;
+  }
   const row = db.prepare('SELECT COUNT(*) as cnt FROM rag_chunks WHERE project_id = ?').get(projectId);
   return row ? row.cnt : 0;
 }
 
-function getAllProjectChunks(projectId) {
+function getAllProjectChunks(projectId, category = null) {
+  if (category) {
+    return db.prepare(`
+      SELECT id, document_name, chunk_index, content, token_count, category, created_at
+      FROM rag_chunks
+      WHERE project_id = ? AND category = ?
+      ORDER BY document_name ASC, chunk_index ASC
+    `).all(projectId, normalizeCategory(category));
+  }
   return db.prepare(`
-    SELECT id, document_name, chunk_index, content, token_count, created_at
+    SELECT id, document_name, chunk_index, content, token_count, category, created_at
     FROM rag_chunks
     WHERE project_id = ?
-    ORDER BY document_name ASC, chunk_index ASC
+    ORDER BY category ASC, document_name ASC, chunk_index ASC
   `).all(projectId);
 }
 
-// Auto-seed existing harness files for projects if RAG is empty
+function getProjectKnowledgeSummary(projectId) {
+  const totalChunks = getProjectChunkCount(projectId);
+  const rows = db.prepare(`
+    SELECT category, document_name, COUNT(*) as chunks, SUM(token_count) as tokens, MAX(created_at) as latest_created
+    FROM rag_chunks
+    WHERE project_id = ?
+    GROUP BY category, document_name
+    ORDER BY category ASC, document_name ASC
+  `).all(projectId);
+
+  const categories = {
+    market_research: { title: 'Market Research & Audits', count: 0, documents: [] },
+    gaps_opportunities: { title: 'Competitor Gaps & Opportunities', count: 0, documents: [] },
+    brand_guidelines: { title: 'Brand Guidelines & Tone', count: 0, documents: [] },
+    customer_profiles: { title: 'Customer Profiles (ICP)', count: 0, documents: [] },
+    offer_frameworks: { title: 'Offer Frameworks & Pricing', count: 0, documents: [] }
+  };
+
+  const docSet = new Set();
+  for (const r of rows) {
+    const cat = normalizeCategory(r.category);
+    docSet.add(r.document_name);
+    if (!categories[cat]) {
+      categories[cat] = { title: cat, count: 0, documents: [] };
+    }
+    categories[cat].count += r.chunks;
+    categories[cat].documents.push({
+      document_name: r.document_name,
+      chunks: r.chunks,
+      tokens: r.tokens || 0,
+      updated_at: r.latest_created
+    });
+  }
+
+  return {
+    project_id: projectId,
+    total_chunks: totalChunks,
+    total_documents: docSet.size,
+    categories
+  };
+}
+
+// Auto-seed existing harness files and research files for projects
 function autoSeedProjectHarness() {
   try {
-    const totalCount = db.prepare('SELECT COUNT(*) as cnt FROM rag_chunks').get()?.cnt || 0;
-    if (totalCount > 0) return; // Already seeded
-
     const projects = db.prepare('SELECT id, name FROM projects').all();
     const uploadsDir = path.join(__dirname, '../uploads');
     if (!fs.existsSync(uploadsDir)) return;
 
     for (const proj of projects) {
-      const files = db.prepare('SELECT filename, original_name FROM harness_files WHERE project_id=?').all(proj.id);
+      // 1. Ingest files registered in harness_files for this project
+      const files = db.prepare('SELECT filename, original_name, file_category FROM harness_files WHERE project_id=?').all(proj.id);
       for (const f of files) {
+        if (f.file_category === 'Lead Logo') continue;
         const filePath = path.join(uploadsDir, f.filename);
         if (fs.existsSync(filePath)) {
           const ext = path.extname(f.original_name || f.filename).toLowerCase();
@@ -226,19 +360,62 @@ function autoSeedProjectHarness() {
             try {
               const content = fs.readFileSync(filePath, 'utf-8');
               if (content && content.length > 10) {
-                ingestDocument(proj.id, f.original_name || f.filename, content);
+                const cat = f.file_category === 'Spreadsheet' ? 'gaps_opportunities' : normalizeCategory(f.file_category);
+                ingestDocument(proj.id, f.original_name || f.filename, content, cat);
               }
-            } catch (readErr) {
-              // skip unreadable
-            }
+            } catch (_) {}
           }
         }
       }
 
-      // If project has no indexed harness files, index its default goal and guidelines
-      if (getProjectChunkCount(proj.id) === 0) {
-        const defaultDoc = `PROJECT: ${proj.name}\nGOAL: Canadian Dental Clinics growth with $499 setup and $299/mo AI agent retainer.\nOFFER SPECIFICATION: Full turnkey patient intake, online scheduling integration, Hostinger outbound email deliverability, and Google Search Console visibility.\nTARGET CLINICS: Ontario and British Columbia clinics accepting CDCP (Canadian Dental Care Plan).`;
-        ingestDocument(proj.id, 'project_specifications.md', defaultDoc);
+      // 2. Ingest available project market research and intelligence files from uploads/
+      const researchCandidates = [
+        { file: 'Priority_A_Outreach_Email_Merge_Fields.csv', name: 'Priority_A_Outreach_Verified_Gaps.csv', cat: 'gaps_opportunities' },
+        { file: 'Clinic Intelligence (138 leads, scored and verified).csv', name: 'Canadian_Dental_Clinic_Intelligence_138.csv', cat: 'market_research' }
+      ];
+
+      for (const cand of researchCandidates) {
+        const cPath = path.join(uploadsDir, cand.file);
+        if (fs.existsSync(cPath)) {
+          try {
+            const content = fs.readFileSync(cPath, 'utf8');
+            if (content && content.length > 20) {
+              ingestDocument(proj.id, cand.name, content, cand.cat);
+            }
+          } catch (_) {}
+        }
+      }
+
+      // 3. Ensure core offer frameworks and brand guidelines are indexed
+      const existingOffers = searchChunks(proj.id, 'Valioz offer pricing', 1, 'offer_frameworks');
+      if (existingOffers.length === 0) {
+        const offerDoc = `# VALIOZ Health — Core Offer Framework & Pricing Specs
+- **Model**: Full Turnkey Patient Acquisition & Dental Growth Engine
+- **Setup Fee**: $499 one-time website & AI intake engine purchase
+- **Guarantee**: 30-day risk-free launch with $0 upfront fee until 10 new patients are booked
+- **Retainer**: $299/month optional AI Growth Agent retainer after 30 days
+- **Asset Ownership**: 100% clinic property — client owns domain, hosting, code, and connected Google profiles
+- **Deliverables**:
+  1. Custom mobile-first responsive clinic website with online intake
+  2. Google Search Console & Google Business Profile local 3-pack optimization
+  3. AI-powered patient booking triage (answering inquiries 24/7)
+  4. CDCP (Canadian Dental Care Plan) patient qualification flow
+  5. Daily Growth Brief & real-time intake telemetry`;
+        ingestDocument(proj.id, 'Valioz_Health_Offer_Framework.md', offerDoc, 'offer_frameworks');
+      }
+
+      const existingBrands = searchChunks(proj.id, 'brand voice guidelines', 1, 'brand_guidelines');
+      if (existingBrands.length === 0) {
+        const brandDoc = `# VALIOZ Health & Dual-Branded Client Brand Guidelines
+- **Core Mission**: "Better care deserves to be found."
+- **Brand Colors**: Teal Accent (#00a9a4), Deep Navy (#122f47), Card Mint (#f1f8f7)
+- **Voice & Tone**: High-integrity, evidence-grounded, empathetic to dental practice owners.
+- **Rules of Engagement**:
+  - Never fabricate review metrics, rankings, or patient figures.
+  - Side-by-side logo lockup: [VALIOZ Health] × [Partner Clinic Logo].
+  - Emphasize clinic ownership vs renting SaaS templates.
+  - Focus on patient care access and seamless local appointment booking.`;
+        ingestDocument(proj.id, 'Valioz_Brand_Kit_and_Guidelines.md', brandDoc, 'brand_guidelines');
       }
     }
   } catch (err) {
@@ -256,5 +433,8 @@ module.exports = {
   searchChunks,
   getProjectChunkCount,
   getAllProjectChunks,
-  autoSeedProjectHarness
+  getProjectKnowledgeSummary,
+  autoSeedProjectHarness,
+  normalizeCategory,
+  KNOWLEDGE_CATEGORIES
 };

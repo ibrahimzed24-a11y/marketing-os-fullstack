@@ -58,7 +58,10 @@ const SYNC_TABLES = [
   'approvals',
   'agent_runs',
   'external_integrations',
-  'agent_blueprints'
+  'agent_blueprints',
+  'local_workers',
+  'scheduled_email_campaigns',
+  'lead_customized_proposals'
 ];
 
 const CRITICAL_TABLES = new Set([
