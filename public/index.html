@@ -145,7 +145,7 @@
             <span class="font-extrabold text-sm tracking-tight">Marketing <span class="text-[#FF7A68]">OS</span></span>
             <span class="text-[11px] px-2 py-0.5 rounded-full bg-[#FFE7E2] dark:bg-indigo-500/15 text-[#E85A48] dark:text-indigo-300 font-bold border border-[#F2E6DB] dark:border-indigo-500/20">Marketing Operations</span>
           </div>
-          <div class="text-[11px] text-[var(--text-faint)] truncate">Bright. Kind. Growing. • Internal Marketing Platform</div>
+          <div class="text-[11px] text-[var(--text-faint)] truncate">Internal Marketing Operations</div>
         </div>
       </div>
 
@@ -1297,7 +1297,7 @@
             <h3 class="text-sm font-bold flex items-center gap-2">
               <span>🛡️ Campaign Execution & Reliability Monitor</span>
             </h3>
-            <p class="text-xs text-[var(--text-soft)]">Continuous quality monitor ensuring marketing tasks and campaigns execute smoothly without interruption.</p>
+            <p class="text-xs text-[var(--text-soft)]">Tracks stalled tasks and failed webhooks. Run a manual scan anytime.</p>
           </div>
           <button onclick="triggerAdminWatchdogScan()" class="btn-outline px-3 py-1.5 text-xs font-semibold">⚡ Scan Now</button>
         </div>
@@ -1323,6 +1323,21 @@
         </div>
         <div id="externalIntegrationsContainer" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div class="text-xs text-[var(--text-soft)]">Loading integration slots...</div>
+        </div>
+      </div>
+
+      <!-- Installed Runtime Agent Skills (Verified from /skills) -->
+      <div id="installedSkillsCard" class="card-surface p-5 space-y-4">
+        <div class="border-b border-[var(--border)] pb-3">
+          <h3 class="text-sm font-bold flex items-center gap-2">
+            <span>🧠 Installed Agent Skills Engine (<code>skills/</code>)</span>
+          </h3>
+          <p class="text-xs text-[var(--text-soft)]">
+            Live skill packs loaded from disk and injected into Research, Sales, and Creative agents (Humanizer, Taste Skill, OpenDesign, Agent-Skills).
+          </p>
+        </div>
+        <div id="installedSkillsContainer" class="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div class="text-xs text-[var(--text-soft)]">Loading installed skills...</div>
         </div>
       </div>
 

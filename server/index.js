@@ -26,6 +26,7 @@ const { signToken, authMiddleware, requireRole, hashPassword, verifyPassword } =
 const { triggerN8n } = require('./n8n');
 const { executeAgentTask, researchAgent, salesAgent, creativeDirectorAgent } = require('./agentFramework');
 const { POLICY_MATRIX, evaluatePolicy, dispatchExternalAction } = require('./approvalPolicy');
+const { getInstalledSkills } = require('./skillEngine');
 const {
   startWatchdog,
   stopWatchdog,
@@ -60,11 +61,42 @@ const {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Security & Parsing Middleware
+// Security & Parsing Middleware (addyosmani/security-and-hardening)
+app.disable('x-powered-by');
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  next();
+});
 app.use(cors({ origin: process.env.CORS_ORIGIN || true }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(correlationMiddleware);
+
+// Production brute-force rate limiter for auth endpoints (30 requests / 15 min per IP)
+const authRateMap = new Map();
+const authRateLimiter = (req, res, next) => {
+  if (process.env.NODE_ENV !== 'production' && process.env.VERCEL !== '1') return next();
+  const ip = (req.headers['x-forwarded-for'] || req.ip || 'unknown').toString().split(',')[0].trim();
+  const now = Date.now();
+  const windowMs = 15 * 60 * 1000;
+  const maxAttempts = 30;
+  const entry = authRateMap.get(ip) || { count: 0, resetAt: now + windowMs };
+  if (now > entry.resetAt) {
+    entry.count = 0;
+    entry.resetAt = now + windowMs;
+  }
+  entry.count++;
+  authRateMap.set(ip, entry);
+  if (entry.count > maxAttempts) {
+    return res.status(429).json({ error: 'Too many authentication attempts. Please wait and try again.' });
+  }
+  next();
+};
+app.use('/api/auth/login', authRateLimiter);
+app.use('/api/auth/register', authRateLimiter);
 
 // Startup Turso Hydration Gate: guarantee cold-start Serverless requests
 // NEVER query an unhydrated local SQLite DB before Turso Cloud sync completes.
@@ -2587,6 +2619,17 @@ app.put('/api/agent-blueprints/:slug', authMiddleware, requireRole('owner', 'sup
     ON CONFLICT(agent_slug, tab_name) DO UPDATE SET content = excluded.content, updated_at = CURRENT_TIMESTAMP
   `).run(req.params.slug, String(tab_name).trim(), String(content));
   res.json({ ok: true, agent_slug: req.params.slug, tab_name });
+}));
+
+// 12. Installed Runtime Agent Skills Catalog (live disk verification of /skills packs)
+app.get('/api/skills', authMiddleware, asyncHandler(async (req, res) => {
+  const skills = getInstalledSkills();
+  res.json({
+    ok: true,
+    total: skills.length,
+    installed_count: skills.filter((s) => s.installed).length,
+    skills
+  });
 }));
 
 // SPA Fallback

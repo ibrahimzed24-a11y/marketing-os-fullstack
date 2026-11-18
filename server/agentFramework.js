@@ -17,6 +17,7 @@ const db = require('./db');
 const { getActiveLLMConfig } = require('./llmConfig');
 const { invokeLLM } = require('./llmClient');
 const { decryptSecret } = require('./cryptoVault');
+const { buildSkillDirectives, lintDeliverableQuality } = require('./skillEngine');
 let rag = null;
 try {
   rag = require('./rag');
@@ -626,7 +627,7 @@ function loadAgentBlueprints(targetDb, agentSlug) {
  * Build grounded prompt for live LLM execution using project context, harness files,
  * keyword/BM25 retrieved snippets, live web search (if configured by Admin), real team roster, and saved blueprints.
  */
-function buildAgentPrompts(targetAgent, skill, task, project, harnessFiles, ragContext, inputData, { webSearch, teamRoster, blueprints } = {}) {
+function buildAgentPrompts(targetAgent, skill, task, project, harnessFiles, ragContext, inputData, { webSearch, teamRoster, blueprints, skillDirectives } = {}) {
   const client = project?.client_name || project?.name || 'Client';
   const harnessSummary = (harnessFiles || [])
     .slice(0, 8)
@@ -649,13 +650,14 @@ function buildAgentPrompts(targetAgent, skill, task, project, harnessFiles, ragC
   const systemPrompt = [
     `You are ${targetAgent.name} (${targetAgent.roleTitle}) in the ${targetAgent.department.toUpperCase()} department of Marketing OS.`,
     targetAgent.systemDirective,
+    skillDirectives ? `ACTIVE INSTALLED SKILLS (MUST FOLLOW):\n${skillDirectives}` : '',
     blueprints ? `Custom Admin Blueprints:\n${blueprints}` : '',
     'STRICT HONESTY RULES:',
     '1. Ground outputs strictly in provided client info, harness files, retrieved knowledge base snippets, and live web search results (if connected).',
     '2. NEVER fabricate unverified contact emails, phone numbers, fake competitor prices, or invented market stats.',
     '3. Only assign WBS tasks to real team members listed in the Team Roster, or mark them "Unassigned".',
     '4. Respond with a valid JSON object containing at minimum: {"title": "...", "summary": "...", "deliverable": {...}, "report_md": "... (ending with **Verdict:** Ready to Deliver)"}.'
-  ].filter(Boolean).join('\n');
+  ].filter(Boolean).join('\n\n');
 
   const userPrompt = [
     `Skill SOP: ${skill.name}`,
@@ -750,6 +752,7 @@ async function executeAgentTask(task, project, harnessFiles = [], options = {}) 
     } catch (_) {}
 
     const blueprints = loadAgentBlueprints(targetDb, targetAgent.department);
+    const skillBundle = buildSkillDirectives(targetAgent.department, task.pipeline || sopSlug);
     const webSearch = targetAgent.department === 'research'
       ? await fetchLiveWebSearch(targetDb, `${project?.client_name || ''} ${task.title} ${project?.goal || ''}`.trim())
       : { configured: false, results: [] };
@@ -763,7 +766,7 @@ async function executeAgentTask(task, project, harnessFiles = [], options = {}) 
       harnessFiles,
       ragContext,
       inputData,
-      { webSearch, teamRoster, blueprints }
+      { webSearch, teamRoster, blueprints, skillDirectives: skillBundle.promptBlock }
     );
 
     const llmRes = options.skipLiveLLM
@@ -836,6 +839,13 @@ async function executeAgentTask(task, project, harnessFiles = [], options = {}) 
       outputJson.title = task.title || 'Marketing Deliverable';
     }
 
+    // 4b. Run Deterministic Humanizer + Anti-Slop Quality Linter on Deliverable Prose
+    const qualityAudit = lintDeliverableQuality(
+      `${outputJson.summary || ''}\n${reportMd || ''}`,
+      { skillsApplied: skillBundle.skills }
+    );
+    outputJson.quality_audit = qualityAudit;
+
     // 5. Attach Standardized Execution Metadata
     outputJson.metadata = {
       pipeline: task.pipeline || 'landing-page',
@@ -847,6 +857,8 @@ async function executeAgentTask(task, project, harnessFiles = [], options = {}) 
       data_source: dataSource,
       is_simulated: isSimulated,
       web_search_connected: Boolean(webSearch.configured),
+      skills_applied: qualityAudit.skills_applied,
+      humanizer_score: qualityAudit.humanizer_score,
       run_id: runId,
       attempts: llmRes.attempts || 0,
       executed_at: new Date().toISOString()

@@ -3217,6 +3217,7 @@ let adminLlmProviders = [];
 let adminLlmActiveConfig = null;
 let adminWatchdogTelemetry = null;
 let adminExternalIntegrations = [];
+let adminInstalledSkills = [];
 let systemStatusCache = null;
 let adminLlmFilter = 'all';
 
@@ -3252,11 +3253,12 @@ async function fetchAdminSettingsData() {
   const role = currentUser?.role || state.currentUserRole || 'guest';
   if (!authToken || !['super_admin', 'owner', 'admin'].includes(role)) return;
   try {
-    const [llmRes, wdRes, intRes, sysRes] = await Promise.all([
+    const [llmRes, wdRes, intRes, sysRes, skillsRes] = await Promise.all([
       apiFetch('/api/admin/llm-config', {}),
       apiFetch('/api/admin/watchdog/status', {}),
       apiFetch('/api/admin/integrations', {}),
-      apiFetch('/api/system/status', {})
+      apiFetch('/api/system/status', {}),
+      apiFetch('/api/skills', {})
     ]);
 
     if (llmRes.ok) {
@@ -3278,6 +3280,11 @@ async function fetchAdminSettingsData() {
     if (sysRes.ok) {
       systemStatusCache = await sysRes.json();
       renderHeaderEngineStatus();
+    }
+
+    if (skillsRes.ok) {
+      const sData = await skillsRes.json();
+      adminInstalledSkills = sData.skills || [];
     }
   } catch (err) {
     console.warn('[Admin Settings] Fetch warning:', err.message);
@@ -3777,6 +3784,31 @@ function renderAdminSettingsView() {
   }
 
   renderExternalIntegrations();
+  renderInstalledSkills();
+}
+
+function renderInstalledSkills() {
+  const container = document.getElementById('installedSkillsContainer');
+  if (!container) return;
+  if (!adminInstalledSkills || adminInstalledSkills.length === 0) {
+    container.innerHTML = '<div class="text-xs text-[var(--text-soft)]">No skill packs loaded.</div>';
+    return;
+  }
+  container.innerHTML = adminInstalledSkills.map((s) => {
+    const kb = s.bytes ? (s.bytes / 1024).toFixed(1) + ' KB' : '0 KB';
+    return '<div class="card-subtle p-3.5 rounded-xl border border-[var(--border)] flex flex-col justify-between gap-2">' +
+      '<div>' +
+        '<div class="flex items-start justify-between gap-2">' +
+          '<div class="font-bold text-xs leading-snug">' + escapeHtml(s.name) + '</div>' +
+          '<span class="text-[9px] px-1.5 py-0.5 rounded-full font-bold ' + (s.installed ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-rose-500/15 text-rose-500') + '">' + (s.installed ? 'Loaded' : 'Missing') + '</span>' +
+        '</div>' +
+        '<div class="text-[10px] text-[var(--text-soft)] mono mt-1">v' + escapeHtml(s.version) + ' • ' + kb + '</div>' +
+      '</div>' +
+      '<div class="flex flex-wrap gap-1 pt-1 border-t border-[var(--border)]">' +
+        (s.departments || []).map((d) => '<span class="text-[9px] px-1.5 py-0.5 rounded bg-[var(--bg-soft)] uppercase font-semibold">' + escapeHtml(d) + '</span>').join('') +
+      '</div>' +
+    '</div>';
+  }).join('');
 }
 
 // =============================================================================

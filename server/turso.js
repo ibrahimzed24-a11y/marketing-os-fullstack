@@ -308,7 +308,8 @@ async function hydrateFromTurso(db) {
     // Stage 4: Post-hydration verification (row count parity + foreign key integrity)
     const verificationMismatches = [];
     for (const [tableName, rows] of stagedTables.entries()) {
-      if (rows.length === 0) continue;
+      const keepIfCloudEmpty = tableName === 'admin_llm_configs' || tableName === 'external_integrations';
+      if (rows.length === 0 && keepIfCloudEmpty) continue;
       const localCount = db.prepare(`SELECT COUNT(*) as c FROM ${tableName}`).get()?.c || 0;
       if (localCount !== rows.length) {
         verificationMismatches.push({ table: tableName, expected: rows.length, actual: localCount });
