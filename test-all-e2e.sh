@@ -35,6 +35,7 @@ echo -e "${BOLD}${CYAN}---------------------------------------------------------
 SUITES=(
   "test-phase0-security.sh:Phase 0 Security & Data Integrity:JWT Fail-Fast, Vault AES-256-GCM, RBAC, Turso Safety"
   "test-phase1-agents.sh:Phase 1 Agent Engine & Runs:Live LLM Retry, Honest Fallback, DB Failure Guard"
+  "test-phase2-3-4-governance.sh:Phase 2/3/4 CRM & Exec Controls:CRM CRUD, Lineage, Approved vs Executed, Idempotency"
   "test-flow.sh:Core Lifecycle & Harness Grounding:Lifecycle, Harness Upload, RBAC Exploits"
   "test-agents-rag.sh:Sovereign Agents & Vector Search:32 Agents Registry, Semantic Ingestion, RBAC Gates"
   "test-llm-config.sh:Dynamic LLM Routing & Key Vault:6-Provider Registry, Key Masking, Ping Verification"

@@ -3660,7 +3660,8 @@ function renderApprovalsView() {
         <div class="min-w-0 flex-1">
           <div class="flex items-center gap-2 mb-1.5 flex-wrap">
             <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase border bg-[var(--bg-soft)] text-[var(--text-soft)]">${escapeHtml(app.department)}</span>
-            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${statusClass}">${escapeHtml(app.status)}</span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${statusClass}">Approval: ${escapeHtml(app.status)}</span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${app.execution_status === 'externally_executed' ? 'text-blue-400 bg-blue-500/10 border-blue-500/30' : 'text-[var(--text-soft)] bg-[var(--bg-soft)] border-[var(--border)]'}">Exec: ${escapeHtml(app.execution_status || 'not_executed')}</span>
             <span class="text-xs font-semibold text-[var(--text-soft)]">${escapeHtml(app.agent_name)}</span>
             <span class="text-[11px] text-[var(--text-faint)]">${new Date(app.created_at).toLocaleString()}</span>
           </div>
@@ -3690,6 +3691,11 @@ function renderApprovalsView() {
             <button onclick="openApprovalModal('${app.id}')" class="btn-outline px-3 py-1.5 rounded-xl text-xs font-semibold" title="View details">
               <span>🔍</span> <span>View Deliverable</span>
             </button>
+            ${app.status === 'approved' && app.execution_status !== 'externally_executed' ? `
+              <button onclick="executeApprovedAction('${app.id}')" class="px-3 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white transition">
+                ⚡ Execute Externally
+              </button>
+            ` : ''}
             <span class="text-[11px] text-[var(--text-faint)] italic">
               Reviewed at ${app.reviewed_at ? new Date(app.reviewed_at).toLocaleDateString() : 'N/A'}
             </span>
@@ -3698,6 +3704,28 @@ function renderApprovalsView() {
       </div>
     `;
   }).join('');
+}
+
+async function executeApprovedAction(approvalId) {
+  try {
+    const res = await apiFetch(`/api/approvals/${approvalId}/execute`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Idempotency-Key': `exec-${approvalId}`
+      },
+      body: JSON.stringify({})
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      showToast(data.externally_executed ? 'External action executed & verified!' : `Action staged (${data.execution_status}): no external connector configured.`);
+      await fetchApprovals();
+    } else {
+      showToast(`Execution blocked: ${data.error || 'Unknown error'}`);
+    }
+  } catch (err) {
+    showToast(`Network error: ${err.message}`);
+  }
 }
 
 async function submitApprovalDecision(approvalId, decision, notes = '') {

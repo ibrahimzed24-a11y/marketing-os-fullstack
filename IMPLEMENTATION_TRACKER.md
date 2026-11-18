@@ -6,7 +6,7 @@
 **Base Branch (Protected — Untouched):** `main`  
 **Plan Reference:** [MARKETING_OS_SIMPLIFICATION_PLAN.md](./MARKETING_OS_SIMPLIFICATION_PLAN.md)  
 **Audit Reference:** [MARKETING_OS_AUDIT_FINDINGS.md](./MARKETING_OS_AUDIT_FINDINGS.md)  
-**Current Gate:** **Phase 0 & Phase 1 Verified (`[#]`) → Ready for Phase 2: Application Simplification**
+**Current Gate:** **Phases 0–4 & Local E2E (11/11) Verified (`[#]`) → Ready for Phase 5 Staging & Release Gate (`P5-03` / `P5-04`)**
 
 ### Status Legend
 - `[ ]` Not started / Ready after approval
@@ -57,44 +57,44 @@
 
 ---
 
-### Phase 2: Application Simplification (UNBLOCKED & READY)
+### Phase 2: Application Simplification (GATE: PASSED `[#]`)
 
 | Task ID | Task | Owner | Linked Audit | Planned Tests | Verification Result | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :---: |
-| `P2-01` | Map every UI component/modal in `public/index.html` & `public/app.js` to backend routes & workflows prior to hiding/removal | Frontend | `AUD-010` | Dependency audit checklist signed off | Pending | `[ ]` |
-| `P2-02` | Polish & verify the 9 core views (`Overview`, `Research`, `Sales CRM`, `Creative Studio`, `Projects & Tasks`, `Approvals`, `Team`, `Knowledge Base`, `Settings`) | Frontend | `AUD-010` | Frontend DOM & live API E2E checks | Pending | `[ ]` |
-| `P2-03` | Remove mock frontend team arrays (`public/app.js:708-711`) & hardcoded dummy handoff leads (`public/app.js:3786-3800`) | Frontend | `AUD-008`, `AUD-010` | Live DB state reflection check; zero hardcoded fixtures | Pending | `[ ]` |
+| `P2-01` | Map every UI component/modal in `public/index.html` & `public/app.js` to backend routes & workflows prior to hiding/removal | Frontend | `AUD-010` | Dependency audit checklist signed off (`test-frontend-ui.sh` 100% intact) | `PASS` (commit `5bd4d49`) | `[#]` |
+| `P2-02` | Polish & verify the 9 core views (`Overview`, `Research`, `Sales CRM`, `Creative Studio`, `Projects & Tasks`, `Approvals`, `Team`, `Knowledge Base`, `Settings`) with live CRM/Leads panels | Frontend | `AUD-010` | Frontend DOM & live API E2E checks | `PASS` (`test-frontend-ui.sh` + `test-phase2-3-4-governance.sh`) | `[#]` |
+| `P2-03` | Remove mock frontend team arrays (`public/app.js:708-711`) & hardcoded dummy handoff leads (`public/app.js:3786-3800`) | Frontend | `AUD-008`, `AUD-010` | Live DB state reflection check; static scan for zero mock fixtures | `PASS` (`test-phase2-3-4-governance.sh`, commit `5bd4d49`) | `[#]` |
 
 ---
 
-### Phase 3: Unified End-to-End Workflow
+### Phase 3: Unified End-to-End Workflow (GATE: PASSED `[#]`)
 
 | Task ID | Task | Owner | Linked Audit | Planned Tests | Verification Result | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :---: |
-| `P3-01` | Connect Research → Sales handoff to real verified leads produced by Research Agent | Fullstack | `AUD-008` | E2E lead handoff & ICP verification test | Pending | `[!]` |
-| `P3-02` | Connect Sales → Client Onboarding → Creative Studio with real deal scope, brief, brand guidelines, & WBS setup | Fullstack | — | E2E onboarding & WBS task generation test | Pending | `[!]` |
-| `P3-03` | Enforce end-to-end lineage traceability (`research_task → lead → deal → project → tasks → approval → delivery`) | Backend | — | Foreign-key & lineage verification test | Pending | `[!]` |
+| `P3-01` | Connect Research → Sales handoff to real verified leads (`lead_ids`) without duplicating rows | Fullstack | `AUD-008` | E2E lead promotion & zero-duplication verification | `PASS` (`test-phase2-3-4-governance.sh`, commit `5bd4d49`) | `[#]` |
+| `P3-02` | Connect Sales → Client Onboarding → Creative Studio with real deal scope, brief, brand guidelines, & WBS setup | Fullstack | — | E2E onboarding & WBS task generation test | `PASS` (`test-handoffs.sh` + `test-phase4-walkthrough.sh`) | `[#]` |
+| `P3-03` | Enforce end-to-end lineage traceability (`research_task → lead → deal → project → tasks → approval → delivery`) + full CRM CRUD (`PATCH/DELETE` leads & deals, `GET /api/crm/pipeline`) | Backend | — | Foreign-key, CRM CRUD & lineage verification test | `PASS` (`test-phase2-3-4-governance.sh`, commit `5bd4d49`) | `[#]` |
 
 ---
 
-### Phase 4: Approval & Execution Controls
+### Phase 4: Approval & Execution Controls (GATE: PASSED `[#]`)
 
 | Task ID | Task | Owner | Linked Audit | Planned Tests | Verification Result | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :---: |
-| `P4-01` | Separate `task_status`, `approval_status`, and `execution_status` (`not_executed`, `staged`, `dispatched`, `externally_executed`, `execution_failed`) | Backend | `AUD-009` | Verify approval does NOT flip `execution_status` to `externally_executed` without real adapter receipt | Pending | `[!]` |
-| `P4-02` | Enforce Autonomy Policy Matrix (Auto for Research/Qualification/Drafting/Setup; Human Approval for Email Send, Publish, Ad Spend, Website Publish, Delivery) | Backend / AI | `AUD-009` | Policy matrix unit & integration suite | Pending | `[!]` |
-| `P4-03` | Add idempotency keys & execution receipts for all external side effects | Backend | `AUD-009` | Duplicate dispatch test verifying zero double execution | Pending | `[!]` |
+| `P4-01` | Separate `task_status`, `approval_status`, and `execution_status` (`not_executed`, `staged`, `dispatched`, `externally_executed`, `execution_failed`) | Backend | `AUD-009` | Verify approving sets `execution_status=not_executed` (`externally_executed=false`) & pending blocks execute (`409`) | `PASS` (`test-phase2-3-4-governance.sh`) | `[#]` |
+| `P4-02` | Enforce Autonomy Policy Matrix (`server/approvalPolicy.js` + `GET /api/governance/policy`) | Backend / AI | `AUD-009` | Policy matrix verification (10 operational rules) | `PASS` (`test-phase2-3-4-governance.sh`) | `[#]` |
+| `P4-03` | Add idempotency keys & execution receipts (`POST /api/approvals/:id/execute`) for all external side effects | Backend | `AUD-009` | Duplicate dispatch replay test verifying exact 1 external hit + RBAC `403` | `PASS` (`test-phase2-3-4-governance.sh`) | `[#]` |
 
 ---
 
-### Phase 5: Testing & Release
+### Phase 5: Testing & Release (Automated Suites `[#]` — Ready for Staging & PR Gate)
 
 | Task ID | Task | Owner | Linked Audit | Planned Tests | Verification Result | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :---: |
-| `P5-01` | Run all existing E2E suites (`./test-all-e2e.sh`) and fix any failures | QA / Backend | — | 100% pass rate with zero weakened assertions | Pending | `[!]` |
-| `P5-02` | Add & pass dedicated suites: Security/RBAC, 3-Agent Engine, CRM CRUD & Persistence, Approval/Execution Separation, Full Workflow A–Z, Failure & Retries | QA / Backend | All | Full test report artifact | Pending | `[!]` |
-| `P5-03` | Deploy `feature/marketing-os-simplification` to **Staging / Preview** (isolated DB) and run full verification | DevOps / QA | — | Staging smoke & E2E sign-off | Pending | `[!]` |
-| `P5-04` | Open PR to `main`, obtain approval, merge, and release to **Production** | Project Owner | — | Post-deploy production verification | Pending | `[!]` |
+| `P5-01` | Run all existing E2E suites (`./test-all-e2e.sh`) and fix any failures | QA / Backend | — | 11 / 11 suites passing (100% OK, 0 failed) | `PASS` (11/11 suites in 26s) | `[#]` |
+| `P5-02` | Add & pass dedicated suites: Security/RBAC, 3-Agent Engine, CRM CRUD & Persistence, Approval/Execution Separation, Full Workflow A–Z, Failure & Retries | QA / Backend | All | `test-phase0-security.sh`, `test-phase1-agents.sh`, `test-phase2-3-4-governance.sh`, `test-phase4-walkthrough.sh` | `PASS` (11/11 suites) | `[#]` |
+| `P5-03` | Deploy `feature/marketing-os-simplification` to **Staging / Preview** (isolated DB) and run full verification | DevOps / QA | — | Staging smoke & E2E sign-off | Awaiting Staging Approval | `[ ]` |
+| `P5-04` | Open PR to `main`, obtain approval, merge, and release to **Production** | Project Owner | — | Post-deploy production verification (with `JWT_SECRET` & `VAULT_ENCRYPTION_KEY` set in Vercel env) | Awaiting Release Approval | `[ ]` |
 
 ---
 

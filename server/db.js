@@ -527,6 +527,10 @@ try {
     summary TEXT,
     preview_data TEXT,
     status TEXT DEFAULT 'pending' CHECK(status IN ('pending','approved','rejected','revision_requested')),
+    execution_status TEXT DEFAULT 'not_executed' CHECK(execution_status IN ('not_executed','staged','dispatched','externally_executed','execution_failed')),
+    idempotency_key TEXT,
+    executed_at DATETIME,
+    execution_receipt TEXT,
     reviewer_id TEXT,
     reviewer_notes TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -581,6 +585,21 @@ try {
     const pragmaTasks = db.prepare("PRAGMA table_info(tasks)").all();
     if (!pragmaTasks.some(c => c.name === 'department')) {
       db.prepare("ALTER TABLE tasks ADD COLUMN department TEXT DEFAULT 'creative'").run();
+    }
+
+    // Phase 4 Governance Migration: separate approval_status from execution_status
+    const pragmaApprovals = db.prepare("PRAGMA table_info(approvals)").all();
+    if (!pragmaApprovals.some(c => c.name === 'execution_status')) {
+      db.prepare("ALTER TABLE approvals ADD COLUMN execution_status TEXT DEFAULT 'not_executed'").run();
+    }
+    if (!pragmaApprovals.some(c => c.name === 'idempotency_key')) {
+      db.prepare("ALTER TABLE approvals ADD COLUMN idempotency_key TEXT").run();
+    }
+    if (!pragmaApprovals.some(c => c.name === 'executed_at')) {
+      db.prepare("ALTER TABLE approvals ADD COLUMN executed_at DATETIME").run();
+    }
+    if (!pragmaApprovals.some(c => c.name === 'execution_receipt')) {
+      db.prepare("ALTER TABLE approvals ADD COLUMN execution_receipt TEXT").run();
     }
 
     const pragmaHarness = db.prepare("PRAGMA table_info(harness_files)").all();

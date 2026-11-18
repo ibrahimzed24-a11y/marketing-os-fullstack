@@ -24,6 +24,7 @@ const db = require('./db');
 const { signToken, authMiddleware, requireRole, hashPassword, verifyPassword } = require('./auth');
 const { triggerN8n } = require('./n8n');
 const { executeAgentTask, researchAgent, salesAgent, creativeDirectorAgent } = require('./agentFramework');
+const { POLICY_MATRIX, evaluatePolicy, dispatchExternalAction } = require('./approvalPolicy');
 const {
   startWatchdog,
   stopWatchdog,
@@ -1949,6 +1950,7 @@ app.get('/api/approvals', authMiddleware, requireRole('owner', 'super_admin', 'a
 }));
 
 // 3. Approval Decision (Approve / Reject / Request Revision)
+// 3. Submit Human Approval Decision (strictly separates approval_status from execution_status)
 app.post('/api/approvals/:id/decision', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager'), asyncHandler(async (req, res) => {
   const { decision, notes } = req.body;
   const approval = db.prepare('SELECT * FROM approvals WHERE id = ?').get(req.params.id);
@@ -1959,21 +1961,26 @@ app.post('/api/approvals/:id/decision', authMiddleware, requireRole('owner', 'su
   }
 
   const newStatus = decision === 'approve' ? 'approved' : (decision === 'reject' ? 'rejected' : 'revision_requested');
+  const policyRule = evaluatePolicy(approval.action_type || approval.title);
+  // Approving a draft NEVER marks it externally_executed; website changes stage first, others remain not_executed until explicitly executed.
+  const nextExecutionStatus = decision === 'approve'
+    ? (policyRule.initialExecutionStatus === 'staged' ? 'staged' : 'not_executed')
+    : 'not_executed';
   const now = new Date().toISOString();
 
   db.transaction(() => {
     db.prepare(`
-      UPDATE approvals 
-      SET status = ?, reviewer_id = ?, reviewer_notes = ?, reviewed_at = ?
+      UPDATE approvals
+      SET status = ?, execution_status = ?, reviewer_id = ?, reviewer_notes = ?, reviewed_at = ?
       WHERE id = ?
-    `).run(newStatus, req.user.id, notes || '', now, approval.id);
+    `).run(newStatus, nextExecutionStatus, req.user.id, notes || '', now, approval.id);
 
-    // Update the linked task status if present
+    // Update the linked task status if present (task completion/sign-off != external execution)
     if (approval.task_id) {
       let taskStatus = 'delivered';
       if (decision === 'reject') taskStatus = 'needs_attention';
       if (decision === 'revision_requested') taskStatus = 'needs_fix';
-      
+
       db.prepare(`
         UPDATE tasks SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?
       `).run(taskStatus, approval.task_id);
@@ -1989,11 +1996,110 @@ app.post('/api/approvals/:id/decision', authMiddleware, requireRole('owner', 'su
       approval.task_id,
       req.user.id,
       `approval_${decision}`,
-      JSON.stringify({ approval_id: approval.id, title: approval.title, notes })
+      JSON.stringify({
+        approval_id: approval.id,
+        title: approval.title,
+        approval_status: newStatus,
+        execution_status: nextExecutionStatus,
+        notes
+      })
     );
   })();
 
-  res.json({ ok: true, approval_id: approval.id, status: newStatus, decision });
+  res.json({
+    ok: true,
+    approval_id: approval.id,
+    status: newStatus,
+    approval_status: newStatus,
+    execution_status: nextExecutionStatus,
+    externally_executed: false,
+    decision
+  });
+}));
+
+// 3b. Execute Approved External Action (Requires approval_status='approved' + Idempotency Key)
+app.post('/api/approvals/:id/execute', authMiddleware, requireRole('owner', 'super_admin', 'admin', 'manager'), asyncHandler(async (req, res) => {
+  const approval = db.prepare('SELECT * FROM approvals WHERE id = ?').get(req.params.id);
+  if (!approval) return res.status(404).json({ error: 'Approval request not found' });
+
+  if (approval.status !== 'approved') {
+    return res.status(409).json({
+      ok: false,
+      error: `Cannot execute action: approval status is '${approval.status}' (must be 'approved' first).`,
+      approval_status: approval.status,
+      execution_status: approval.execution_status || 'not_executed'
+    });
+  }
+
+  const idempotencyKey = (req.headers['idempotency-key'] || req.body.idempotency_key || `exec-${approval.id}`).trim();
+
+  // Idempotency replay protection: never double-dispatch an already executed external action!
+  if (approval.execution_status === 'externally_executed' || (approval.idempotency_key && approval.idempotency_key === idempotencyKey && approval.execution_status === 'staged')) {
+    let parsedReceipt = null;
+    try { parsedReceipt = JSON.parse(approval.execution_receipt || 'null'); } catch (_) {}
+    return res.json({
+      ok: true,
+      idempotent_replay: true,
+      approval_id: approval.id,
+      approval_status: approval.status,
+      execution_status: approval.execution_status,
+      externally_executed: approval.execution_status === 'externally_executed',
+      idempotency_key: approval.idempotency_key,
+      executed_at: approval.executed_at,
+      execution_receipt: parsedReceipt
+    });
+  }
+
+  const dispatchRes = await dispatchExternalAction(approval, {
+    idempotencyKey,
+    connectorUrlOverride: process.env.NODE_ENV !== 'production' ? (req.body.connector_url_override || null) : null
+  });
+
+  const executedAt = dispatchRes.externally_executed ? new Date().toISOString() : null;
+  const receiptJson = JSON.stringify(dispatchRes.receipt || {});
+
+  db.transaction(() => {
+    db.prepare(`
+      UPDATE approvals
+      SET execution_status = ?, idempotency_key = ?, executed_at = COALESCE(?, executed_at), execution_receipt = ?
+      WHERE id = ?
+    `).run(dispatchRes.execution_status, idempotencyKey, executedAt, receiptJson, approval.id);
+
+    db.prepare(`
+      INSERT INTO activity (id, project_id, task_id, user_id, action, meta)
+      VALUES (?, ?, ?, ?, 'approval_external_execute', ?)
+    `).run(
+      uuidv4(),
+      approval.project_id,
+      approval.task_id,
+      req.user.id,
+      JSON.stringify({
+        approval_id: approval.id,
+        idempotency_key: idempotencyKey,
+        execution_status: dispatchRes.execution_status,
+        externally_executed: dispatchRes.externally_executed
+      })
+    );
+  })();
+
+  const httpStatus = dispatchRes.ok ? 200 : 502;
+  return res.status(httpStatus).json({
+    ok: dispatchRes.ok,
+    idempotent_replay: false,
+    approval_id: approval.id,
+    approval_status: approval.status,
+    execution_status: dispatchRes.execution_status,
+    externally_executed: dispatchRes.externally_executed,
+    idempotency_key: idempotencyKey,
+    executed_at: executedAt,
+    execution_receipt: dispatchRes.receipt,
+    error: dispatchRes.error || null
+  });
+}));
+
+// 3c. Autonomy & Approval Policy Matrix Endpoint
+app.get('/api/governance/policy', authMiddleware, asyncHandler(async (req, res) => {
+  res.json({ ok: true, policy_matrix: POLICY_MATRIX });
 }));
 
 // 4. Create Approval Request
