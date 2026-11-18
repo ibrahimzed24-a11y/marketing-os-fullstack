@@ -23,7 +23,6 @@ const { v4: uuidv4 } = require('uuid');
 const db = require('./db');
 const { signToken, authMiddleware, requireRole, hashPassword, verifyPassword } = require('./auth');
 const { triggerN8n } = require('./n8n');
-const { generateLocalDeliverable } = require('./localRunner');
 const { executeAgentTask, researchAgent, salesAgent, creativeDirectorAgent } = require('./agentFramework');
 const {
   startWatchdog,
@@ -653,7 +652,7 @@ app.post('/api/agents/dispatch', authMiddleware, requireRole('super_admin', 'adm
     finalOutput = n8nData.deliverable || n8nData.output || n8nData;
     finalReport = n8nData.report || '';
   } else {
-    const local = generateLocalDeliverable(primaryPipeline, taskObj, proj, harness, n8nResult.error);
+    const local = await executeAgentTask({ ...taskObj, pipeline: primaryPipeline }, proj, harness);
     finalOutput = local.outputJson;
     finalReport = local.reportMd;
   }
@@ -774,7 +773,7 @@ app.post('/api/seo/execute', authMiddleware, asyncHandler(async (req, res) => {
     finalOutput = resultData.deliverable || resultData.output || resultData;
     finalReport = resultData.report || '';
   } else {
-    const local = generateLocalDeliverable(pipeline, task, proj, harness, result.error);
+    const local = await executeAgentTask({ ...task, pipeline }, proj, harness);
     finalOutput = local.outputJson;
     finalReport = local.reportMd;
   }
@@ -865,23 +864,54 @@ app.post('/api/tasks/:id/run', authMiddleware, asyncHandler(async (req, res) => 
 
   // 2. Execute via Unified 3-Agent Framework (Research, Sales, Creative)
   console.log(`[task-runner] n8n offline (${result.error}). Executing task via Unified Agent Framework...`);
-  const { outputJson, reportMd, requiresApproval, approvalId, agent } = executeAgentTask(task, project, harness);
+  let execResult;
+  try {
+    execResult = await executeAgentTask(task, project, harness);
 
-  db.prepare("UPDATE tasks SET status='in_review', output_json=?, report_md=?, updated_at=CURRENT_TIMESTAMP WHERE id=?")
-    .run(JSON.stringify(outputJson), reportMd, task.id);
+    db.transaction(() => {
+      db.prepare("UPDATE tasks SET status='in_review', output_json=?, report_md=?, updated_at=CURRENT_TIMESTAMP WHERE id=?")
+        .run(JSON.stringify(execResult.outputJson), execResult.reportMd, task.id);
 
-  db.prepare('INSERT INTO reports (id,task_id,project_id,title,content_md,verdict,created_by) VALUES (?,?,?,?,?,?,?)')
-    .run(uuidv4(), task.id, task.project_id, `Admin Report - ${task.title}`, reportMd, 'pending', agent.name);
+      db.prepare('INSERT INTO reports (id,task_id,project_id,title,content_md,verdict,created_by) VALUES (?,?,?,?,?,?,?)')
+        .run(uuidv4(), task.id, task.project_id, `Admin Report - ${task.title}`, execResult.reportMd, 'pending', execResult.agent.name);
 
-  db.prepare('INSERT INTO activity (id,project_id,task_id,user_id,action) VALUES (?,?,?,?,?)')
-    .run(uuidv4(), task.project_id, task.id, req.user.id, `executed_${agent.department}:${task.pipeline}`);
+      db.prepare('INSERT INTO activity (id,project_id,task_id,user_id,action,meta) VALUES (?,?,?,?,?,?)')
+        .run(
+          uuidv4(),
+          task.project_id,
+          task.id,
+          req.user.id,
+          `executed_${execResult.agent.department}:${task.pipeline}`,
+          JSON.stringify({ run_id: execResult.runId, data_source: execResult.dataSource, is_simulated: execResult.isSimulated })
+        );
+    })();
+  } catch (agentErr) {
+    console.error(`[task-runner ERROR] Agent execution or DB persistence failed for task ${task.id}: ${agentErr.message}`);
+    try {
+      db.prepare("UPDATE tasks SET status='needs_attention', updated_at=CURRENT_TIMESTAMP WHERE id=?").run(task.id);
+    } catch (updErr) {
+      console.error(`[task-runner ERROR] Failed marking task needs_attention: ${updErr.message}`);
+    }
+    return res.status(500).json({
+      ok: false,
+      error: `Agent execution failed: ${agentErr.message}`,
+      task_id: task.id,
+      status: 'needs_attention'
+    });
+  }
 
+  const { runId, requiresApproval, approvalId, agent, dataSource, isSimulated, fallbackReason, persistedLeadsCount } = execResult;
   const updatedTask = db.prepare('SELECT * FROM tasks WHERE id=?').get(task.id);
   return res.json({
     ok: true,
-    mode: 'local',
-    execution_mode: 'local_fallback',
-    message: 'Executed LOCALLY - n8n offline',
+    mode: dataSource === 'live_llm' ? 'live_llm' : 'local',
+    execution_mode: dataSource === 'live_llm' ? 'live_llm' : 'local_fallback',
+    data_source: dataSource,
+    is_simulated: isSimulated,
+    fallback_reason: fallbackReason,
+    run_id: runId,
+    persisted_leads: persistedLeadsCount,
+    message: dataSource === 'live_llm' ? `Executed via live LLM (${execResult.outputJson.metadata.provider})` : 'Executed LOCALLY (simulated fallback - live LLM unavailable)',
     task_id: task.id,
     task: updatedTask,
     agent: {

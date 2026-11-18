@@ -6,7 +6,7 @@
 **Base Branch (Protected — Untouched):** `main`  
 **Plan Reference:** [MARKETING_OS_SIMPLIFICATION_PLAN.md](./MARKETING_OS_SIMPLIFICATION_PLAN.md)  
 **Audit Reference:** [MARKETING_OS_AUDIT_FINDINGS.md](./MARKETING_OS_AUDIT_FINDINGS.md)  
-**Current Gate:** **Phase 0 Verified (`[#]`) → Transitioning to Phase 1: Agent Engine**
+**Current Gate:** **Phase 0 & Phase 1 Verified (`[#]`) → Ready for Phase 2: Application Simplification**
 
 ### Status Legend
 - `[ ]` Not started / Ready after approval
@@ -45,25 +45,25 @@
 
 ---
 
-### Phase 1: Agent Engine (3 Core Agents — UNBLOCKED & READY)
+### Phase 1: Agent Engine (3 Core Agents — GATE: PASSED `[#]`)
 
 | Task ID | Task | Owner | Linked Audit | Planned Tests | Verification Result | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :---: |
-| `P1-01` | Add `agent_runs` table logging every execution (`run_id`, `agent_id`, `task_id`, `skill`, `provider`, `model`, `status`, `data_source`, `duration_ms`, `error_message`) | Backend | `AUD-007` | Migration & Turso sync verification | Pending | `[ ]` |
-| `P1-02` | Connect `BaseAgent` to real configured LLM providers (`llmConfig.js`) + RAG/Harness grounding (`rag.js`) | AI / Backend | `AUD-007` | Live & mocked provider integration tests | Pending | `[ ]` |
-| `P1-03` | Wire Research, Sales, and Creative Agents to real Skills/SOPs & label `data_source` (`live` vs `simulated`) honestly | AI / Backend | `AUD-007` | Per-agent execution tests across all 3 agents | Pending | `[ ]` |
-| `P1-04` | Add timeout budgets, safe retries with backoff, failover, and strict failure handling (never report success if DB write fails) | AI / Backend | `AUD-007`, `AUD-011` | Timeout, quota 429, and DB failure rollback tests | Pending | `[ ]` |
-| `P1-05` | Audit & consolidate `localRunner.js` vs `agentFramework.js` to eliminate runner ambiguity | Backend | `AUD-011` | Reference check + pipeline contract tests | Pending | `[ ]` |
+| `P1-01` | Add `agent_runs` table logging every execution (`run_id`, `agent_id`, `task_id`, `skill`, `provider`, `model`, `status`, `data_source`, `duration_ms`, `error_message`) | Backend | `AUD-007` | Migration & Turso sync verification | `PASS` (`test-phase1-agents.sh`, commit `c76c023`) | `[#]` |
+| `P1-02` | Connect `BaseAgent` to real configured LLM providers (`llmConfig.js`) + RAG/Harness grounding (`rag.js`) | AI / Backend | `AUD-007` | Live & mocked provider integration tests | `PASS` (`test-phase1-agents.sh`, commit `fc49481`) | `[#]` |
+| `P1-03` | Wire Research, Sales, and Creative Agents to real Skills/SOPs & label `data_source` (`live_llm` vs `simulated_fallback`) honestly | AI / Backend | `AUD-007` | Per-agent execution tests across all 3 agents | `PASS` (`test-phase1-agents.sh`) | `[#]` |
+| `P1-04` | Add timeout budgets, safe retries with backoff, failover, and strict failure handling (never report success if DB write fails) | AI / Backend | `AUD-007`, `AUD-011` | Timeout, transient 503 retry, and DB FK failure guard tests | `PASS` (`test-phase1-agents.sh`) | `[#]` |
+| `P1-05` | Audit & consolidate `localRunner.js` vs `agentFramework.js` to eliminate runner ambiguity | Backend | `AUD-011` | Reference check + 10/10 E2E pipeline contract tests | `PASS` (`server/index.js` consolidated) | `[#]` |
 
 ---
 
-### Phase 2: Application Simplification
+### Phase 2: Application Simplification (UNBLOCKED & READY)
 
 | Task ID | Task | Owner | Linked Audit | Planned Tests | Verification Result | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :---: |
-| `P2-01` | Map every UI component/modal in `public/index.html` & `public/app.js` to backend routes & workflows prior to hiding/removal | Frontend | `AUD-010` | Dependency audit checklist signed off | Pending | `[!]` |
-| `P2-02` | Polish & verify the 9 core views (`Overview`, `Research`, `Sales CRM`, `Creative Studio`, `Projects & Tasks`, `Approvals`, `Team`, `Knowledge Base`, `Settings`) | Frontend | `AUD-010` | Frontend DOM & live API E2E checks | Pending | `[!]` |
-| `P2-03` | Remove mock frontend team arrays (`public/app.js:708-711`) & hardcoded dummy handoff leads (`public/app.js:3786-3800`) | Frontend | `AUD-008`, `AUD-010` | Live DB state reflection check; zero hardcoded fixtures | Pending | `[!]` |
+| `P2-01` | Map every UI component/modal in `public/index.html` & `public/app.js` to backend routes & workflows prior to hiding/removal | Frontend | `AUD-010` | Dependency audit checklist signed off | Pending | `[ ]` |
+| `P2-02` | Polish & verify the 9 core views (`Overview`, `Research`, `Sales CRM`, `Creative Studio`, `Projects & Tasks`, `Approvals`, `Team`, `Knowledge Base`, `Settings`) | Frontend | `AUD-010` | Frontend DOM & live API E2E checks | Pending | `[ ]` |
+| `P2-03` | Remove mock frontend team arrays (`public/app.js:708-711`) & hardcoded dummy handoff leads (`public/app.js:3786-3800`) | Frontend | `AUD-008`, `AUD-010` | Live DB state reflection check; zero hardcoded fixtures | Pending | `[ ]` |
 
 ---
 
