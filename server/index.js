@@ -34,6 +34,7 @@ const {
 } = require('./watchdog');
 const rag = require('./rag');
 const { AGENTS_CATALOG } = require('./agentsData');
+const { encryptSecret, decryptSecret } = require('./cryptoVault');
 const {
   SUPPORTED_PROVIDERS,
   PROVIDER_METADATA,
@@ -1290,11 +1291,20 @@ app.get('/api/saved-logins', authMiddleware, asyncHandler(async (req, res) => {
   const rows = db.prepare(sql).all(...params);
   const canReveal = ['super_admin', 'admin'].includes(req.user.role) && reveal === 'true';
 
-  const sanitized = rows.map(r => ({
-    ...r,
-    password: canReveal ? r.password : (r.password ? '••••••••••••' : ''),
-    api_key: canReveal ? r.api_key : (r.api_key ? `${r.api_key.slice(0, 6)}••••••••` : null)
-  }));
+  const safeDecrypt = (val) => {
+    if (!val) return val;
+    try { return decryptSecret(val); } catch (e) { console.error('[vault] Decrypt error:', e.message); return ''; }
+  };
+
+  const sanitized = rows.map(r => {
+    const plainPass = safeDecrypt(r.password);
+    const plainKey = safeDecrypt(r.api_key);
+    return {
+      ...r,
+      password: canReveal ? plainPass : (plainPass ? '••••••••••••' : ''),
+      api_key: canReveal ? plainKey : (plainKey ? `${plainKey.slice(0, 6)}••••••••` : null)
+    };
+  });
 
   res.json({ logins: sanitized, total: rows.length });
 }));
@@ -1305,11 +1315,13 @@ app.get('/api/saved-logins/:id', authMiddleware, asyncHandler(async (req, res) =
   if (!row) return res.status(404).json({ error: 'Tool login not found' });
 
   const canReveal = ['super_admin', 'admin'].includes(req.user.role);
+  const plainPass = row.password ? decryptSecret(row.password) : '';
+  const plainKey = row.api_key ? decryptSecret(row.api_key) : null;
   res.json({
     login: {
       ...row,
-      password: canReveal ? row.password : '••••••••••••',
-      api_key: canReveal ? row.api_key : (row.api_key ? `${row.api_key.slice(0, 6)}••••••••` : null)
+      password: canReveal ? plainPass : (plainPass ? '••••••••••••' : ''),
+      api_key: canReveal ? plainKey : (plainKey ? `${plainKey.slice(0, 6)}••••••••` : null)
     }
   });
 }));
@@ -1322,11 +1334,13 @@ app.post('/api/saved-logins', authMiddleware, requireRole('super_admin', 'admin'
 
   const id = uuidv4();
   const slug = (req.body.slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-')) + '-' + id.slice(0, 6);
+  const encPass = encryptSecret(password);
+  const encKey = api_key ? encryptSecret(api_key) : null;
 
   db.prepare(`
     INSERT INTO saved_logins (id, name, slug, category, website_url, username, password, api_key, notes, status, is_active, metadata, updated_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'connected', 1, ?, CURRENT_TIMESTAMP)
-  `).run(id, name, slug, category, website_url, username, password, api_key, notes, typeof metadata === 'object' ? JSON.stringify(metadata) : metadata);
+  `).run(id, name, slug, category, website_url, username, encPass, encKey, notes, typeof metadata === 'object' ? JSON.stringify(metadata) : metadata);
 
   res.status(201).json({ id, name, slug, category, website_url, username, status: 'connected' });
 }));
@@ -1336,6 +1350,8 @@ app.put('/api/saved-logins/:id', authMiddleware, requireRole('super_admin', 'adm
   if (!existing) return res.status(404).json({ error: 'Tool login not found' });
 
   const { name, category, website_url, username, password, api_key, notes, status, metadata } = req.body;
+  const encPass = password !== undefined && password !== null && !String(password).includes('••••') ? encryptSecret(password) : null;
+  const encKey = api_key !== undefined && api_key !== null && !String(api_key).includes('••••') ? encryptSecret(api_key) : null;
 
   db.prepare(`
     UPDATE saved_logins SET
@@ -1350,7 +1366,7 @@ app.put('/api/saved-logins/:id', authMiddleware, requireRole('super_admin', 'adm
       metadata = COALESCE(?, metadata),
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
-  `).run(name, category, website_url, username, password, api_key, notes, status, typeof metadata === 'object' ? JSON.stringify(metadata) : metadata, req.params.id);
+  `).run(name, category, website_url, username, encPass, encKey, notes, status, typeof metadata === 'object' ? JSON.stringify(metadata) : metadata, req.params.id);
 
   res.json({ ok: true, message: 'Saved login updated successfully' });
 }));
@@ -1481,13 +1497,13 @@ app.post('/api/admin/llm-config', authMiddleware, requireRole('super_admin', 'ad
     }
 
     // Determine API key update logic:
-    // If incoming api_key is masked or undefined, preserve existing stored key
-    let finalApiKey = existing.api_key;
+    // If incoming api_key is masked or undefined, preserve existing stored key (ensuring it is encrypted at rest)
+    let finalApiKey = existing.api_key ? encryptSecret(existing.api_key) : null;
     if (item.api_key !== undefined) {
       if (item.api_key === null || item.api_key === '') {
         finalApiKey = null;
       } else if (!isMaskedKey(item.api_key)) {
-        finalApiKey = String(item.api_key).trim();
+        finalApiKey = encryptSecret(String(item.api_key).trim());
       }
     }
 
@@ -1597,12 +1613,12 @@ const testPingHandler = asyncHandler(async (req, res) => {
     ? req.body.base_url.trim()
     : (saved ? saved.base_url : PROVIDER_METADATA[provider].default_base_url);
 
-  // Determine api_key: use provided if unmasked; otherwise fall back to saved key
+  // Determine api_key: use provided if unmasked; otherwise fall back to saved key (decrypted)
   let apiKey = null;
   if (req.body.api_key && !isMaskedKey(req.body.api_key)) {
     apiKey = req.body.api_key.trim();
   } else if (saved && saved.api_key) {
-    apiKey = saved.api_key;
+    apiKey = decryptSecret(saved.api_key);
   }
 
   const timeoutMs = req.body.timeout_ms || (saved ? saved.timeout_ms : 6000);
