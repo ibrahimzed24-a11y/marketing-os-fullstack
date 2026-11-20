@@ -457,7 +457,7 @@
             </div>
             <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-[var(--text)]">Make the next move obvious.</h1>
             <p class="text-xs sm:text-sm text-[var(--text-soft)] mt-1 max-w-2xl">
-              Agents prepare the work. Humans decide what ships. Unified operations across research, sales pipeline, and creative studio.
+              Agents prepare the work. Humans decide what ships. &middot; Calm, human-governed operations across Research, Sales, and Creative pipelines.
             </p>
           </div>
           <div class="flex items-center gap-2 shrink-0">
@@ -1197,6 +1197,174 @@
         </div>
       </div>
 
+      <!-- Cinema Studio 2.0 & Camera Controls (Ported from Open-Higgsfield-AI) -->
+      <section id="cinemaStudioSection" class="card-surface p-5 rounded-2xl border border-[var(--border)] space-y-5">
+        <!-- Header -->
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-[var(--border)]">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">Cinema Studio 2.0</span>
+              <span class="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">Higgsfield AI Connected</span>
+              <span class="text-xs text-[var(--text-soft)]">Optical Physics &amp; Multi-Model Prompt Engine</span>
+            </div>
+            <h2 class="text-base font-extrabold tracking-tight flex items-center gap-2">
+              <span>🎬</span> <span>Cinematic Camera Controls &amp; Visual Prompt Studio</span>
+            </h2>
+            <p class="text-xs text-[var(--text-soft)] mt-0.5">
+              Select cinema bodies, vintage/anamorphic lenses, optical focal lengths, and physical apertures to compile deterministic 8K HDR prompts for Higgsfield AI &amp; Muapi models.
+            </p>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <a href="http://localhost:5173" target="_blank" rel="noopener noreferrer" class="btn-outline text-xs px-3 py-1.5 font-bold flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 border-indigo-500/30 hover:bg-indigo-500/10 transition">
+              <span>↗</span> <span>Open Standalone Studio (5173)</span>
+            </a>
+            <button onclick="resetCinemaControls()" class="btn-outline text-xs px-2.5 py-1.5 font-medium text-[var(--text-soft)] hover:text-[var(--text)]">
+              <span>↺</span> <span>Reset</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Cinema Presets Bar -->
+        <div>
+          <div class="text-[11px] font-bold uppercase tracking-wider text-[var(--text-soft)] mb-2 flex items-center justify-between">
+            <span>⚡ Quick Cinematic Presets</span>
+            <span class="text-[10px] text-[var(--text-faint)]">Click to auto-tune camera, lens, focal &amp; aperture</span>
+          </div>
+          <div class="flex flex-wrap gap-2" id="cinemaPresetsContainer">
+            <button onclick="applyCinemaPreset('hollywood')" class="cinema-preset-btn px-3 py-1.5 rounded-xl border border-[var(--border)] text-xs font-semibold bg-[var(--bg-soft)] hover:border-indigo-500 hover:text-indigo-600 transition flex items-center gap-1.5">
+              <span>🎥</span> <span>Hollywood Blockbuster</span>
+              <span class="text-[10px] text-[var(--text-faint)]">Modular 8K • 35mm • f/1.4</span>
+            </button>
+            <button onclick="applyCinemaPreset('anamorphic')" class="cinema-preset-btn px-3 py-1.5 rounded-xl border border-[var(--border)] text-xs font-semibold bg-[var(--bg-soft)] hover:border-indigo-500 hover:text-indigo-600 transition flex items-center gap-1.5">
+              <span>🌌</span> <span>Widescreen Anamorphic</span>
+              <span class="text-[10px] text-[var(--text-faint)]">Grand 70mm • 24mm • f/4</span>
+            </button>
+            <button onclick="applyCinemaPreset('vintage')" class="cinema-preset-btn px-3 py-1.5 rounded-xl border border-[var(--border)] text-xs font-semibold bg-[var(--bg-soft)] hover:border-indigo-500 hover:text-indigo-600 transition flex items-center gap-1.5">
+              <span>🎞️</span> <span>Vintage 16mm Indie</span>
+              <span class="text-[10px] text-[var(--text-faint)]">16mm Film • 35mm • f/1.4</span>
+            </button>
+            <button onclick="applyCinemaPreset('macro')" class="cinema-preset-btn px-3 py-1.5 rounded-xl border border-[var(--border)] text-xs font-semibold bg-[var(--bg-soft)] hover:border-indigo-500 hover:text-indigo-600 transition flex items-center gap-1.5">
+              <span>🔍</span> <span>Extreme Macro Product</span>
+              <span class="text-[10px] text-[var(--text-faint)]">Cine Digital • 85mm • f/4</span>
+            </button>
+            <button onclick="applyCinemaPreset('portrait')" class="cinema-preset-btn px-3 py-1.5 rounded-xl border border-[var(--border)] text-xs font-semibold bg-[var(--bg-soft)] hover:border-indigo-500 hover:text-indigo-600 transition flex items-center gap-1.5">
+              <span>👤</span> <span>Creamy Bokeh Portrait</span>
+              <span class="text-[10px] text-[var(--text-faint)]">S35 Studio • 50mm • f/1.4</span>
+            </button>
+            <button onclick="applyCinemaPreset('architectural')" class="cinema-preset-btn px-3 py-1.5 rounded-xl border border-[var(--border)] text-xs font-semibold bg-[var(--bg-soft)] hover:border-indigo-500 hover:text-indigo-600 transition flex items-center gap-1.5">
+              <span>🏛️</span> <span>Architectural Deep Focus</span>
+              <span class="text-[10px] text-[var(--text-faint)]">Large Format • 14mm • f/11</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 4-Wheel / 4-Column Camera Control Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <!-- Column 1: Camera Body -->
+          <div class="card-subtle p-3.5 rounded-xl border border-[var(--border)] flex flex-col">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-[var(--text-soft)]">1. Camera Body</span>
+              <span id="selectedCameraLabel" class="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 font-bold truncate max-w-[130px]">Modular 8K Digital</span>
+            </div>
+            <div id="cinemaCameraList" class="space-y-1.5 max-h-[220px] overflow-y-auto pr-1"></div>
+          </div>
+
+          <!-- Column 2: Lens -->
+          <div class="card-subtle p-3.5 rounded-xl border border-[var(--border)] flex flex-col">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-[var(--text-soft)]">2. Lens Type</span>
+              <span id="selectedLensLabel" class="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 font-bold truncate max-w-[130px]">Creative Tilt Lens</span>
+            </div>
+            <div id="cinemaLensList" class="space-y-1.5 max-h-[220px] overflow-y-auto pr-1"></div>
+          </div>
+
+          <!-- Column 3: Focal Length -->
+          <div class="card-subtle p-3.5 rounded-xl border border-[var(--border)] flex flex-col">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-[var(--text-soft)]">3. Focal Length</span>
+              <span id="selectedFocalLabel" class="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 font-bold">35mm</span>
+            </div>
+            <div id="cinemaFocalList" class="space-y-1.5 max-h-[220px] overflow-y-auto pr-1"></div>
+          </div>
+
+          <!-- Column 4: Aperture & DOF -->
+          <div class="card-subtle p-3.5 rounded-xl border border-[var(--border)] flex flex-col">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-[var(--text-soft)]">4. Aperture &amp; DOF</span>
+              <span id="selectedApertureLabel" class="text-[10px] font-mono text-indigo-600 dark:text-indigo-400 font-bold">f/1.4</span>
+            </div>
+            <div id="cinemaApertureList" class="space-y-1.5 max-h-[220px] overflow-y-auto pr-1"></div>
+          </div>
+        </div>
+
+        <!-- Aspect Ratio Selection Bar -->
+        <div class="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl bg-[var(--bg-soft)] border border-[var(--border)]">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-bold">Aspect Ratio:</span>
+            <div class="flex flex-wrap gap-1.5" id="cinemaAspectRatioGroup">
+              <button onclick="setCinemaAspectRatio('16:9')" class="cinema-aspect-btn px-2.5 py-1 rounded-lg text-xs font-bold border border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-300" data-ratio="16:9">16:9 Widescreen</button>
+              <button onclick="setCinemaAspectRatio('9:16')" class="cinema-aspect-btn px-2.5 py-1 rounded-lg text-xs font-semibold border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] hover:border-indigo-500" data-ratio="9:16">9:16 Reels / Shorts</button>
+              <button onclick="setCinemaAspectRatio('1:1')" class="cinema-aspect-btn px-2.5 py-1 rounded-lg text-xs font-semibold border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] hover:border-indigo-500" data-ratio="1:1">1:1 Square Feed</button>
+              <button onclick="setCinemaAspectRatio('21:9')" class="cinema-aspect-btn px-2.5 py-1 rounded-lg text-xs font-semibold border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] hover:border-indigo-500" data-ratio="21:9">21:9 Ultra-Panavision</button>
+              <button onclick="setCinemaAspectRatio('4:5')" class="cinema-aspect-btn px-2.5 py-1 rounded-lg text-xs font-semibold border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] hover:border-indigo-500" data-ratio="4:5">4:5 Portrait</button>
+            </div>
+          </div>
+          <div class="flex items-center gap-2 text-[11px] text-[var(--text-soft)]">
+            <span>Model Target:</span>
+            <span class="px-2 py-0.5 rounded font-mono font-bold bg-[var(--surface)] border border-[var(--border)] text-indigo-600 dark:text-indigo-400">Nano Banana 2 / GPT Image 2.6</span>
+          </div>
+        </div>
+
+        <!-- Prompt Builder Inputs & Compiled Live Output -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <!-- Left: User Creative Brief / Visual Concept -->
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <label for="cinemaBasePrompt" class="text-xs font-bold flex items-center gap-1.5">
+                <span>💡</span> <span>Creative Brief / Visual Concept</span>
+              </label>
+              <span class="text-[10px] text-[var(--text-faint)]">Enter subject, action, mood, or environment</span>
+            </div>
+            <textarea id="cinemaBasePrompt" rows="4" class="input-field w-full text-xs font-sans p-3 rounded-xl resize-none leading-relaxed" placeholder="e.g. Modern boutique dental clinic lobby with warm natural sunlight streaming through floor-to-ceiling glass, peaceful patient waiting area, minimalist architectural plants..." oninput="updateCompiledCinemaPrompt()">Modern boutique dental clinic lobby with warm natural sunlight streaming through floor-to-ceiling architectural glass, peaceful patient waiting area, minimalist organic textures</textarea>
+            <div class="flex items-center gap-1.5 text-[11px] text-[var(--text-faint)]">
+              <span>Quick tags:</span>
+              <button onclick="appendCinemaTag('golden hour sunlight')" class="hover:underline hover:text-indigo-600">+ Golden Hour</button>
+              <span>•</span>
+              <button onclick="appendCinemaTag('architectural interior')" class="hover:underline hover:text-indigo-600">+ Interior</button>
+              <span>•</span>
+              <button onclick="appendCinemaTag('luxury medical clinic')" class="hover:underline hover:text-indigo-600">+ Luxury Clinic</button>
+              <span>•</span>
+              <button onclick="appendCinemaTag('candid doctor patient consultation')" class="hover:underline hover:text-indigo-600">+ Consultation</button>
+            </div>
+          </div>
+
+          <!-- Right: Live Compiled Prompt Box & Actions -->
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold flex items-center gap-1.5">
+                <span>🎯</span> <span>Compiled Cinematic Prompt (8K HDR)</span>
+              </span>
+              <span id="cinemaPromptCharCount" class="text-[10px] mono text-[var(--text-faint)]">0 chars</span>
+            </div>
+            <div id="cinemaCompiledPromptBox" class="p-3 rounded-xl bg-[var(--bg-soft)] border border-indigo-500/30 text-xs font-mono text-[var(--text)] leading-relaxed h-[106px] overflow-y-auto selection:bg-indigo-500/20"></div>
+
+            <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+              <div class="flex items-center gap-2">
+                <button onclick="copyCinemaPrompt()" id="copyCinemaPromptBtn" class="btn-primary text-xs px-3 py-1.5 font-bold flex items-center gap-1.5">
+                  <span>📋</span> <span>Copy Prompt</span>
+                </button>
+                <button onclick="copyHiggsfieldCliCommand()" id="copyCliCommandBtn" class="btn-outline text-xs px-3 py-1.5 font-bold flex items-center gap-1.5">
+                  <span>⚡</span> <span>Copy CLI Command</span>
+                </button>
+              </div>
+              <button onclick="dispatchCinemaPromptToCreativeTask()" class="btn-ink text-xs px-3.5 py-1.5 font-bold flex items-center gap-1.5">
+                <span>🚀</span> <span>Create Creative Task with Prompt</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- Creative Studio Department Scoped Projects & Tasks -->
       <section id="creativeProjectsTasksSection" class="card-surface p-5 rounded-2xl border border-[var(--border)] space-y-4">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -1490,7 +1658,7 @@
           <h3 class="text-xs font-bold mb-2.5">Invite / Provision Team Member Account</h3>
           <div class="grid sm:grid-cols-5 gap-2.5">
             <input id="tmName" class="input-field" placeholder="Full Name (e.g. Laila Hassan)" />
-            <input id="tmEmail" class="input-field" placeholder="Email (e.g. laila@marketingos.local)" />
+            <input id="tmEmail" class="input-field" placeholder="Email (e.g. laila@helm.local)" />
             <select id="tmRole" class="input-field">
               <option value="member">member (Execute Pipelines)</option>
               <option value="manager">manager (Projects & Assign)</option>
@@ -2649,7 +2817,7 @@ agent = Agent(
             </svg>
           </div>
           <div>
-            <h3 class="text-base font-bold lowercase tracking-tight">helm &bull; Workspace Login</h3>
+            <h3 class="text-base font-bold tracking-tight"><span class="lowercase">helm</span> &bull; Team Login</h3>
             <p class="text-xs text-[var(--text-soft)]">Operations Command Center</p>
           </div>
         </div>
