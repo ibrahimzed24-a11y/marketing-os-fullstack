@@ -12,3 +12,4 @@ data/*.db-wal
 data/*.bak
 data/*
 .vercel
+test-results/

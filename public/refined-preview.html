@@ -12,29 +12,30 @@
     <style>
 :root {
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
-  color: #17213f;
-  background: #f4f5fb;
+  color: #0e1318;
+  background: #ffffff;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  --ink: #17213f;
-  --muted: #737b96;
-  --soft-muted: #a2a8bd;
-  --line: #e7e9f1;
-  --canvas: #f4f5fb;
+  --ink: #0e1318;
+  --muted: #5f6368;
+  --soft-muted: #9aa0a6;
+  --line: #e1e3e6;
+  --canvas: #ffffff;
   --panel: #ffffff;
-  --navy: #151f3d;
-  --indigo: #6556dd;
-  --indigo-soft: #eeecff;
-  --lime: #c8f169;
-  --lime-deep: #6f8b28;
-  --coral: #ff8274;
+  --navy: #0e1318;
+  --indigo: #7d2ae8;
+  --indigo-soft: rgba(125, 42, 232, 0.08);
+  --lime: #00c4cc;
+  --lime-deep: #009aa0;
+  --coral: #ff7059;
   --coral-soft: #fff0ee;
-  --blue: #85d9ef;
+  --blue: #3ea6ff;
   --blue-soft: #eafaff;
-  --amber: #ffc46b;
-  --amber-soft: #fff5df;
-  --radius: 18px;
-  --shadow: 0 12px 30px rgba(37, 46, 84, .06);
+  --amber: #ff9633;
+  --amber-soft: #fff5e8;
+  --radius: 14px;
+  --shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+  --brand-gradient: linear-gradient(135deg, #7d2ae8 0%, #00c4cc 100%);
 }
 
 * { box-sizing: border-box; }
@@ -248,83 +249,83 @@ kbd { background: rgba(255,255,255,.09); border: 1px solid rgba(255,255,255,.12)
       liveStream: true
     },
     notifications: [
-      { id: 'n1', title: 'Approval needed', text: 'Northstar launch email sequence is ready for your review.', time: '12 min ago', tone: 'coral', unread: true, targetView: 'approvals' },
-      { id: 'n2', title: 'Research complete', text: 'The fintech competitor scan surfaced 42 new signals.', time: '34 min ago', tone: 'indigo', unread: true, targetView: 'research' },
-      { id: 'n3', title: 'Deal moved', text: 'Vela Health moved to proposal with a $42k ARR forecast.', time: '1 hr ago', tone: 'lime', unread: true, targetView: 'sales' }
+      { id: 'n1', title: 'Approval needed', text: 'Valioz Health dental outreach email sequence is ready for review.', time: '12 min ago', tone: 'coral', unread: true, targetView: 'approvals' },
+      { id: 'n2', title: 'Research verified', text: 'Canadian dental clinic demand scan verified 138 high-intent leads.', time: '34 min ago', tone: 'indigo', unread: true, targetView: 'research' },
+      { id: 'n3', title: 'Proposal staged', text: 'Brampton Dental Arts customized intake proposal staged with $26k ROI projection.', time: '1 hr ago', tone: 'lime', unread: true, targetView: 'sales' }
     ],
     approvals: [
       {
-        id: 'APR-104', title: 'Northstar launch email sequence', project: 'Northstar Labs', owner: 'Ava Rodriguez', type: 'Email sequence', age: '12 min', risk: 'Low', progress: 92, initials: 'AR', status: 'review',
-        previewTag: 'Email sequence · 01 / 06', previewTitle: 'Make your next growth move feel obvious.', previewBody: 'Northstar gives growth teams the context and confidence to move from good intent to consistent execution.',
+        id: 'APR-104', title: 'Valioz Health — Canadian Dental Outreach Sequence', project: 'Valioz Health', owner: 'Ibrahim Zid', type: 'Email sequence', age: '12 min', risk: 'Low', progress: 96, initials: 'IZ', status: 'review',
+        previewTag: 'Email sequence · 01 / 06', previewTitle: 'Turn after-hours dental inquiries into confirmed chair appointments.', previewBody: 'Valioz Health deploys a 24/7 AI-driven patient intake engine tailored exclusively for Canadian dental clinics with zero staff friction.',
         checks: [
-          ['Campaign context', 'Aligned to the Northstar launch playbook, target audience, and approved offer.'],
-          ['Quality checks', 'Subject line tested, links verified, personalization tokens resolved, and unsubscribe footer present.'],
-          ['Agent note', 'Strongest when the CTA stays specific and the opening line leads with customer tension.']
+          ['Campaign context', 'Aligned to Valioz Health offer framework, CDCP guidelines, and verified clinic audit data.'],
+          ['Quality checks', 'Subject line tested, clinic merge fields validated, and compliant CASL unsubscribe footer verified.'],
+          ['Agent note', 'Grounded in Canadian Dental Clinic Intelligence (138 leads, scored and verified).']
         ]
       },
       {
-        id: 'APR-103', title: 'Q4 paid social creative set', project: 'Orbit Finance', owner: 'Maya Chen', type: 'Ad creative', age: '48 min', risk: 'Medium', progress: 78, initials: 'MC', status: 'review',
-        previewTag: 'Ad creative · 4 variants', previewTitle: 'Clarity for modern finance teams.', previewBody: 'Four square and vertical social concepts highlighting automated reconciliation with human sign-off.',
+        id: 'APR-103', title: 'Fraserview Dentist — Custom Patient Intake Blueprint', project: 'Valioz Health', owner: 'Ibrahim Zid', type: 'Outreach pack', age: '48 min', risk: 'Medium', progress: 88, initials: 'IZ', status: 'review',
+        previewTag: 'Intake Blueprint · 1,220 reviews', previewTitle: 'Vancouver dental demand capture & CDCP intake solution.', previewBody: 'Automated intake workflow capturing high-intent search inquiries for Fraserview Dentist with $29,250 projected incremental monthly treatment production.',
         checks: [
-          ['Brand & tone', 'Follows Orbit Finance light-mode palette and compliant financial claims.'],
-          ['Asset specs', '1:1 and 4:5 exports verified; final headline needs your sign-off on variant B.'],
-          ['Agent note', 'Variant B tested highest for clarity; recommend confirming compliance wording before launch.']
+          ['Brand & tone', 'Maintains clinical trust, professional bedside manner, and verified Vancouver clinic branding.'],
+          ['Offer terms', '$499 turnkey website setup + 30 free days AI Growth Agent ($299/mo optional thereafter).'],
+          ['Agent note', 'Clinic-specific gap identified: 1,220 Google reviews (4.9 rating) with untapped after-hours demand.']
         ]
       },
       {
-        id: 'APR-102', title: 'Competitor positioning report', project: 'Vela Health', owner: 'Omar Malik', type: 'Research', age: '2 hrs', risk: 'Low', progress: 100, initials: 'OM', status: 'review',
-        previewTag: 'Research · 18 sources', previewTitle: 'Where enterprise buyers see the gap.', previewBody: 'Cross-referenced 18 public product pages and pricing tiers to map messaging whitespace for Q4.',
+        id: 'APR-102', title: 'Canadian Dental Market Intelligence & Demand Report', project: 'Valioz Health', owner: 'Ibrahim Zid', type: 'Research', age: '2 hrs', risk: 'Low', progress: 100, initials: 'IZ', status: 'review',
+        previewTag: 'Research · 138 clinics', previewTitle: 'Dental demand intelligence across 138 verified Canadian clinics.', previewBody: 'Comprehensive analysis of 71 Google Keyword Planner search terms, after-hours intake gaps, and CDCP coverage across Ontario, BC, and Alberta.',
         checks: [
-          ['Source grounding', 'All 18 competitor claims linked to primary pricing and documentation pages.'],
-          ['Executive summary', 'Ready to share with sales and creative teams as a reusable brief.'],
-          ['Agent note', 'Zero conflicting claims found; ready to publish to the Knowledge Base.']
+          ['Source grounding', 'All 138 clinic records verified against live registry data, Google ratings, and phone audits.'],
+          ['Executive summary', 'Published and indexed in Marketing OS Knowledge Base for autonomous agent retrieval.'],
+          ['Agent note', 'Zero hallucinated metrics; 100% grounded in verified CSV and PDF harness files.']
         ]
       }
     ],
     campaigns: [
-      { id: 'c1', name: 'Northstar launch', client: 'Northstar Labs', stage: 'In review', health: 92, due: 'Today', tag: 'Email sequence', tone: 'coral', approvalId: 'APR-104' },
-      { id: 'c2', name: 'Q4 growth sprint', client: 'Orbit Finance', stage: 'In production', health: 68, due: 'Nov 24', tag: 'Paid social', tone: 'indigo', approvalId: 'APR-103' },
-      { id: 'c3', name: 'Search visibility', client: 'Vela Health', stage: 'Strategy', health: 44, due: 'Nov 28', tag: 'SEO + GEO', tone: 'lime', approvalId: 'APR-102' },
-      { id: 'c4', name: 'Brand refresh', client: 'Marigold Studio', stage: 'Briefing', health: 24, due: 'Dec 02', tag: 'Brand kit', tone: 'blue', approvalId: null }
+      { id: 'c1', name: 'Dental Outreach Wave 1', client: 'Valioz Health', stage: 'In production', health: 96, due: 'Today', tag: 'Email sequence', tone: 'coral', approvalId: 'APR-104' },
+      { id: 'c2', name: 'Clinic Demand Intelligence', client: 'Valioz Health', stage: 'In review', health: 92, due: 'Today', tag: 'Market research', tone: 'indigo', approvalId: 'APR-102' },
+      { id: 'c3', name: 'High-Intent SEO Pillar', client: 'Valioz Health', stage: 'Strategy', health: 78, due: 'Nov 24', tag: 'SEO + GEO', tone: 'lime', approvalId: null },
+      { id: 'c4', name: 'Master Logo Suite (138 Clinics)', client: 'Valioz Health', stage: 'Delivered', health: 100, due: 'Nov 18', tag: 'Brand kit', tone: 'blue', approvalId: null }
     ],
     activity: [
-      { id: 1, type: 'approval', title: 'Email sequence is ready for review', detail: 'Northstar launch · 6 assets', time: '12 min ago', tone: 'coral', initials: 'AC' },
-      { id: 2, type: 'research', title: 'Competitor scan completed', detail: 'Fintech / Series B · 42 signals', time: '34 min ago', tone: 'indigo', initials: 'AI' },
-      { id: 3, type: 'sales', title: 'Deal moved to proposal', detail: 'Vela Health · $42,000 ARR', time: '1 hr ago', tone: 'lime', initials: 'OM' },
-      { id: 4, type: 'creative', title: 'Landing page brief assigned', detail: 'Orbit workspace · Maya Chen', time: '2 hrs ago', tone: 'blue', initials: 'MC' },
-      { id: 5, type: 'system', title: 'New brand playbook uploaded', detail: 'Marigold Studio · 18 pages', time: '3 hrs ago', tone: 'lavender', initials: 'SZ' }
+      { id: 1, type: 'approval', title: 'Email sequence staged for review', detail: 'Valioz Health · 138 clinics', time: '12 min ago', tone: 'coral', initials: 'IZ' },
+      { id: 2, type: 'research', title: 'Clinic intelligence scan verified', detail: '138 Canadian clinics · 71 keywords', time: '34 min ago', tone: 'indigo', initials: 'BR' },
+      { id: 3, type: 'sales', title: 'Coppersmith Dental Centre proposal ready', detail: 'Richmond, BC · $29,250 treatment ROI', time: '1 hr ago', tone: 'lime', initials: 'IZ' },
+      { id: 4, type: 'creative', title: 'Dual-branded email template styled', detail: 'Hostinger SMTP · sales@health.valioz.com', time: '2 hrs ago', tone: 'blue', initials: 'CO' },
+      { id: 5, type: 'system', title: 'Master clinic vector logos indexed', detail: '138 clinic SVGs · 100% vector suite', time: '3 hrs ago', tone: 'lavender', initials: 'MR' }
     ],
     pipeline: [
-      { label: 'Discovered', count: 28, amount: '$196k', color: '#b4a8ff', deals: [
-        { name: 'Lumen Health', sector: 'Healthcare', amount: '$28k', initials: 'LH', due: 'Today' },
-        { name: 'Arcade Systems', sector: 'SaaS', amount: '$18k', initials: 'AS', due: 'Tomorrow' }
+      { label: 'Discovered', count: 138, amount: '$412k', color: '#b4a8ff', deals: [
+        { name: 'Brampton Dental Arts', sector: 'Dental (Brampton, ON)', amount: '$26k', initials: 'BA', due: 'Today' },
+        { name: 'Fraserview Dentist', sector: 'Dental (Vancouver, BC)', amount: '$29k', initials: 'FD', due: 'Tomorrow' }
       ]},
-      { label: 'Outreach', count: 14, amount: '$92k', color: '#93dff4', deals: [
-        { name: 'Morrow AI', sector: 'AI tooling', amount: '$24k', initials: 'MA', due: 'Today' },
-        { name: 'Verde Labs', sector: 'Climate', amount: '$14k', initials: 'VL', due: 'Nov 20' }
+      { label: 'Outreach', count: 45, amount: '$135k', color: '#93dff4', deals: [
+        { name: 'Coppersmith Dental Centre', sector: 'Dental (Richmond, BC)', amount: '$29k', initials: 'CD', due: 'Today' },
+        { name: '7th Street Dental Centre', sector: 'Dental (Calgary, AB)', amount: '$24k', initials: 'SD', due: 'Nov 20' }
       ]},
-      { label: 'Qualified', count: 8, amount: '$64k', color: '#c8f169', deals: [
-        { name: 'Kite Works', sector: 'Fintech', amount: '$32k', initials: 'KW', due: 'Nov 21' },
-        { name: 'Bramble Pay', sector: 'Payments', amount: '$19k', initials: 'BP', due: 'Nov 22' }
+      { label: 'Qualified', count: 28, amount: '$84k', color: '#c8f169', deals: [
+        { name: 'Queenston Dental', sector: 'Dental (Hamilton, ON)', amount: '$26k', initials: 'QD', due: 'Nov 21' },
+        { name: 'Riverside Dental Clinic', sector: 'Dental (Drumheller, AB)', amount: '$19k', initials: 'RD', due: 'Nov 22' }
       ]},
-      { label: 'Proposal', count: 4, amount: '$42k', color: '#ffc46b', deals: [
-        { name: 'Vela Health', sector: 'HealthTech', amount: '$42k', initials: 'VH', due: 'Today', approvalId: 'APR-102' }
+      { label: 'Proposal', count: 12, amount: '$36k', color: '#ffc46b', deals: [
+        { name: 'Savannah Dental', sector: 'Dental (Calgary, AB)', amount: '$24k', initials: 'SD', due: 'Today', approvalId: 'APR-102' }
       ]},
-      { label: 'Won', count: 2, amount: '$18k', color: '#ff8274', deals: [
-        { name: 'Solstice Retail', sector: 'E-commerce', amount: '$18k', initials: 'SR', due: 'Closed' }
+      { label: 'Won', count: 6, amount: '$18k', color: '#ff8274', deals: [
+        { name: 'Kerrisdale Dental Centre', sector: 'Dental (Vancouver, BC)', amount: '$29k', initials: 'KD', due: 'Closed' }
       ]}
     ],
     team: [
-      { name: 'Ava Rodriguez', role: 'Campaign Lead', team: 'Strategy', status: 'In focus', initials: 'AR', tone: 'coral' },
-      { name: 'Maya Chen', role: 'Creative Director', team: 'Creative', status: 'In focus', initials: 'MC', tone: 'indigo' },
-      { name: 'Omar Malik', role: 'Growth Strategist', team: 'Sales', status: 'Available', initials: 'OM', tone: 'lime' },
-      { name: 'Sara Zhang', role: 'Research Lead', team: 'Research', status: 'Available', initials: 'SZ', tone: 'blue' }
+      { name: 'Ibrahim Zid', role: 'Workspace Owner & Super Admin', team: 'Leadership', status: 'In focus', initials: 'IZ', tone: 'indigo' },
+      { name: 'Coordinator', role: 'Autonomous Pipeline COO', team: 'Orchestration', status: 'In focus', initials: 'CO', tone: 'coral' },
+      { name: 'Browser Researcher', role: 'Market & Clinic Intelligence', team: 'Research', status: 'Available', initials: 'BR', tone: 'blue' },
+      { name: 'Master Reporting Agent', role: 'QA & Executive Reports', team: 'Quality', status: 'Available', initials: 'MR', tone: 'lime' }
     ],
     knowledgeAssets: [
-      { id: 'k1', title: 'Northstar brand playbook', type: 'Brand guidelines', updated: 'Today', size: '2.4 MB', color: 'coral', summary: 'Core messaging pillars, visual tokens, and approved proof points for Northstar Labs.' },
-      { id: 'k2', title: 'Fintech competitor teardown', type: 'Market research', updated: 'Yesterday', size: '1.1 MB', color: 'indigo', summary: 'Feature and pricing comparison across 6 Series B fintech competitors.' },
-      { id: 'k3', title: 'Q4 acquisition brief', type: 'Campaign brief', updated: 'Nov 16', size: '680 KB', color: 'lime', summary: 'Target persona criteria, channel mix, and conversion benchmarks for Q4.' },
-      { id: 'k4', title: 'SEO fast wins matrix', type: 'Search strategy', updated: 'Nov 14', size: '420 KB', color: 'blue', summary: 'High-intent keywords with low difficulty and AI-search citation opportunities.' }
+      { id: 'k1', title: 'Valioz Health Demand Intelligence Report', type: 'Market research', updated: 'Today', size: '76 KB', color: 'coral', summary: 'Canadian dental clinic demand, search volumes, after-hours intake gaps, and CDCP authorization findings.' },
+      { id: 'k2', title: 'Clinic Intelligence — 138 Verified Leads', type: 'Verified dataset', updated: 'Today', size: '48 KB', color: 'indigo', summary: '138 verified dental clinics across Ontario, BC, and Alberta with Google review counts, phone numbers, and address audits.' },
+      { id: 'k3', title: 'Google Keyword Planner — 71 Dental Keywords', type: 'SEO dataset', updated: 'Nov 18', size: '9.4 KB', color: 'lime', summary: 'Monthly search volume, competition ratings, and bid benchmarks for primary Canadian dental search queries.' },
+      { id: 'k4', title: 'Priority A Outreach Email Merge Fields & Value Framework', type: 'Outreach strategy', updated: 'Nov 18', size: '8.2 KB', color: 'blue', summary: 'Personalized merge fields, clinic-specific value angles, and $499 turnkey website + 30-day AI Growth Agent offer structure.' }
     ]
   };
 
@@ -565,10 +566,10 @@ kbd { background: rgba(255,255,255,.09); border: 1px solid rgba(255,255,255,.12)
     let body = '';
     if (deptId === 'research') {
       const rows = [
-        { title: 'Series B fintech positioning map', meta: 'Northstar Labs · 18 sources', status: 'In review', tone: 'indigo', cat: 'Market analysis', approvalId: 'APR-102' },
-        { title: 'Vela Health SEO intent matrix', meta: 'Vela Health · 42 keywords', status: 'Ready', tone: 'lime', cat: 'SEO & GEO', approvalId: 'APR-102' },
-        { title: 'Healthcare buyer signal batch', meta: 'Orbit Finance · 28 contacts', status: 'Ready', tone: 'lime', cat: 'Lead discovery', approvalId: 'APR-103' },
-        { title: 'Q4 competitor pricing teardown', meta: 'Marigold Studio · 6 rivals', status: 'In review', tone: 'indigo', cat: 'Competitor audit', approvalId: 'APR-102' }
+        { title: 'Canadian Dental Demand Intelligence Report', meta: 'Valioz Health · 138 clinics', status: 'Ready', tone: 'lime', cat: 'Market analysis', approvalId: 'APR-102' },
+        { title: 'Google Keyword Planner (71 keywords)', meta: 'Valioz Health · 71 high-intent queries', status: 'Ready', tone: 'lime', cat: 'SEO & GEO', approvalId: 'APR-102' },
+        { title: 'Verified Canadian Clinic Lead Discovery Batch', meta: 'Valioz Health · 138 verified clinics', status: 'Ready', tone: 'lime', cat: 'Lead discovery', approvalId: 'APR-103' },
+        { title: 'Clinic Intake & CDCP Competitive Audit', meta: 'Valioz Health · after-hours coverage gaps', status: 'Ready', tone: 'lime', cat: 'Competitor audit', approvalId: 'APR-102' }
       ];
       const shownRows = tab === 'Overview' ? rows : rows.filter((r) => r.cat === tab);
       body = `
@@ -636,10 +637,10 @@ kbd { background: rgba(255,255,255,.09); border: 1px solid rgba(255,255,255,.12)
       `;
     } else {
       const stages = [
-        { title: 'Briefing', count: 3, items: [['Northstar launch page', 'Landing page', 'AR', 'c1']] },
-        { title: 'In production', count: 6, items: [['Q4 paid social set', 'Ad creative', 'MC', 'APR-103'], ['Orbit product video', 'Motion brief', 'MC', 'c2']] },
-        { title: 'Quality review', count: 2, items: [['Vela SEO pillar', 'Content + SEO', 'SZ', 'APR-102']] },
-        { title: 'Ready to ship', count: 4, items: [['Marigold brand kit', 'Branding', 'OM', 'APR-104']] }
+        { title: 'Briefing', count: 3, items: [['Valioz Dental Intake Landing Page', 'Landing page', 'IZ', 'c1']] },
+        { title: 'In production', count: 6, items: [['Dual-Branded Email Sequence Pack', 'Email sequence', 'CO', 'APR-104'], ['Clinic Master Logo Suite (138 SVGs)', 'Brand assets', 'IZ', 'c2']] },
+        { title: 'Quality review', count: 2, items: [['Canadian Dental SEO Pillar Article', 'Content + SEO', 'MR', 'APR-102']] },
+        { title: 'Ready to ship', count: 4, items: [['Valioz Health Complete Brand System', 'Brand kit', 'IZ', 'c4']] }
       ];
       const shownStages = tab === 'In production' ? [stages[1]] : tab === 'Quality review' ? [stages[2]] : stages;
       body = `
@@ -848,7 +849,7 @@ kbd { background: rgba(255,255,255,.09); border: 1px solid rgba(255,255,255,.12)
           <section class="panel">
             <div class="section-heading"><div><p class="eyebrow">Saved tools</p><h2>Your campaign stack.</h2></div><button class="text-button" data-action="test-connections">Verify all ${icon('arrow', 15)}</button></div>
             <div class="tool-list">
-              ${[['Mail engine', 'outreach@marketing-os.app'], ['Search console', 'Northstar property'], ['Analytics', 'GA4 workspace'], ['Calendar', 'Team calendar']].map(([t, s], i) => `
+              ${[['Hostinger Webmail', 'sales@health.valioz.com'], ['Google Workspace API', 'ibrahim.zed24@gmail.com'], ['Hunter.io Email Verifier', 'outreach@valioz.com'], ['Valioz Outreach SMTP', 'smtp.hostinger.com:465']].map(([t, s], i) => `
                 <div class="tool-row"><span class="tool-logo tool-${i}">${t[0]}</span><span><strong>${t}</strong><small>${s}</small></span><span class="badge badge-lime"><span class="badge-dot"></span>Ready</span></div>
               `).join('')}
             </div>
@@ -874,7 +875,7 @@ kbd { background: rgba(255,255,255,.09); border: 1px solid rgba(255,255,255,.12)
       desc = 'Give the team a clear starting point. You can tune the playbook after the brief is saved.';
       body = `
         <form class="project-form" id="project-form">
-          <label>Project name<input id="proj-name" value="${state.presetService ? esc(state.presetService + ' sprint') : ''}" placeholder="e.g. Northstar launch" autofocus required /></label>
+          <label>Project name<input id="proj-name" value="${state.presetService ? esc(state.presetService + ' sprint') : ''}" placeholder="e.g. Valioz Health email campaign" autofocus required /></label>
           <label>Primary deliverable<select id="proj-type"><option>Campaign launch</option><option>Research brief</option><option>Email sequence</option><option>Landing page</option><option>SEO + GEO sprint</option></select></label>
           <label>What does success look like?<textarea id="proj-desc" rows="3" placeholder="A short brief gives the team a better first move."></textarea></label>
           <div class="form-footer"><span>${icon('spark', 15)} You can add assets and owners next.</span><div><button type="button" class="button button-ghost" data-action="close-modal">Cancel</button><button type="submit" class="button button-primary">Create project</button></div></div>

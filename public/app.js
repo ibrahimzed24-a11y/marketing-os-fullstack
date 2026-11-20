@@ -746,7 +746,7 @@ function openAuthModal(canClose = true) {
 
 function closeAuthModal() {
   if (!authToken) {
-    showToast('Please sign in to access the helm workspace.');
+    showToast('Please sign in to access the marketing team workspace.');
     return;
   }
   const modal = document.getElementById('authModal');
@@ -900,7 +900,7 @@ async function syncFromBackend() {
               verdict: p.status === 'delivered' ? 'Approved & Delivered' : (p.status === 'in_review' ? 'Ready to Deliver' : 'Staged'),
               grounded: 'Yes • Verified against project harness',
               usable: 'Yes • Enterprise production grade',
-              sellable: 'Yes • Tailored for ' + (p.client_name || 'helm Team'),
+              sellable: 'Yes • Tailored for ' + (p.client_name || 'Marketing Team'),
               summary: 'Project initialized in helm workspace.',
               shipped: 'Workspace staged for execution.',
               blocked: 'None',
@@ -1081,7 +1081,7 @@ function switchMainView(view) {
   const role = currentUser?.role || state.currentUserRole || 'guest';
   const isClient = role === 'client';
   const isAdmin = ['super_admin', 'owner', 'admin'].includes(role);
-  const clientBlockedViews = ['overview', 'research', 'sales', 'approvals', 'team', 'adminSettings', 'logins'];
+  const clientBlockedViews = ['overview', 'research', 'sales', 'approvals', 'team', 'adminSettings', 'logins', 'roleDash', 'pipelines', 'agents', 'seo'];
 
   if (isClient && clientBlockedViews.includes(view)) {
     state.mainView = 'workbench';
@@ -1109,6 +1109,16 @@ function switchMainView(view) {
     fetchAdminSettingsData().then(renderAdminSettingsView);
   } else if (view === 'rag') {
     renderRagView();
+  } else if (view === 'logins') {
+    renderSavedLoginsView();
+  } else if (view === 'agents') {
+    renderAgentsDirectory();
+  } else if (view === 'pipelines') {
+    renderPipelinesCatalogView();
+  } else if (view === 'seo') {
+    renderSeoView();
+  } else if (view === 'roleDash') {
+    renderRoleSpecificDashboard();
   }
   saveState();
   renderAll();
@@ -1204,7 +1214,7 @@ async function createNewProject() {
     return showToast('RBAC Restriction: Only Super Admin, Admin, or Manager can create projects.');
   }
   const name = (document.getElementById('npName')?.value || '').trim();
-  const brand = (document.getElementById('npClient')?.value || '').trim() || 'Internal helm Operations';
+  const brand = (document.getElementById('npClient')?.value || '').trim() || 'Internal Marketing';
   if (!name) return showToast('Please enter a Project Name.');
 
   const pipeline = document.getElementById('npPipeline')?.value || 'email-campaign';
@@ -1919,17 +1929,29 @@ function renderHeaderAndRoleBanner() {
     state.mainView = isClient ? 'workbench' : 'overview';
   }
 
-  // Primary Navigation Tabs Mapping (9-step logical flow)
+  // Primary Navigation Tabs Mapping (All 14 views grouped into 4 functional domains)
   const primaryTabs = [
-    { id: 'overview', activeFor: ['overview'], clientAllowed: false },
-    { id: 'rag', activeFor: ['rag'], clientAllowed: true },
-    { id: 'research', activeFor: ['research', 'seo'], clientAllowed: false },
-    { id: 'sales', activeFor: ['sales'], clientAllowed: false },
-    { id: 'creative', activeFor: ['creative'], clientAllowed: true },
-    { id: 'approvals', activeFor: ['approvals'], clientAllowed: false },
-    { id: 'workbench', activeFor: ['workbench'], clientAllowed: true },
-    { id: 'team', activeFor: ['team'], clientAllowed: false },
-    { id: 'adminSettings', activeFor: ['adminSettings', 'logins'], clientAllowed: false }
+    // 1. Command & Core
+    { id: 'overview', activeFor: ['overview'], clientAllowed: false, domain: 'command' },
+    { id: 'workbench', activeFor: ['workbench'], clientAllowed: true, domain: 'command' },
+    { id: 'approvals', activeFor: ['approvals'], clientAllowed: false, domain: 'command' },
+    { id: 'roleDash', activeFor: ['roleDash'], clientAllowed: false, domain: 'command' },
+
+    // 2. Growth Operations
+    { id: 'research', activeFor: ['research'], clientAllowed: false, domain: 'growth' },
+    { id: 'sales', activeFor: ['sales'], clientAllowed: false, domain: 'growth' },
+    { id: 'creative', activeFor: ['creative'], clientAllowed: true, domain: 'growth' },
+    { id: 'seo', activeFor: ['seo'], clientAllowed: false, domain: 'growth' },
+
+    // 3. Intelligence & Automation
+    { id: 'rag', activeFor: ['rag'], clientAllowed: true, domain: 'intelligence' },
+    { id: 'pipelines', activeFor: ['pipelines'], clientAllowed: false, domain: 'intelligence' },
+    { id: 'agents', activeFor: ['agents'], clientAllowed: false, domain: 'intelligence' },
+
+    // 4. Platform & System
+    { id: 'team', activeFor: ['team'], clientAllowed: false, domain: 'platform' },
+    { id: 'logins', activeFor: ['logins'], clientAllowed: false, domain: 'platform' },
+    { id: 'adminSettings', activeFor: ['adminSettings'], clientAllowed: false, domain: 'platform' }
   ];
 
   primaryTabs.forEach(tab => {
@@ -1944,8 +1966,8 @@ function renderHeaderAndRoleBanner() {
       }
       const isActive = tab.activeFor.includes(state.mainView);
       el.className = isActive
-        ? 'px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white text-slate-900 shadow-sm border border-slate-200/60 transition flex items-center gap-1.5'
-        : 'px-3.5 py-1.5 rounded-full text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 transition flex items-center gap-1.5 border border-transparent';
+        ? 'px-3.5 py-1.5 rounded-full text-xs font-bold bg-white dark:bg-slate-800 text-[#7d2ae8] dark:text-purple-300 shadow-xs border border-[#e1e3e6] dark:border-slate-700 transition inline-flex items-center gap-1.5 whitespace-nowrap'
+        : 'px-3.5 py-1.5 rounded-full text-xs font-medium text-[#5f6368] dark:text-slate-400 hover:text-[#0e1318] dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-slate-700/50 transition inline-flex items-center gap-1.5 border border-transparent whitespace-nowrap';
     }
   });
 
@@ -1978,10 +2000,10 @@ function renderHeaderAndRoleBanner() {
   const badge = document.getElementById('headerUserBadge');
   const chip = document.getElementById('headerRoleChip');
   const avatarPill = document.getElementById('headerAvatarPill');
-  if (badge) badge.textContent = user.name || 'helm Team';
+  if (badge) badge.textContent = user.name || 'Marketing Team';
   if (chip) chip.textContent = String(role).toUpperCase().replace('_', ' ');
   if (avatarPill) {
-    const initials = (user.name || 'HT').split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'HT';
+    const initials = (user.name || 'MT').split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase() || 'MT';
     avatarPill.textContent = initials;
   }
 
@@ -1993,27 +2015,27 @@ function renderHeaderAndRoleBanner() {
     super_admin: {
       title: 'Super Admin Factory Control (' + user.name + ')',
       perm: 'Full Platform Access • Team Management • LLM Routing • Task Delivery',
-      desc: 'Complete oversight across all helm workspaces, sovereign agents, dynamic LLM routing, and project deliveries.'
+      desc: 'Complete oversight across all marketing workspaces, sovereign agents, dynamic LLM routing, and project deliveries.'
     },
     admin: {
       title: 'Operations Admin Dashboard (' + user.name + ')',
       perm: 'Team Oversight • Pipeline Architecture • Saved Logins • Approve Deliverables',
-      desc: 'Manage operations pipelines, team assignments, credential vault, and deliverable reviews.'
+      desc: 'Manage marketing pipelines, team assignments, credential vault, and deliverable reviews.'
     },
     manager: {
       title: 'Growth Manager Sprint Hub (' + user.name + ')',
       perm: 'Create Projects • Assign Tasks • Review Deliverables • SOP Directives',
-      desc: 'Orchestrate operations sprints, assign tasks to specialists, and approve completed deliverables.'
+      desc: 'Orchestrate marketing sprints, assign tasks to specialists, and approve completed deliverables.'
     },
     member: {
       title: 'Specialist Execution Workbench (' + user.name + ')',
-      perm: 'Run Operations Pipelines • Upload Harness Assets • Staged Task Execution',
+      perm: 'Run Marketing Pipelines • Upload Harness Assets • Staged Task Execution',
       desc: 'Execute assigned pipeline commands, ground tasks in harness data, and stage deliverables for manager review.'
     }
   }[role] || {
     title: 'helm Operations Workspace (' + user.name + ')',
     perm: 'Internal Team Access',
-    desc: 'Execute helm operations pipelines and campaigns.'
+    desc: 'Execute marketing pipelines and campaigns.'
   };
 
   const av = document.getElementById('roleBannerAvatar');
@@ -2021,7 +2043,7 @@ function renderHeaderAndRoleBanner() {
   const rp = document.getElementById('roleBannerPermBadge');
   const rd = document.getElementById('roleBannerDesc');
   if (av) {
-    const initials = (user.name || 'HT').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+    const initials = (user.name || 'MT').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
     av.textContent = initials;
   }
   if (rt) rt.textContent = roleMeta.title;
@@ -2590,7 +2612,7 @@ function renderSavedLoginsView() {
           ) : '') +
         '</div>' +
 
-        '<p class="text-[11px] text-[var(--text-soft)] line-clamp-2 leading-relaxed">' + (l.notes || 'Configured for automated helm workflows.') + '</p>' +
+        '<p class="text-[11px] text-[var(--text-soft)] line-clamp-2 leading-relaxed">' + (l.notes || 'Configured for automated marketing workflows.') + '</p>' +
       '</div>' +
 
       '<div class="pt-2 border-t border-[var(--border)] flex items-center justify-between gap-2">' +
@@ -6833,11 +6855,160 @@ async function saveAgentBlueprint() {
 }
 
 // =============================================================================
-// GLOBAL KEYBOARD SHORTCUT NAVIGATION (Keys 1 - 9)
+// QUICK COMMAND PALETTE (Cmd+K)
+// =============================================================================
+let cmdSelectedIndex = 0;
+let cmdFilteredItems = [];
+
+const COMMAND_PALETTE_ITEMS = [
+  // Command & Core
+  { id: 'overview', title: 'Command Center & Overview', domain: 'Command & Core', icon: '📊', shortcut: '1', action: () => switchMainView('overview') },
+  { id: 'workbench', title: 'Projects & Tasks Workbench', domain: 'Command & Core', icon: '📋', shortcut: '7', action: () => switchMainView('workbench') },
+  { id: 'approvals', title: 'Human-in-the-Loop Approvals', domain: 'Command & Core', icon: '🛡️', shortcut: '6', action: () => switchMainView('approvals') },
+  { id: 'roleDash', title: 'Executive Role Dashboard', domain: 'Command & Core', icon: '👤', shortcut: '', action: () => switchMainView('roleDash') },
+
+  // Growth Operations
+  { id: 'research', title: 'Market Intelligence & Competitor Intel', domain: 'Growth Operations', icon: '🔬', shortcut: '3', action: () => switchMainView('research') },
+  { id: 'sales', title: 'Sales CRM & Lead Scoring', domain: 'Growth Operations', icon: '💼', shortcut: '4', action: () => switchMainView('sales') },
+  { id: 'creative', title: 'Creative Studio & Asset Generation', domain: 'Growth Operations', icon: '🎨', shortcut: '5', action: () => switchMainView('creative') },
+  { id: 'seo', title: 'SEO & GEO Content Architecture', domain: 'Growth Operations', icon: '🌐', shortcut: '', action: () => switchMainView('seo') },
+
+  // Intelligence & Automation
+  { id: 'rag', title: 'Knowledge Base & Vector Search', domain: 'Intelligence & Automation', icon: '📚', shortcut: '2', action: () => switchMainView('rag') },
+  { id: 'pipelines', title: 'Autonomous Pipelines Catalog', domain: 'Intelligence & Automation', icon: '⚡', shortcut: '', action: () => switchMainView('pipelines') },
+  { id: 'agents', title: 'AI Workforce Registry (32 Agents)', domain: 'Intelligence & Automation', icon: '🤖', shortcut: '', action: () => switchMainView('agents') },
+
+  // Platform & System
+  { id: 'team', title: 'Team Access & Permissions', domain: 'Platform & System', icon: '👥', shortcut: '8', action: () => switchMainView('team') },
+  { id: 'logins', title: 'Saved Logins & Client Profiles', domain: 'Platform & System', icon: '🔑', shortcut: '', action: () => switchMainView('logins') },
+  { id: 'adminSettings', title: 'System & Platform Settings', domain: 'Platform & System', icon: '⚙️', shortcut: '9', action: () => switchMainView('adminSettings') },
+
+  // Quick System Actions
+  { id: 'action-new-project', title: 'Create New Marketing Project', domain: 'Quick Actions', icon: '➕', shortcut: '', action: () => toggleNewProjectDrawer() },
+  { id: 'action-new-task', title: 'Dispatch New Task', domain: 'Quick Actions', icon: '🚀', shortcut: '', action: () => openTaskModal() },
+  { id: 'action-coordinator', title: 'Dispatch Sovereign Coordinator', domain: 'Quick Actions', icon: '🤖', shortcut: '', action: () => openAgentDispatchModal('coordinator') },
+  { id: 'action-toggle-theme', title: 'Toggle Light / Dark Mode', domain: 'Quick Actions', icon: '◐', shortcut: '', action: () => toggleTheme() }
+];
+
+function openCommandPalette() {
+  const modal = document.getElementById('commandPaletteModal');
+  const input = document.getElementById('cmdPaletteInput');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+  if (input) {
+    input.value = '';
+    filterCommandPalette('');
+    setTimeout(() => input.focus(), 50);
+  }
+}
+
+function closeCommandPalette() {
+  const modal = document.getElementById('commandPaletteModal');
+  if (modal) modal.classList.add('hidden');
+}
+
+function toggleCommandPalette() {
+  const modal = document.getElementById('commandPaletteModal');
+  if (!modal) return;
+  if (modal.classList.contains('hidden')) {
+    openCommandPalette();
+  } else {
+    closeCommandPalette();
+  }
+}
+
+function filterCommandPalette(query) {
+  const q = (query || '').toLowerCase().trim();
+  const role = currentUser?.role || state.currentUserRole || 'guest';
+  const isClient = role === 'client';
+  const isAdmin = ['super_admin', 'owner', 'admin'].includes(role);
+  const clientBlocked = ['overview', 'research', 'sales', 'approvals', 'team', 'adminSettings', 'logins', 'roleDash', 'pipelines', 'agents', 'seo'];
+
+  cmdFilteredItems = COMMAND_PALETTE_ITEMS.filter(item => {
+    if (isClient && clientBlocked.includes(item.id)) return false;
+    if (item.id === 'adminSettings' && !isAdmin) return false;
+    if (!q) return true;
+    return item.title.toLowerCase().includes(q) || item.domain.toLowerCase().includes(q) || item.id.toLowerCase().includes(q);
+  });
+
+  cmdSelectedIndex = 0;
+  renderCommandPaletteResults();
+}
+
+function renderCommandPaletteResults() {
+  const container = document.getElementById('cmdPaletteResults');
+  if (!container) return;
+
+  if (cmdFilteredItems.length === 0) {
+    container.innerHTML = `
+      <div class="text-center py-8 text-[var(--muted)]">
+        <span class="text-2xl block mb-1">🔍</span>
+        <span class="text-xs font-semibold">No matching views or actions found</span>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = cmdFilteredItems.map((item, idx) => {
+    const isSelected = idx === cmdSelectedIndex;
+    return `
+      <div onclick="selectCommandPaletteItem(${idx})" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer transition ${isSelected ? 'bg-[#7d2ae8] text-white font-bold' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-[var(--fg)]'}">
+        <div class="flex items-center gap-3 min-w-0">
+          <span class="text-base">${item.icon}</span>
+          <div class="truncate">
+            <span class="block text-xs font-semibold leading-tight">${item.title}</span>
+            <span class="block text-[10px] ${isSelected ? 'text-white/80' : 'text-[var(--muted)]'} leading-tight">${item.domain}</span>
+          </div>
+        </div>
+        ${item.shortcut ? `<kbd class="px-1.5 py-0.5 text-[10px] font-mono rounded ${isSelected ? 'bg-white/20 text-white' : 'bg-[var(--surface)] text-[var(--muted)] border border-[var(--border)]'}">${item.shortcut}</kbd>` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+function handleCommandKeydown(e) {
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    if (cmdFilteredItems.length > 0) {
+      cmdSelectedIndex = (cmdSelectedIndex + 1) % cmdFilteredItems.length;
+      renderCommandPaletteResults();
+    }
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (cmdFilteredItems.length > 0) {
+      cmdSelectedIndex = (cmdSelectedIndex - 1 + cmdFilteredItems.length) % cmdFilteredItems.length;
+      renderCommandPaletteResults();
+    }
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    selectCommandPaletteItem(cmdSelectedIndex);
+  }
+}
+
+function selectCommandPaletteItem(idx) {
+  const item = cmdFilteredItems[idx];
+  if (item && typeof item.action === 'function') {
+    closeCommandPalette();
+    item.action();
+  }
+}
+
+// =============================================================================
+// GLOBAL KEYBOARD SHORTCUT NAVIGATION (Keys 1 - 9 & Cmd+K)
 // =============================================================================
 
 function setupKeyboardNavigation() {
   window.addEventListener('keydown', (e) => {
+    // Quick Command Palette (Cmd+K or Ctrl+K)
+    if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+      e.preventDefault();
+      toggleCommandPalette();
+      return;
+    }
+    if (e.key === 'Escape') {
+      closeCommandPalette();
+    }
+
     // Ignore keystrokes when user is typing in inputs, textareas, selects, or editable fields
     const target = e.target;
     const isInteractive = target && (
@@ -6891,7 +7062,6 @@ function renderAll() {
   renderDepartmentProjectsAndTasks('research');
   renderDepartmentProjectsAndTasks('sales');
   renderDepartmentProjectsAndTasks('creative');
-  renderCinemaStudio();
   renderWorkbenchTasks();
   renderWorkbenchOutput();
   setupDragAndDrop();
@@ -6946,401 +7116,9 @@ window.deleteTask = deleteTask;
 window.filterWorkbenchTasks = filterWorkbenchTasks;
 window.renderWorkbenchTasks = renderWorkbenchTasks;
 window.renderDepartmentProjectsAndTasks = renderDepartmentProjectsAndTasks;
-
-// =============================================================================
-// CINEMA STUDIO 2.0 & CAMERA CONTROLS (Ported from Open-Higgsfield-AI)
-// =============================================================================
-
-const CINEMA_CAMERAS = {
-  "Modular 8K Digital": { desc: "modular 8K digital cinema camera", img: "/assets/cinema/modular_8k_digital.webp" },
-  "Full-Frame Cine Digital": { desc: "full-frame digital cinema camera", img: "/assets/cinema/full_frame_cine_digital.webp" },
-  "Grand Format 70mm Film": { desc: "grand format 70mm film camera", img: "/assets/cinema/grand_format_70mm_film.webp" },
-  "Studio Digital S35": { desc: "Super 35 studio digital camera", img: "/assets/cinema/studio_digital_s35.webp" },
-  "Classic 16mm Film": { desc: "classic 16mm film camera", img: "/assets/cinema/classic_16mm_film.webp" },
-  "Premium Large Format Digital": { desc: "premium large-format digital cinema camera", img: "/assets/cinema/premium_large_format_digital.webp" }
-};
-
-const CINEMA_LENSES = {
-  "Creative Tilt Lens": { desc: "creative tilt lens effect", img: "/assets/cinema/creative_tilt_lens.webp" },
-  "Compact Anamorphic": { desc: "compact anamorphic lens", img: "/assets/cinema/compact_anamorphic.webp" },
-  "Extreme Macro": { desc: "extreme macro lens", img: "/assets/cinema/extreme_macro.webp" },
-  "70s Cinema Prime": { desc: "1970s cinema prime lens", img: "/assets/cinema/70s_cinema_prime.webp" },
-  "Classic Anamorphic": { desc: "classic anamorphic lens", img: "/assets/cinema/classic_anamorphic.webp" },
-  "Premium Modern Prime": { desc: "premium modern prime lens", img: "/assets/cinema/premium_modern_prime.webp" },
-  "Warm Cinema Prime": { desc: "warm-toned cinema prime lens", img: "/assets/cinema/warm_cinema_prime.webp" },
-  "Swirl Bokeh Portrait": { desc: "swirl bokeh portrait lens", img: "/assets/cinema/swirl_bokeh_portrait.webp" },
-  "Vintage Prime": { desc: "vintage prime lens", img: "/assets/cinema/vintage_prime.webp" },
-  "Halation Diffusion": { desc: "halation diffusion filter", img: "/assets/cinema/halation_diffusion.webp" },
-  "Clinical Sharp Prime": { desc: "ultra-sharp clinical prime lens", img: "/assets/cinema/clinical_sharp_prime.webp" }
-};
-
-const CINEMA_FOCALS = {
-  8: { label: "8mm", perspective: "ultra-wide perspective", tag: "Ultra-Wide" },
-  14: { label: "14mm", perspective: "wide-angle perspective", tag: "Wide Angle" },
-  24: { label: "24mm", perspective: "wide-angle dynamic perspective", tag: "Dynamic Wide" },
-  35: { label: "35mm", perspective: "natural cinematic perspective", tag: "Cinematic Prime" },
-  50: { label: "50mm", perspective: "standard portrait perspective", tag: "Standard Eye" },
-  85: { label: "85mm", perspective: "classic portrait perspective", tag: "Tele Portrait" }
-};
-
-const CINEMA_APERTURES = {
-  "f/1.4": { desc: "shallow depth of field, creamy bokeh", img: "/assets/cinema/f_1_4.webp", tag: "Creamy Bokeh" },
-  "f/4": { desc: "balanced depth of field", img: "/assets/cinema/f_4.webp", tag: "Balanced DOF" },
-  "f/11": { desc: "deep focus clarity, sharp foreground to background", img: "/assets/cinema/f_11.webp", tag: "Deep Focus" }
-};
-
-const CINEMA_PRESETS = {
-  hollywood: {
-    camera: "Modular 8K Digital",
-    lens: "Premium Modern Prime",
-    focal: 35,
-    aperture: "f/1.4",
-    aspectRatio: "16:9"
-  },
-  anamorphic: {
-    camera: "Grand Format 70mm Film",
-    lens: "Compact Anamorphic",
-    focal: 24,
-    aperture: "f/4",
-    aspectRatio: "21:9"
-  },
-  vintage: {
-    camera: "Classic 16mm Film",
-    lens: "Vintage Prime",
-    focal: 35,
-    aperture: "f/1.4",
-    aspectRatio: "4:5"
-  },
-  macro: {
-    camera: "Full-Frame Cine Digital",
-    lens: "Extreme Macro",
-    focal: 85,
-    aperture: "f/4",
-    aspectRatio: "1:1"
-  },
-  portrait: {
-    camera: "Studio Digital S35",
-    lens: "Swirl Bokeh Portrait",
-    focal: 50,
-    aperture: "f/1.4",
-    aspectRatio: "9:16"
-  },
-  architectural: {
-    camera: "Premium Large Format Digital",
-    lens: "Classic Anamorphic",
-    focal: 14,
-    aperture: "f/11",
-    aspectRatio: "16:9"
-  }
-};
-
-let cinemaState = {
-  camera: "Modular 8K Digital",
-  lens: "Creative Tilt Lens",
-  focal: 35,
-  aperture: "f/1.4",
-  aspectRatio: "16:9",
-  basePrompt: "Modern boutique dental clinic lobby with warm natural sunlight streaming through floor-to-ceiling architectural glass, peaceful patient waiting area, minimalist organic textures"
-};
-
-function buildNanoBananaPrompt(basePrompt, camera, lens, focalLength, aperture) {
-  const cameraDesc = CINEMA_CAMERAS[camera]?.desc || camera;
-  const lensDesc = CINEMA_LENSES[lens]?.desc || lens;
-  const perspective = CINEMA_FOCALS[focalLength]?.perspective || "";
-  const depthEffect = CINEMA_APERTURES[aperture]?.desc || "";
-
-  const qualityTags = [
-    "professional commercial photography",
-    "ultra-detailed",
-    "8K resolution",
-    "award-winning cinematography"
-  ];
-
-  const parts = [
-    (basePrompt || "").trim(),
-    `shot on a ${cameraDesc}`,
-    `using a ${lensDesc} at ${focalLength}mm ${perspective ? `(${perspective})` : ''}`.trim(),
-    `aperture ${aperture}`,
-    depthEffect,
-    "cinematic lighting",
-    "natural photorealistic color science",
-    "high dynamic range",
-    qualityTags.join(", ")
-  ];
-
-  return parts.filter(p => p && p.trim() !== "").join(", ");
-}
-
-function renderCinemaStudio() {
-  const camList = document.getElementById('cinemaCameraList');
-  const lensList = document.getElementById('cinemaLensList');
-  const focalList = document.getElementById('cinemaFocalList');
-  const apList = document.getElementById('cinemaApertureList');
-  if (!camList || !lensList || !focalList || !apList) return;
-
-  // 1. Render Cameras
-  camList.innerHTML = Object.entries(CINEMA_CAMERAS).map(([name, info]) => {
-    const isSelected = cinemaState.camera === name;
-    return `
-      <div onclick="setCinemaCamera('${escapeHtml(name)}')" class="cursor-pointer p-1.5 rounded-lg border transition flex items-center gap-2 ${
-        isSelected
-          ? 'bg-indigo-50/80 dark:bg-indigo-950/40 border-indigo-500 shadow-xs'
-          : 'bg-[var(--surface)] border-[var(--border)] hover:border-indigo-400'
-      }">
-        <img src="${info.img}" alt="${escapeHtml(name)}" class="w-8 h-8 rounded object-cover shrink-0 border border-black/10 dark:border-white/10" onerror="this.style.display='none'" />
-        <div class="min-w-0 flex-1">
-          <div class="text-[11px] font-bold truncate ${isSelected ? 'text-indigo-600 dark:text-indigo-400' : ''}">${escapeHtml(name)}</div>
-          <div class="text-[9px] text-[var(--text-faint)] truncate capitalize">${escapeHtml(info.desc.slice(0, 26))}...</div>
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  // 2. Render Lenses
-  lensList.innerHTML = Object.entries(CINEMA_LENSES).map(([name, info]) => {
-    const isSelected = cinemaState.lens === name;
-    return `
-      <div onclick="setCinemaLens('${escapeHtml(name)}')" class="cursor-pointer p-1.5 rounded-lg border transition flex items-center gap-2 ${
-        isSelected
-          ? 'bg-indigo-50/80 dark:bg-indigo-950/40 border-indigo-500 shadow-xs'
-          : 'bg-[var(--surface)] border-[var(--border)] hover:border-indigo-400'
-      }">
-        <img src="${info.img}" alt="${escapeHtml(name)}" class="w-8 h-8 rounded object-cover shrink-0 border border-black/10 dark:border-white/10" onerror="this.style.display='none'" />
-        <div class="min-w-0 flex-1">
-          <div class="text-[11px] font-bold truncate ${isSelected ? 'text-indigo-600 dark:text-indigo-400' : ''}">${escapeHtml(name)}</div>
-          <div class="text-[9px] text-[var(--text-faint)] truncate capitalize">${escapeHtml(info.desc.slice(0, 26))}...</div>
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  // 3. Render Focal Lengths
-  focalList.innerHTML = Object.entries(CINEMA_FOCALS).map(([focal, info]) => {
-    const isSelected = Number(cinemaState.focal) === Number(focal);
-    return `
-      <div onclick="setCinemaFocal(${Number(focal)})" class="cursor-pointer p-1.5 rounded-lg border transition flex items-center gap-2 ${
-        isSelected
-          ? 'bg-indigo-50/80 dark:bg-indigo-950/40 border-indigo-500 shadow-xs'
-          : 'bg-[var(--surface)] border-[var(--border)] hover:border-indigo-400'
-      }">
-        <div class="w-8 h-8 rounded bg-[var(--bg-soft)] border border-[var(--border)] flex items-center justify-center font-mono font-black text-xs shrink-0 ${
-          isSelected ? 'text-indigo-600 dark:text-indigo-400 border-indigo-500' : 'text-[var(--text-soft)]'
-        }">${info.label}</div>
-        <div class="min-w-0 flex-1">
-          <div class="text-[11px] font-bold truncate ${isSelected ? 'text-indigo-600 dark:text-indigo-400' : ''}">${escapeHtml(info.tag)}</div>
-          <div class="text-[9px] text-[var(--text-faint)] truncate capitalize">${escapeHtml(info.perspective)}</div>
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  // 4. Render Apertures
-  apList.innerHTML = Object.entries(CINEMA_APERTURES).map(([ap, info]) => {
-    const isSelected = cinemaState.aperture === ap;
-    return `
-      <div onclick="setCinemaAperture('${escapeHtml(ap)}')" class="cursor-pointer p-1.5 rounded-lg border transition flex items-center gap-2 ${
-        isSelected
-          ? 'bg-indigo-50/80 dark:bg-indigo-950/40 border-indigo-500 shadow-xs'
-          : 'bg-[var(--surface)] border-[var(--border)] hover:border-indigo-400'
-      }">
-        <img src="${info.img}" alt="${escapeHtml(ap)}" class="w-8 h-8 rounded object-cover shrink-0 border border-black/10 dark:border-white/10" onerror="this.style.display='none'" />
-        <div class="min-w-0 flex-1">
-          <div class="text-[11px] font-bold truncate ${isSelected ? 'text-indigo-600 dark:text-indigo-400' : ''}">${escapeHtml(ap)} — ${escapeHtml(info.tag)}</div>
-          <div class="text-[9px] text-[var(--text-faint)] truncate capitalize">${escapeHtml(info.desc.slice(0, 30))}...</div>
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  // Update labels
-  const camLbl = document.getElementById('selectedCameraLabel');
-  if (camLbl) camLbl.textContent = cinemaState.camera;
-  const lensLbl = document.getElementById('selectedLensLabel');
-  if (lensLbl) lensLbl.textContent = cinemaState.lens;
-  const focLbl = document.getElementById('selectedFocalLabel');
-  if (focLbl) focLbl.textContent = `${cinemaState.focal}mm`;
-  const apLbl = document.getElementById('selectedApertureLabel');
-  if (apLbl) apLbl.textContent = cinemaState.aperture;
-
-  // Update Aspect Ratio button styles
-  document.querySelectorAll('.cinema-aspect-btn').forEach(btn => {
-    const ratio = btn.dataset.ratio;
-    if (ratio === cinemaState.aspectRatio) {
-      btn.className = 'cinema-aspect-btn px-2.5 py-1 rounded-lg text-xs font-bold border border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-300';
-    } else {
-      btn.className = 'cinema-aspect-btn px-2.5 py-1 rounded-lg text-xs font-semibold border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] hover:border-indigo-500';
-    }
-  });
-
-  updateCompiledCinemaPrompt();
-}
-
-function setCinemaCamera(cam) {
-  if (CINEMA_CAMERAS[cam]) {
-    cinemaState.camera = cam;
-    renderCinemaStudio();
-  }
-}
-
-function setCinemaLens(lens) {
-  if (CINEMA_LENSES[lens]) {
-    cinemaState.lens = lens;
-    renderCinemaStudio();
-  }
-}
-
-function setCinemaFocal(focal) {
-  if (CINEMA_FOCALS[focal]) {
-    cinemaState.focal = Number(focal);
-    renderCinemaStudio();
-  }
-}
-
-function setCinemaAperture(ap) {
-  if (CINEMA_APERTURES[ap]) {
-    cinemaState.aperture = ap;
-    renderCinemaStudio();
-  }
-}
-
-function setCinemaAspectRatio(ratio) {
-  cinemaState.aspectRatio = ratio;
-  renderCinemaStudio();
-}
-
-function applyCinemaPreset(key) {
-  const p = CINEMA_PRESETS[key];
-  if (!p) return;
-  cinemaState.camera = p.camera;
-  cinemaState.lens = p.lens;
-  cinemaState.focal = p.focal;
-  cinemaState.aperture = p.aperture;
-  cinemaState.aspectRatio = p.aspectRatio;
-  renderCinemaStudio();
-  showToast(`Applied preset: ${key.toUpperCase()}`);
-}
-
-function resetCinemaControls() {
-  applyCinemaPreset('hollywood');
-  const baseArea = document.getElementById('cinemaBasePrompt');
-  if (baseArea) {
-    baseArea.value = "Modern boutique dental clinic lobby with warm natural sunlight streaming through floor-to-ceiling architectural glass, peaceful patient waiting area, minimalist organic textures";
-    updateCompiledCinemaPrompt();
-  }
-  showToast("Cinema Studio reset to Hollywood default.");
-}
-
-function appendCinemaTag(tag) {
-  const baseArea = document.getElementById('cinemaBasePrompt');
-  if (!baseArea) return;
-  const current = baseArea.value.trim();
-  if (current.includes(tag)) return;
-  baseArea.value = current ? `${current}, ${tag}` : tag;
-  updateCompiledCinemaPrompt();
-}
-
-function updateCompiledCinemaPrompt() {
-  const baseArea = document.getElementById('cinemaBasePrompt');
-  const promptBox = document.getElementById('cinemaCompiledPromptBox');
-  const countEl = document.getElementById('cinemaPromptCharCount');
-  if (!promptBox) return;
-
-  const basePrompt = baseArea ? baseArea.value : cinemaState.basePrompt;
-  cinemaState.basePrompt = basePrompt;
-  const compiled = buildNanoBananaPrompt(
-    basePrompt,
-    cinemaState.camera,
-    cinemaState.lens,
-    cinemaState.focal,
-    cinemaState.aperture
-  );
-
-  promptBox.textContent = compiled;
-  if (countEl) {
-    countEl.textContent = `${compiled.length} chars • Ratio: ${cinemaState.aspectRatio}`;
-  }
-}
-
-async function copyCinemaPrompt() {
-  const promptBox = document.getElementById('cinemaCompiledPromptBox');
-  if (!promptBox) return;
-  const text = promptBox.textContent;
-  try {
-    await navigator.clipboard.writeText(text);
-    const btn = document.getElementById('copyCinemaPromptBtn');
-    if (btn) {
-      btn.innerHTML = '<span>✓</span> <span>Copied!</span>';
-      setTimeout(() => {
-        btn.innerHTML = '<span>📋</span> <span>Copy Prompt</span>';
-      }, 1500);
-    }
-    showToast('Cinematic prompt copied to clipboard!');
-  } catch (e) {
-    showToast('Unable to copy to clipboard.');
-  }
-}
-
-async function copyHiggsfieldCliCommand() {
-  const promptBox = document.getElementById('cinemaCompiledPromptBox');
-  if (!promptBox) return;
-  const promptText = promptBox.textContent.replace(/"/g, '\\"');
-  const ratio = cinemaState.aspectRatio || '16:9';
-  const cmd = `higgsfield generate create gpt_image_2 --prompt "${promptText}" --aspect_ratio ${ratio}`;
-  try {
-    await navigator.clipboard.writeText(cmd);
-    const btn = document.getElementById('copyCliCommandBtn');
-    if (btn) {
-      btn.innerHTML = '<span>✓</span> <span>Command Copied!</span>';
-      setTimeout(() => {
-        btn.innerHTML = '<span>⚡</span> <span>Copy CLI Command</span>';
-      }, 1500);
-    }
-    showToast('Higgsfield CLI command copied to clipboard!');
-  } catch (e) {
-    showToast('Unable to copy CLI command.');
-  }
-}
-
-function dispatchCinemaPromptToCreativeTask() {
-  const promptBox = document.getElementById('cinemaCompiledPromptBox');
-  const promptText = promptBox ? promptBox.textContent : cinemaState.basePrompt;
-  const cam = cinemaState.camera;
-  const lens = cinemaState.lens;
-  const focal = `${cinemaState.focal}mm`;
-  const ap = cinemaState.aperture;
-  const ratio = cinemaState.aspectRatio;
-
-  const newTask = {
-    id: `task-cinema-${Date.now().toString(36)}`,
-    title: `Produce 8K Visual Asset (${ratio})`,
-    pipeline: 'ads-creative',
-    department: 'creative',
-    status: 'queued',
-    priority: 'high',
-    project_id: state.selectedProjectId || (state.projects[0]?.id || 'p-valioz-main'),
-    description: `Ground-Truth Cinema Studio Specs:\n- Camera: ${cam}\n- Lens: ${lens}\n- Focal: ${focal}\n- Aperture: ${ap}\n- Aspect Ratio: ${ratio}\n\nCompiled Prompt:\n${promptText}`,
-    created_at: new Date().toISOString()
-  };
-
-  if (!state.tasks) state.tasks = [];
-  state.tasks.unshift(newTask);
-  saveState();
-  renderDepartmentProjectsAndTasks('creative');
-  renderWorkbenchTasks();
-  updateLiveNavBadges();
-  showToast('Dispatched new creative visual task to Creative Studio & Workbench!');
-}
-
-window.renderCinemaStudio = renderCinemaStudio;
-window.setCinemaCamera = setCinemaCamera;
-window.setCinemaLens = setCinemaLens;
-window.setCinemaFocal = setCinemaFocal;
-window.setCinemaAperture = setCinemaAperture;
-window.setCinemaAspectRatio = setCinemaAspectRatio;
-window.applyCinemaPreset = applyCinemaPreset;
-window.resetCinemaControls = resetCinemaControls;
-window.appendCinemaTag = appendCinemaTag;
-window.updateCompiledCinemaPrompt = updateCompiledCinemaPrompt;
-window.copyCinemaPrompt = copyCinemaPrompt;
-window.copyHiggsfieldCliCommand = copyHiggsfieldCliCommand;
-window.dispatchCinemaPromptToCreativeTask = dispatchCinemaPromptToCreativeTask;
+window.openCommandPalette = openCommandPalette;
+window.closeCommandPalette = closeCommandPalette;
+window.toggleCommandPalette = toggleCommandPalette;
+window.filterCommandPalette = filterCommandPalette;
+window.handleCommandKeydown = handleCommandKeydown;
+window.selectCommandPaletteItem = selectCommandPaletteItem;
