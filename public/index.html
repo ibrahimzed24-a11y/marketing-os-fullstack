@@ -1105,19 +1105,57 @@
               <textarea id="mrBusinessIdeaInput" rows="2" placeholder="e.g. AI-powered patient intake and after-hours emergency triage platform for private clinics" class="input-field w-full text-xs p-3 leading-relaxed"></textarea>
             </div>
 
-            <!-- Target Geography (GEO) -->
-            <div class="space-y-1.5">
-              <label for="mrTargetGeoSelect" class="block text-xs font-bold text-slate-800 dark:text-slate-200">
-                Target Geography &amp; Local Market (GEO)
-              </label>
-              <select id="mrTargetGeoSelect" class="input-field w-full text-xs py-2 px-3">
-                <option value="Canada (Ontario, British Columbia, Alberta)" selected>Canada (Ontario, British Columbia, Alberta)</option>
-                <option value="United States (National - NY, CA, FL, TX)">United States (National - NY, CA, FL, TX)</option>
-                <option value="United Kingdom (London & Metros)">United Kingdom (London & Metros)</option>
-                <option value="United Arab Emirates (Dubai & Abu Dhabi)">United Arab Emirates (Dubai & Abu Dhabi)</option>
-                <option value="European Union (Germany, France, Netherlands)">European Union (Germany, France, Netherlands)</option>
-                <option value="Global / Multi-Region">Global / Multi-Region</option>
-              </select>
+            <!-- Target Geography (GEO) - Real Mapping with Typing & Syncing Search -->
+            <div class="space-y-1.5 relative" id="mrGeoSearchWrapper">
+              <div class="flex items-center justify-between">
+                <label for="mrTargetGeoInput" class="block text-xs font-bold text-slate-800 dark:text-slate-200">
+                  Target Geography &amp; Regional Market (GEO) <span class="text-rose-500">*</span>
+                </label>
+                <span class="text-[10px] text-teal-600 dark:text-teal-400 font-semibold flex items-center gap-1">
+                  <span class="w-1.5 h-1.5 rounded-full bg-teal-500 animate-pulse"></span>
+                  Real Syncing Search
+                </span>
+              </div>
+              <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400 text-xs">
+                  <span>📍</span>
+                </div>
+                <input 
+                  id="mrTargetGeoInput" 
+                  type="text" 
+                  autocomplete="off"
+                  placeholder="Type country, region or city (e.g. United Kingdom, London, Toronto, Dubai, New York)..." 
+                  class="input-field w-full text-xs py-2 pl-8 pr-7"
+                  value="United Kingdom (London &amp; Metros)"
+                  oninput="handleGeoSearchInput(this.value)"
+                  onfocus="handleGeoSearchInput(this.value, true)"
+                />
+                <button 
+                  type="button" 
+                  onclick="clearGeoSearchInput()" 
+                  id="mrGeoClearBtn"
+                  class="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer text-xs"
+                  title="Clear location"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <!-- Real-time Synced Suggestions Dropdown -->
+              <div 
+                id="mrTargetGeoSuggestions" 
+                class="hidden absolute z-50 left-0 right-0 mt-1 max-h-60 overflow-y-auto rounded-xl bg-[var(--surface)] border border-[var(--border)] shadow-xl p-1.5 space-y-1 text-xs backdrop-blur-md"
+              >
+                <!-- Populated via handleGeoSearchInput() -->
+              </div>
+
+              <!-- Synced GEO Region Mapping Badges -->
+              <div id="mrMappedGeoTags" class="flex flex-wrap items-center gap-1 pt-0.5 text-[10px]">
+                <span class="px-2 py-0.5 rounded-md bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20 font-medium">🇬🇧 United Kingdom</span>
+                <span class="px-2 py-0.5 rounded-md bg-slate-500/10 text-slate-700 dark:text-slate-300 border border-slate-500/20 font-medium">London &amp; Metros</span>
+                <span class="px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/20 font-medium">National SERP Active</span>
+              </div>
+              <input type="hidden" id="mrTargetGeoSelect" value="United Kingdom (London &amp; Metros)" />
             </div>
 
             <!-- Target Audience / ICP -->
@@ -1137,7 +1175,46 @@
             </div>
           </div>
 
-          <!-- Mandatory Assigned Tools Confirmation -->
+          <!-- Allocated Research Accounts & Live Tool Logins (from Saved Logins Vault) -->
+          <div class="p-3.5 rounded-2xl bg-[var(--surface-2)] border border-[var(--border)] space-y-2.5">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--border)] pb-2">
+              <div>
+                <div class="flex items-center gap-1.5">
+                  <span class="w-5 h-5 rounded-md bg-teal-500/20 text-teal-600 dark:text-teal-400 font-bold text-xs flex items-center justify-center">🔐</span>
+                  <h3 class="text-xs font-bold text-slate-900 dark:text-slate-100 tracking-tight">
+                    Allocated Research Tools &amp; Saved Logins
+                  </h3>
+                </div>
+                <p class="text-[10px] text-[var(--text-soft)] mt-0.5">
+                  Allocate saved credentials &amp; websites for the browser-use agent to navigate with real login sessions and extract live data.
+                </p>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-[9px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                  <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  Browser Agent Login Ready
+                </span>
+                <button type="button" onclick="navigateTo('view-logins')" class="btn-outline text-[10px] px-2 py-0.5 font-bold hover:border-teal-500">
+                  + Vault Logins
+                </button>
+              </div>
+            </div>
+
+            <!-- Dynamic 5-Tool Login Allocation Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2" id="mrAllocatedToolsGrid">
+              <!-- Populated dynamically via renderAllocatedResearchTools() -->
+            </div>
+
+            <div class="flex flex-wrap items-center justify-between gap-2 pt-1 text-[10px] text-[var(--text-soft)] border-t border-[var(--border)]">
+              <span class="flex items-center gap-1">
+                <span class="text-teal-500 font-bold">✓</span>
+                Browser agent will navigate live URLs with attached operator session to extract Search Console, Keyword Planner &amp; GTM telemetry.
+              </span>
+              <span class="font-mono text-[9px] text-slate-500">Operator: <strong class="text-slate-700 dark:text-slate-200" id="mrAllocatedOperatorBadge">ibrahim.zed24@gmail.com</strong></span>
+            </div>
+          </div>
+
+          <!-- Mandatory Assigned Tools Confirmation & Launch -->
           <div class="p-3.5 rounded-2xl bg-[var(--surface-2)] border border-[var(--border)] flex flex-wrap items-center justify-between gap-3 text-xs">
             <div class="flex items-center gap-2">
               <span class="text-emerald-500 font-bold">✓</span>

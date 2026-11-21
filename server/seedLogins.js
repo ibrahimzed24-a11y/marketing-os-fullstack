@@ -186,6 +186,22 @@ const SEEDED_LOGINS = [
     })
   },
   {
+    name: 'Google Tag Manager',
+    slug: 'google-tag-manager',
+    category: 'Analytics & Measurement',
+    website_url: 'https://tagmanager.google.com',
+    username: 'ibrahim.zed24@gmail.com',
+    password: '',
+    api_key: null,
+    notes: 'Container tag management, server-side conversion telemetry, GA4 event triggers, and pixel health audits.',
+    status: 'connected',
+    metadata: JSON.stringify({
+      container_id: 'GTM-V589K2L',
+      container_name: 'Valioz & Client Web Container',
+      environment: 'Live'
+    })
+  },
+  {
     name: 'Google Business Profile Manager',
     slug: 'google-business-profile',
     category: 'SEO & Search',

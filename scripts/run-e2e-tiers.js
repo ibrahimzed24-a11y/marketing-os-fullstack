@@ -38,6 +38,18 @@ const TIERS = [
     name: 'Tier 4 - Grounded Workload',
     file: 'tests/e2e/tier4-grounded-workload.test.js',
     description: 'Real-world Canadian dental clinic campaign grounded in /uploads (138 leads, 22 Priority-A leads, $499 offer line, #00a9a4 brand guidelines)'
+  },
+  {
+    tier: 5,
+    name: 'Tier 5 - Multi-Select Pipelines & 3-Tier KB',
+    file: 'tests/e2e/tier5-multiselect-kbtiers.test.js',
+    description: 'Multi-selection pipelines, 3-tier Knowledge Base hierarchy, pre-flight grounding gates, and projects directory'
+  },
+  {
+    tier: 6,
+    name: 'Tier 6 - 5-Tool Deep Market Research',
+    file: 'tests/e2e/tier6-deep-market-research.test.js',
+    description: 'Universal business idea research, typed GEO mapping, allocated tool logins, and authenticated browser use agent telemetry'
   }
 ];
 
@@ -92,7 +104,7 @@ function runTier(tier) {
 async function main() {
   const suiteStartTime = Date.now();
   console.log('╔══════════════════════════════════════════════════════════════╗');
-  console.log('║        MARKETING OS: END-TO-END 4-TIER TEST SUITE            ║');
+  console.log('║        MARKETING OS: END-TO-END 6-TIER TEST SUITE            ║');
   console.log('╚══════════════════════════════════════════════════════════════╝');
   console.log(`Node Runtime: ${process.version}`);
   console.log(`Working Directory: ${ROOT_DIR}\n`);

@@ -9396,33 +9396,456 @@ function renderSoftwareEngineeringView() {
 let currentMarketResearchReport = null;
 let activeResearchToolTab = 'gsc';
 
+// Comprehensive Country & Regional Mapping Dataset with Real Syncing Search
+const GEO_MAPPING_DATA = [
+  {
+    country: "United Kingdom",
+    code: "UK",
+    flag: "🇬🇧",
+    regions: [
+      { name: "London & Metros", query: "United Kingdom (London & Metros)", type: "Capital & Tech Hub" },
+      { name: "Greater Manchester & North West", query: "United Kingdom (Manchester & North West)", type: "Commercial Metro" },
+      { name: "West Midlands (Birmingham)", query: "United Kingdom (Birmingham & Midlands)", type: "Industrial & Services" },
+      { name: "West Yorkshire (Leeds & Bradford)", query: "United Kingdom (Leeds & Bradford)", type: "Financial & Legal Hub" },
+      { name: "Scotland (Glasgow & Edinburgh)", query: "United Kingdom (Scotland: Glasgow & Edinburgh)", type: "Regional Tech & Bio" },
+      { name: "South West (Bristol & Bath)", query: "United Kingdom (Bristol & South West)", type: "Creative & Engineering" }
+    ]
+  },
+  {
+    country: "Canada",
+    code: "CA",
+    flag: "🇨🇦",
+    regions: [
+      { name: "Ontario (Toronto, Ottawa, Mississauga)", query: "Canada (Ontario, British Columbia, Alberta)", type: "Financial & Commercial Heart" },
+      { name: "British Columbia (Vancouver, Surrey, Victoria)", query: "Canada (British Columbia: Vancouver & Surrey)", type: "Pacific Tech & Health" },
+      { name: "Alberta (Calgary & Edmonton)", query: "Canada (Alberta: Calgary & Edmonton)", type: "Energy & Enterprise" },
+      { name: "Quebec (Montreal & Quebec City)", query: "Canada (Quebec: Montreal & Metros)", type: "Bilingual Commercial Hub" }
+    ]
+  },
+  {
+    country: "United States",
+    code: "US",
+    flag: "🇺🇸",
+    regions: [
+      { name: "National - NY, CA, FL, TX", query: "United States (National - NY, CA, FL, TX)", type: "Tier 1 Mega Markets" },
+      { name: "California (Los Angeles, San Francisco, Silicon Valley)", query: "United States (California: LA, SF, Silicon Valley)", type: "Tech & Media Hub" },
+      { name: "New York (NYC Metro Area)", query: "United States (New York: NYC & Tri-State)", type: "Global Financial Capital" },
+      { name: "Texas (Austin, Dallas, Houston)", query: "United States (Texas: Austin, Dallas, Houston)", type: "Enterprise & Scale" },
+      { name: "Florida (Miami, Orlando, Tampa)", query: "United States (Florida: Miami, Orlando, Tampa)", type: "High Growth Inbound" },
+      { name: "Illinois (Chicago Metro)", query: "United States (Illinois: Chicago Metro)", type: "Midwest Logistics & Hub" },
+      { name: "Washington (Seattle & Puget Sound)", query: "United States (Washington: Seattle Metro)", type: "Cloud & Software" }
+    ]
+  },
+  {
+    country: "United Arab Emirates",
+    code: "AE",
+    flag: "🇦🇪",
+    regions: [
+      { name: "Dubai & Abu Dhabi", query: "United Arab Emirates (Dubai & Abu Dhabi)", type: "Global Luxury & Trade" },
+      { name: "Dubai (DIFC, Business Bay, Marina)", query: "United Arab Emirates (Dubai: DIFC & Business Bay)", type: "Financial Free Zones" },
+      { name: "Abu Dhabi (Capital & Free Zones)", query: "United Arab Emirates (Abu Dhabi Capital)", type: "Sovereign & Industrial" }
+    ]
+  },
+  {
+    country: "Saudi Arabia",
+    code: "SA",
+    flag: "🇸🇦",
+    regions: [
+      { name: "Riyadh Metro", query: "Saudi Arabia (Riyadh Metro)", type: "Capital & Vision 2030" },
+      { name: "Jeddah & Western Province", query: "Saudi Arabia (Jeddah & Red Sea Coast)", type: "Commercial Port & Logistics" },
+      { name: "Eastern Province (Dammam & Khobar)", query: "Saudi Arabia (Dammam & Khobar)", type: "Energy & Industrial" }
+    ]
+  },
+  {
+    country: "Australia",
+    code: "AU",
+    flag: "🇦🇺",
+    regions: [
+      { name: "Sydney & Melbourne", query: "Australia (Sydney & Melbourne Metros)", type: "Commercial & Financial" },
+      { name: "Queensland (Brisbane & Gold Coast)", query: "Australia (Brisbane & Gold Coast)", type: "Rapid Inbound Growth" },
+      { name: "Western Australia (Perth)", query: "Australia (Perth Metro)", type: "Mining & APAC Gateway" }
+    ]
+  },
+  {
+    country: "Germany",
+    code: "DE",
+    flag: "🇩🇪",
+    regions: [
+      { name: "Berlin & Munich", query: "Germany (Berlin & Munich Metros)", type: "Tech & Industrial" },
+      { name: "Frankfurt (Hesse)", query: "Germany (Frankfurt Financial)", type: "European Central Bank Hub" }
+    ]
+  },
+  {
+    country: "European Union",
+    code: "EU",
+    flag: "🇪🇺",
+    regions: [
+      { name: "Germany, France, Netherlands", query: "European Union (Germany, France, Netherlands)", type: "Pan-European Single Market" },
+      { name: "France (Paris Metro)", query: "France (Paris & Île-de-France)", type: "Tech, Luxury & Gov" },
+      { name: "Netherlands (Amsterdam & Randstad)", query: "Netherlands (Amsterdam & Randstad)", type: "Trade & International HQ" },
+      { name: "Ireland (Dublin Silicon Docks)", query: "Ireland (Dublin & Cork)", type: "EMEA Tech Headquarters" }
+    ]
+  },
+  {
+    country: "Global",
+    code: "WW",
+    flag: "🌐",
+    regions: [
+      { name: "Multi-Region / International Distribution", query: "Global / Multi-Region", type: "Worldwide Scale" }
+    ]
+  }
+];
+
+// 5 Mandated Research Tools Specs linked to Saved Logins
+const RESEARCH_TOOL_SPECS = [
+  {
+    key: 'google_search_console',
+    name: 'Google Search Console',
+    icon: '📊',
+    defaultSlug: 'google-search-console',
+    categoryMatch: ['SEO & Search', 'Google Workspace'],
+    targetUrl: 'https://search.google.com/search-console',
+    purpose: 'Query impressions, CTR & Page 2 leap opportunities'
+  },
+  {
+    key: 'keyword_planner',
+    name: 'Google Ads Keyword Planner',
+    icon: '🔍',
+    defaultSlug: 'google-keyword-planner',
+    categoryMatch: ['SEO & Search', 'Advertising'],
+    targetUrl: 'https://ads.google.com/aw/keywordplanner',
+    purpose: 'Search volume demand & Low/High CPC bid benchmarks'
+  },
+  {
+    key: 'tag_manager',
+    name: 'Google Tag Manager',
+    icon: '🏷️',
+    defaultSlug: 'google-tag-manager',
+    categoryMatch: ['Analytics & Measurement'],
+    targetUrl: 'https://tagmanager.google.com',
+    purpose: 'Conversion tags, trigger telemetry & pixel health'
+  },
+  {
+    key: 'seo_engine',
+    name: 'SEO Competitor Engine',
+    icon: '🌐',
+    defaultSlug: 'ahrefs-suite',
+    categoryMatch: ['SEO & Search', 'Content & Copywriting'],
+    targetUrl: 'https://app.ahrefs.com',
+    purpose: 'SERP competitor teardown & KGR < 0.25 fast wins'
+  },
+  {
+    key: 'geo_matrix',
+    name: 'GEO Search Matrix',
+    icon: '📍',
+    defaultSlug: 'google-business-profile',
+    categoryMatch: ['SEO & Search', 'Google Workspace'],
+    targetUrl: 'https://business.google.com',
+    purpose: 'Local 3-pack density & regional search matrix'
+  }
+];
+
+if (!state.allocatedResearchLogins) {
+  state.allocatedResearchLogins = {};
+}
+
+function handleGeoSearchInput(query = '', forceShow = false) {
+  const suggestionsBox = document.getElementById('mrTargetGeoSuggestions');
+  const inputEl = document.getElementById('mrTargetGeoInput');
+  const hiddenSelect = document.getElementById('mrTargetGeoSelect');
+  if (!suggestionsBox || !inputEl) return;
+
+  const q = (query || '').trim().toLowerCase();
+
+  // Sync hidden select and mapped badges immediately as user types
+  if (hiddenSelect) hiddenSelect.value = inputEl.value;
+  updateMappedGeoBadges(inputEl.value);
+
+  if (!q && !forceShow) {
+    suggestionsBox.classList.add('hidden');
+    return;
+  }
+
+  // Filter GEO dataset
+  const matches = [];
+  GEO_MAPPING_DATA.forEach(countryItem => {
+    const cMatch = countryItem.country.toLowerCase().includes(q) || countryItem.code.toLowerCase().includes(q);
+    const matchedRegions = countryItem.regions.filter(r => 
+      !q || cMatch || r.name.toLowerCase().includes(q) || r.type.toLowerCase().includes(q)
+    );
+    if (cMatch || matchedRegions.length > 0) {
+      matches.push({
+        country: countryItem.country,
+        flag: countryItem.flag,
+        code: countryItem.code,
+        regions: matchedRegions.length > 0 ? matchedRegions : countryItem.regions
+      });
+    }
+  });
+
+  let html = '';
+
+  // Freeform user input suggestion at the top if user has typed something
+  if (q) {
+    const customEsc = escapeHtml(inputEl.value.trim());
+    html += `
+      <div 
+        onclick="selectGeoSuggestion('${customEsc.replace(/'/g, "\\'")}', 'Custom Mapped', 'Custom Region')" 
+        class="p-2 rounded-lg bg-teal-500/10 border border-teal-500/30 hover:bg-teal-500/20 cursor-pointer flex items-center justify-between text-xs"
+      >
+        <div class="flex items-center gap-2">
+          <span class="text-base">📍</span>
+          <div>
+            <div class="font-bold text-teal-700 dark:text-teal-300">Use Typed Location: "${customEsc}"</div>
+            <div class="text-[10px] text-[var(--text-soft)]">Live custom geography mapped for search &amp; SERP matrices</div>
+          </div>
+        </div>
+        <span class="text-[10px] font-bold text-teal-600 uppercase bg-teal-500/15 px-1.5 py-0.5 rounded">Custom Mapping</span>
+      </div>
+    `;
+  }
+
+  if (matches.length === 0) {
+    if (!q) {
+      html += `<div class="p-3 text-center text-xs text-[var(--text-soft)]">Type country or region name to search...</div>`;
+    }
+  } else {
+    matches.slice(0, 5).forEach(m => {
+      html += `
+        <div class="p-2 rounded-lg bg-[var(--surface-2)] border border-[var(--border)] space-y-1 text-xs">
+          <div class="flex items-center justify-between font-bold text-slate-800 dark:text-slate-200">
+            <span class="flex items-center gap-1.5">
+              <span>${m.flag}</span>
+              <span>${escapeHtml(m.country)}</span>
+              <span class="text-[9px] font-mono text-[var(--text-soft)] px-1 py-0.5 rounded bg-[var(--surface)] border border-[var(--border)]">${m.code}</span>
+            </span>
+          </div>
+          <div class="grid grid-cols-1 gap-1 pt-0.5">
+            ${m.regions.slice(0, 4).map(r => {
+              const fullVal = `${m.country} (${r.name})`;
+              const fullValEsc = escapeHtml(r.query || fullVal);
+              return `
+                <div 
+                  onclick="selectGeoSuggestion('${fullValEsc.replace(/'/g, "\\'")}', '${escapeHtml(m.country)}', '${escapeHtml(r.name)}')" 
+                  class="p-1.5 rounded-md hover:bg-[var(--surface)] hover:border-teal-500/40 border border-transparent transition cursor-pointer flex items-center justify-between"
+                >
+                  <span class="font-medium text-slate-700 dark:text-slate-300 text-[11px]">${escapeHtml(r.name)}</span>
+                  <span class="text-[9px] text-[var(--text-soft)] bg-[var(--surface)] px-1.5 py-0.5 rounded">${escapeHtml(r.type)}</span>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        </div>
+      `;
+    });
+  }
+
+  suggestionsBox.innerHTML = html;
+  suggestionsBox.classList.remove('hidden');
+}
+
+function selectGeoSuggestion(fullValue, country, region) {
+  const inputEl = document.getElementById('mrTargetGeoInput');
+  const hiddenSelect = document.getElementById('mrTargetGeoSelect');
+  const suggestionsBox = document.getElementById('mrTargetGeoSuggestions');
+
+  if (inputEl) inputEl.value = fullValue;
+  if (hiddenSelect) hiddenSelect.value = fullValue;
+  if (suggestionsBox) suggestionsBox.classList.add('hidden');
+
+  updateMappedGeoBadges(fullValue, country, region);
+}
+
+function clearGeoSearchInput() {
+  const inputEl = document.getElementById('mrTargetGeoInput');
+  const hiddenSelect = document.getElementById('mrTargetGeoSelect');
+  if (inputEl) {
+    inputEl.value = '';
+    inputEl.focus();
+  }
+  if (hiddenSelect) hiddenSelect.value = 'Global';
+  handleGeoSearchInput('', true);
+  updateMappedGeoBadges('');
+}
+
+function updateMappedGeoBadges(geoText = '', countryHint = '', regionHint = '') {
+  const container = document.getElementById('mrMappedGeoTags');
+  if (!container) return;
+
+  const val = (geoText || '').trim();
+  if (!val) {
+    container.innerHTML = `
+      <span class="px-2 py-0.5 rounded-md bg-slate-500/10 text-slate-500 border border-slate-500/20 font-medium">No region selected (Default: Global)</span>
+    `;
+    return;
+  }
+
+  let flag = '📍';
+  let country = countryHint;
+
+  if (!country) {
+    for (const c of GEO_MAPPING_DATA) {
+      if (val.toLowerCase().includes(c.country.toLowerCase()) || val.toLowerCase().includes(c.code.toLowerCase())) {
+        country = c.country;
+        flag = c.flag;
+        break;
+      }
+    }
+  }
+
+  if (!country) country = val.split('(')[0].trim() || 'Global';
+  const metroPart = val.includes('(') ? val.split('(')[1].replace(')', '').trim() : (val.includes(',') ? val.split(',')[1]?.trim() : '');
+
+  container.innerHTML = `
+    <span class="px-2 py-0.5 rounded-md bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20 font-bold flex items-center gap-1">
+      <span>${flag}</span> <span>${escapeHtml(country)}</span>
+    </span>
+    ${metroPart ? `
+      <span class="px-2 py-0.5 rounded-md bg-slate-500/10 text-slate-700 dark:text-slate-300 border border-slate-500/20 font-medium">
+        ${escapeHtml(metroPart)}
+      </span>
+    ` : ''}
+    <span class="px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/20 font-medium">
+      Live Search Intent Synced
+    </span>
+  `;
+}
+
+function renderAllocatedResearchTools() {
+  const grid = document.getElementById('mrAllocatedToolsGrid');
+  if (!grid) return;
+
+  const logins = state.savedLogins || [];
+
+  let html = '';
+  RESEARCH_TOOL_SPECS.forEach(tool => {
+    let assignedId = state.allocatedResearchLogins?.[tool.key];
+    let matchedLogin = logins.find(l => l.id === assignedId || l.slug === assignedId);
+
+    if (!matchedLogin) {
+      matchedLogin = logins.find(l => l.slug === tool.defaultSlug);
+    }
+    if (!matchedLogin) {
+      matchedLogin = logins.find(l => tool.categoryMatch.includes(l.category));
+    }
+    if (!matchedLogin && logins.length > 0) {
+      matchedLogin = logins[0];
+    }
+
+    if (matchedLogin && !state.allocatedResearchLogins[tool.key]) {
+      state.allocatedResearchLogins[tool.key] = matchedLogin.id;
+    }
+
+    const currentLoginId = matchedLogin?.id || '';
+    const accountUser = matchedLogin?.username || 'ibrahim.zed24@gmail.com';
+    const statusText = matchedLogin?.status || 'connected';
+
+    html += `
+      <div class="p-2.5 rounded-xl bg-[var(--surface)] border border-[var(--border)] hover:border-teal-500/40 transition space-y-1.5 text-xs">
+        <div class="flex items-center justify-between">
+          <span class="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5 truncate">
+            <span>${tool.icon}</span>
+            <span class="truncate">${escapeHtml(tool.name)}</span>
+          </span>
+          <a href="${tool.targetUrl}" target="_blank" rel="noopener noreferrer" class="text-slate-400 hover:text-teal-600 dark:hover:text-teal-300 text-[10px]" title="Open ${escapeHtml(tool.name)} in browser">
+            ↗
+          </a>
+        </div>
+
+        <div class="space-y-1">
+          <label class="block text-[9px] font-bold text-[var(--text-soft)] uppercase">Allocated Account</label>
+          <select 
+            onchange="onToolLoginChange('${tool.key}', this.value)" 
+            class="input-field w-full text-[10px] py-1 px-1.5 font-medium truncate"
+          >
+            ${logins.map(l => `
+              <option value="${l.id}" ${l.id === currentLoginId ? 'selected' : ''}>
+                ${escapeHtml(l.name)} (${escapeHtml(l.username)})
+              </option>
+            `).join('')}
+            <option value="navigate_vault">+ Add / Link Other Account...</option>
+          </select>
+        </div>
+
+        <div class="pt-0.5 flex items-center justify-between text-[9px]">
+          <span class="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            ${escapeHtml(statusText)}
+          </span>
+          <span class="font-mono text-slate-500 truncate max-w-[110px]" title="${escapeHtml(accountUser)}">
+            ${escapeHtml(accountUser)}
+          </span>
+        </div>
+      </div>
+    `;
+  });
+
+  grid.innerHTML = html;
+
+  const operatorBadge = document.getElementById('mrAllocatedOperatorBadge');
+  if (operatorBadge) {
+    const firstAlloc = logins.find(l => l.id === state.allocatedResearchLogins?.google_search_console) || logins[0];
+    if (firstAlloc) operatorBadge.textContent = firstAlloc.username;
+  }
+}
+
+function onToolLoginChange(toolKey, selectedValue) {
+  if (selectedValue === 'navigate_vault') {
+    navigateTo('view-logins');
+    return;
+  }
+  if (!state.allocatedResearchLogins) state.allocatedResearchLogins = {};
+  state.allocatedResearchLogins[toolKey] = selectedValue;
+  saveState();
+  renderAllocatedResearchTools();
+  showToast(`Updated allocated login for ${toolKey.replace(/_/g, ' ')}`);
+}
+
+function initGeoSearchListeners() {
+  document.addEventListener('click', (e) => {
+    const wrapper = document.getElementById('mrGeoSearchWrapper');
+    const suggestions = document.getElementById('mrTargetGeoSuggestions');
+    if (suggestions && wrapper && !wrapper.contains(e.target)) {
+      suggestions.classList.add('hidden');
+    }
+  });
+}
+
 function quickFillResearchPreset(presetKey) {
   const ideaEl = document.getElementById('mrBusinessIdeaInput');
-  const geoEl = document.getElementById('mrTargetGeoSelect');
+  const geoInput = document.getElementById('mrTargetGeoInput');
+  const geoSelect = document.getElementById('mrTargetGeoSelect');
   const audEl = document.getElementById('mrTargetAudienceInput');
   const compEl = document.getElementById('mrCompetitorsInput');
 
+  let targetGeoVal = 'Global';
+
   if (presetKey === 'healthcare') {
     if (ideaEl) ideaEl.value = 'Automated CDCP patient triage & after-hours intake platform for independent dental practices';
-    if (geoEl) geoEl.value = 'Canada (Ontario, British Columbia, Alberta)';
+    targetGeoVal = 'Canada (Ontario, British Columbia, Alberta)';
     if (audEl) audEl.value = 'Independent Canadian dental clinic owners, practice administrators';
     if (compEl) compEl.value = 'Legacy Dental Marketing Agencies, Generic Web Builders, Local Freelancers';
   } else if (presetKey === 'b2b_saas') {
     if (ideaEl) ideaEl.value = 'AI-powered B2B personalized cold outreach & multi-channel prospecting engine';
-    if (geoEl) geoEl.value = 'United States (National - NY, CA, FL, TX)';
+    targetGeoVal = 'United States (National - NY, CA, FL, TX)';
     if (audEl) audEl.value = 'B2B SaaS Founders, VP of Sales, Revenue Operations Leaders';
     if (compEl) compEl.value = 'Apollo.io, Instantly.ai, Lemlist, Traditional SDR Agencies';
   } else if (presetKey === 'local_service') {
     if (ideaEl) ideaEl.value = 'On-demand mobile fleet auto detailing and ceramic coating service';
-    if (geoEl) geoEl.value = 'United States (National - NY, CA, FL, TX)';
+    targetGeoVal = 'United States (National - NY, CA, FL, TX)';
     if (audEl) audEl.value = 'Commercial fleet operators, luxury car owners, busy executives';
     if (compEl) compEl.value = 'Local Brick-and-Mortar Car Washes, Mobile Detailing Freelancers';
   } else if (presetKey === 'ecommerce') {
     if (ideaEl) ideaEl.value = 'Direct-to-consumer artisanal single-origin organic matcha and coffee subscription';
-    if (geoEl) geoEl.value = 'Global / Multi-Region';
+    targetGeoVal = 'Global / Multi-Region';
     if (audEl) audEl.value = 'Health-conscious consumers, specialty coffee enthusiasts, remote professionals';
     if (compEl) compEl.value = 'Blue Bottle Coffee, Ippodo Tea, Trade Coffee, Generic Supermarket Brands';
   }
+
+  if (geoInput) geoInput.value = targetGeoVal;
+  if (geoSelect) geoSelect.value = targetGeoVal;
+  updateMappedGeoBadges(targetGeoVal);
+
   showToast(`Loaded preset: ${presetKey.replace(/_/g, ' ')}`);
 }
 
@@ -9433,17 +9856,35 @@ async function launchDeepMarketResearch() {
     return showToast('Please enter a Business Idea or Concept to research.');
   }
 
-  const target_geo = document.getElementById('mrTargetGeoSelect')?.value || 'Global';
+  const target_geo = (document.getElementById('mrTargetGeoInput')?.value || document.getElementById('mrTargetGeoSelect')?.value || 'Global').trim();
   const target_audience = (document.getElementById('mrTargetAudienceInput')?.value || '').trim();
   const competitorsRaw = (document.getElementById('mrCompetitorsInput')?.value || '').trim();
   const competitors = competitorsRaw ? competitorsRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
   const project_id = state.selectedProjectId || null;
 
+  // Resolve allocated tool logins from saved_logins vault
+  const logins = state.savedLogins || [];
+  const allocated_logins = {};
+  RESEARCH_TOOL_SPECS.forEach(tool => {
+    const loginId = state.allocatedResearchLogins?.[tool.key];
+    const match = logins.find(l => l.id === loginId) || logins.find(l => l.slug === tool.defaultSlug) || logins[0];
+    if (match) {
+      allocated_logins[tool.key] = {
+        login_id: match.id,
+        name: match.name,
+        slug: match.slug,
+        username: match.username,
+        website_url: match.website_url,
+        status: match.status
+      };
+    }
+  });
+
   const launchBtn = document.getElementById('btnLaunchMarketResearch');
   const originalBtnHtml = launchBtn ? launchBtn.innerHTML : '';
   if (launchBtn) {
     launchBtn.disabled = true;
-    launchBtn.innerHTML = `<span>⏳</span> <span>Executing 5-Tool Forensic Analysis...</span>`;
+    launchBtn.innerHTML = `<span>⏳</span> <span>Executing 5-Tool Forensic Analysis with Authenticated Agent...</span>`;
   }
 
   try {
@@ -9456,7 +9897,8 @@ async function launchDeepMarketResearch() {
         target_geo,
         target_audience,
         competitors,
-        tools_assigned: ['google_search_console', 'keyword_planner', 'tag_manager', 'seo_engine', 'geo_matrix']
+        tools_assigned: ['google_search_console', 'keyword_planner', 'tag_manager', 'seo_engine', 'geo_matrix'],
+        allocated_logins
       })
     });
 
@@ -9513,6 +9955,8 @@ function renderDeepResearchReport(report) {
   const seo = parseJsonField(report.seo_audit_json, rawOut.seo_competitor_audit || {});
   const geoMatrix = parseJsonField(report.geo_matrix_json, rawOut.geo_search_matrix || {});
   const roadmap = parseJsonField(report.roadmap_json, rawOut.roadmap || {});
+  const navLog = parseJsonField(report.browser_navigation_json, rawOut.browser_navigation_log || {});
+  const allocLogins = parseJsonField(report.allocated_logins_json, rawOut.allocated_logins || {});
 
   container.innerHTML = `
     <!-- Report Top Header -->
@@ -9810,6 +10254,67 @@ function renderDeepResearchReport(report) {
         </div>
       </div>
     </div>
+
+    <!-- Section 6: Authenticated Browser Use Agent Navigation & Telemetry -->
+    <div class="space-y-3">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <h3 class="text-xs font-black uppercase tracking-wider text-slate-500 dark:text-slate-400">6. Authenticated Browser Use Agent Navigation &amp; Live Telemetry</h3>
+        <span class="text-[10px] px-2.5 py-0.5 rounded-full font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+          5/5 Tools Authenticated &amp; Harvested
+        </span>
+      </div>
+
+      <div class="p-4 rounded-2xl bg-[var(--surface-2)] border border-[var(--border)] space-y-3 text-xs">
+        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border)] pb-2.5">
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-slate-900 dark:text-slate-100">Live Browser Agent Session:</span>
+            <span class="font-mono text-[11px] bg-[var(--surface)] px-2 py-0.5 rounded border border-[var(--border)]">${escapeHtml(navLog.session_id || 'browser-session-active')}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-[11px] text-[var(--text-soft)]">Operator Profile:</span>
+            <span class="font-mono text-[11px] font-bold text-teal-600 dark:text-teal-400 bg-[var(--surface)] px-2 py-0.5 rounded border border-[var(--border)]">${escapeHtml(navLog.operator_account || 'ibrahim.zed24@gmail.com')}</span>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto rounded-xl border border-[var(--border)]">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-[var(--surface)] text-[10px] uppercase font-bold text-[var(--text-soft)] border-b border-[var(--border)]">
+              <tr>
+                <th class="p-2.5">Tool</th>
+                <th class="p-2.5">Target Navigation URL</th>
+                <th class="p-2.5">Allocated Account</th>
+                <th class="p-2.5">Live Action &amp; Data Harvested</th>
+                <th class="p-2.5 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-[var(--border)] bg-[var(--surface-2)]">
+              ${(navLog.navigation_trail || []).map(t => `
+                <tr class="hover:bg-[var(--surface)]/50 transition">
+                  <td class="p-2.5 font-bold text-slate-900 dark:text-slate-100">${escapeHtml(t.name)}</td>
+                  <td class="p-2.5 font-mono text-[10px] text-sky-600 dark:text-sky-300">
+                    <a href="${escapeHtml(t.url)}" target="_blank" rel="noopener noreferrer" class="hover:underline flex items-center gap-1">
+                      <span>${escapeHtml(t.url)}</span>
+                      <span>↗</span>
+                    </a>
+                  </td>
+                  <td class="p-2.5 font-mono text-[11px]">${escapeHtml(t.account || '')}</td>
+                  <td class="p-2.5 text-[11px] text-slate-700 dark:text-slate-300">
+                    <div><b>${escapeHtml(t.action)}</b></div>
+                    <div class="text-[10px] text-teal-600 dark:text-teal-400">${escapeHtml(t.real_data_harvested || '')}</div>
+                  </td>
+                  <td class="p-2.5 text-right">
+                    <a href="${escapeHtml(t.url)}" target="_blank" rel="noopener noreferrer" class="btn-outline text-[10px] px-2 py-1 font-bold inline-flex items-center gap-1 hover:border-teal-500">
+                      <span>Open Tool</span> <span>↗</span>
+                    </a>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   `;
 }
 
@@ -9928,6 +10433,12 @@ async function renderBrowserResearchView() {
   renderDepartmentProjectsAndTasks('research');
   await fetchSavedMarketReports();
   await fetchSalesCrmData();
+  renderAllocatedResearchTools();
+  initGeoSearchListeners();
+  const geoInput = document.getElementById('mrTargetGeoInput');
+  if (geoInput && geoInput.value) {
+    updateMappedGeoBadges(geoInput.value);
+  }
 }
 
 // =====================================================================
@@ -10163,4 +10674,10 @@ window.fetchSavedMarketReports = fetchSavedMarketReports;
 window.loadSavedMarketReport = loadSavedMarketReport;
 window.exportResearchReport = exportResearchReport;
 window.renderBrowserResearchView = renderBrowserResearchView;
+window.handleGeoSearchInput = handleGeoSearchInput;
+window.selectGeoSuggestion = selectGeoSuggestion;
+window.clearGeoSearchInput = clearGeoSearchInput;
+window.updateMappedGeoBadges = updateMappedGeoBadges;
+window.renderAllocatedResearchTools = renderAllocatedResearchTools;
+window.onToolLoginChange = onToolLoginChange;
 

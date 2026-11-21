@@ -138,4 +138,55 @@ describe('Tier 6: 5-Tool Deep Market Research Engine for Any Business Idea', () 
     assert.strictEqual(data.report.id, createdReportId);
     assert.strictEqual(data.report.business_idea, 'AI-Powered Cold Outreach Engine for B2B SaaS');
   });
+
+  it('TEST-MR-05: Executes Deep Market Research with user\'s typed UK GEO and allocated tool logins for authenticated browser agent', async () => {
+    const res = await fetch(`${server.baseUrl}/api/market-research`, {
+      method: 'POST',
+      headers: adminAuth.headers,
+      body: JSON.stringify({
+        business_idea: 'selling seo geo optimised website building service',
+        target_geo: 'United Kingdom (London & Metros)',
+        target_audience: "good Businesses without who doesn't have a website .",
+        competitors: ['genericbuilder.com', 'legacyagencies.com'],
+        tools_assigned: ['google_search_console', 'keyword_planner', 'tag_manager', 'seo_engine', 'geo_matrix'],
+        allocated_logins: {
+          google_search_console: { slug: 'google-search-console', name: 'Google Search Console', username: 'ibrahim.zed24@gmail.com', website_url: 'https://search.google.com/search-console' },
+          keyword_planner: { slug: 'google-keyword-planner', name: 'Google Ads Keyword Planner', username: 'ibrahim.zed24@gmail.com', website_url: 'https://ads.google.com/aw/keywordplanner' },
+          tag_manager: { slug: 'google-tag-manager', name: 'Google Tag Manager', username: 'ibrahim.zed24@gmail.com', website_url: 'https://tagmanager.google.com' },
+          seo_engine: { slug: 'ahrefs-suite', name: 'Ahrefs All-in-One SEO Suite', username: 'seo-lead@valioz.com', website_url: 'https://app.ahrefs.com' },
+          geo_matrix: { slug: 'google-business-profile', name: 'Google Business Profile Manager', username: 'ibrahim.zed24@gmail.com', website_url: 'https://business.google.com' }
+        }
+      })
+    });
+
+    assert.strictEqual(res.status, 200);
+    const data = await res.json();
+    assert.strictEqual(data.ok, true);
+    assert.strictEqual(data.report.target_geo, 'United Kingdom (London & Metros)');
+    assert.strictEqual(data.report.business_idea, 'selling seo geo optimised website building service');
+
+    const out = data.output;
+    assert.ok(out.browser_navigation_log, 'Must contain browser navigation log');
+    assert.strictEqual(out.browser_navigation_log.status, 'authenticated_navigation_completed');
+    assert.strictEqual(out.browser_navigation_log.operator_account, 'ibrahim.zed24@gmail.com');
+    assert.strictEqual(out.browser_navigation_log.authenticated_tools_count, 5);
+    assert.strictEqual(out.browser_navigation_log.navigation_trail.length, 5);
+
+    // Verify all 5 allocated tools were navigated
+    const navTools = out.browser_navigation_log.navigation_trail.map(t => t.tool_key);
+    assert.ok(navTools.includes('google_search_console'));
+    assert.ok(navTools.includes('keyword_planner'));
+    assert.ok(navTools.includes('tag_manager'));
+    assert.ok(navTools.includes('seo_engine'));
+    assert.ok(navTools.includes('geo_matrix'));
+
+    // Verify Markdown report contains Section 6 with authenticated browser navigation
+    assert.ok(data.report_md.includes('Authenticated Browser Use Agent Navigation & Real Data Telemetry'));
+    assert.ok(data.report_md.includes('ibrahim.zed24@gmail.com'));
+    assert.ok(data.report_md.includes('https://search.google.com/search-console'));
+    assert.ok(data.report_md.includes('https://tagmanager.google.com'));
+    assert.ok(data.report_md.includes('**Verdict:** Ready to Deliver'));
+
+    assertNoSlop(data.report_md);
+  });
 });

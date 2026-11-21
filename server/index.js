@@ -1530,7 +1530,8 @@ app.post('/api/market-research', authMiddleware, asyncHandler(async (req, res) =
     target_geo = 'Global',
     competitors = [],
     target_audience = '',
-    tools_assigned = ['google_search_console', 'keyword_planner', 'tag_manager', 'seo_engine', 'geo_matrix']
+    tools_assigned = ['google_search_console', 'keyword_planner', 'tag_manager', 'seo_engine', 'geo_matrix'],
+    allocated_logins = {}
   } = req.body;
 
   if (!business_idea || !business_idea.trim()) {
@@ -1568,6 +1569,45 @@ app.post('/api/market-research', authMiddleware, asyncHandler(async (req, res) =
     project_id = proj.id;
   }
 
+  // Resolve and verify allocated tool logins from saved_logins
+  const allSavedLogins = db.prepare('SELECT id, slug, name, category, website_url, username, status, notes FROM saved_logins').all();
+  const resolvedLogins = { ...(allocated_logins || {}) };
+  const toolDefaults = {
+    google_search_console: ['google-search-console', 'gmail-workspace'],
+    keyword_planner: ['google-keyword-planner', 'meta-ads-manager'],
+    tag_manager: ['google-tag-manager', 'google-analytics-4'],
+    seo_engine: ['ahrefs-suite', 'semrush-suite', 'screaming-frog'],
+    geo_matrix: ['google-business-profile', 'gmail-workspace']
+  };
+
+  for (const [toolKey, defaultSlugs] of Object.entries(toolDefaults)) {
+    if (!resolvedLogins[toolKey]) {
+      const match = allSavedLogins.find(l => defaultSlugs.includes(l.slug)) || allSavedLogins.find(l => l.slug.includes(toolKey.replace(/_/g, '-')));
+      if (match) {
+        resolvedLogins[toolKey] = {
+          login_id: match.id,
+          name: match.name,
+          slug: match.slug,
+          username: match.username,
+          website_url: match.website_url,
+          status: match.status
+        };
+      }
+    } else if (typeof resolvedLogins[toolKey] === 'string') {
+      const match = allSavedLogins.find(l => l.id === resolvedLogins[toolKey] || l.slug === resolvedLogins[toolKey]);
+      if (match) {
+        resolvedLogins[toolKey] = {
+          login_id: match.id,
+          name: match.name,
+          slug: match.slug,
+          username: match.username,
+          website_url: match.website_url,
+          status: match.status
+        };
+      }
+    }
+  }
+
   // Create an explicit Task in the Research Department
   const taskId = uuidv4();
   const taskTitle = `Deep Market Research: ${business_idea.trim()}`;
@@ -1576,7 +1616,8 @@ app.post('/api/market-research', authMiddleware, asyncHandler(async (req, res) =
     target_geo: target_geo.trim(),
     competitors: Array.isArray(competitors) ? competitors : (typeof competitors === 'string' ? competitors.split(',').map(s=>s.trim()).filter(Boolean) : []),
     target_audience: target_audience.trim(),
-    tools_assigned: tools_assigned
+    tools_assigned: tools_assigned,
+    allocated_logins: resolvedLogins
   };
 
   db.prepare(`
@@ -1617,8 +1658,8 @@ app.post('/api/market-research', authMiddleware, asyncHandler(async (req, res) =
         executive_summary, market_sizing_json, competitor_analysis_json,
         opportunities_matrix_json, gsc_data_json, keyword_planner_data_json,
         tag_manager_data_json, seo_audit_json, geo_matrix_json, roadmap_json,
-        full_report_md, output_json, created_by
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        full_report_md, output_json, allocated_logins_json, browser_navigation_json, created_by
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       reportId,
       project_id,
@@ -1642,6 +1683,8 @@ app.post('/api/market-research', authMiddleware, asyncHandler(async (req, res) =
       JSON.stringify(outputJson.roadmap || {}),
       reportMd,
       JSON.stringify(outputJson),
+      JSON.stringify(resolvedLogins),
+      JSON.stringify(outputJson.browser_navigation_log || {}),
       req.user.name || req.user.email
     );
 

@@ -716,6 +716,8 @@ try {
     roadmap_json TEXT DEFAULT '{}',
     full_report_md TEXT,
     output_json TEXT DEFAULT '{}',
+    allocated_logins_json TEXT DEFAULT '{}',
+    browser_navigation_json TEXT DEFAULT '{}',
     created_by TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
@@ -828,6 +830,28 @@ try {
         CREATE INDEX IF NOT EXISTS idx_mr_project ON market_research_reports(project_id);
         CREATE INDEX IF NOT EXISTS idx_mr_task ON market_research_reports(task_id);
       `);
+    } catch (_) {}
+
+    // Check & add columns for allocated logins and browser navigation
+    try {
+      const pragmaMR = db.prepare("PRAGMA table_info(market_research_reports)").all();
+      if (!pragmaMR.some(c => c.name === 'allocated_logins_json')) {
+        db.prepare("ALTER TABLE market_research_reports ADD COLUMN allocated_logins_json TEXT DEFAULT '{}'").run();
+      }
+      if (!pragmaMR.some(c => c.name === 'browser_navigation_json')) {
+        db.prepare("ALTER TABLE market_research_reports ADD COLUMN browser_navigation_json TEXT DEFAULT '{}'").run();
+      }
+    } catch (_) {}
+
+    // Ensure Google Tag Manager is seeded in saved_logins
+    try {
+      const existingGtm = db.prepare("SELECT id FROM saved_logins WHERE slug = 'google-tag-manager'").get();
+      if (!existingGtm) {
+        db.prepare(`
+          INSERT INTO saved_logins (id, name, slug, category, website_url, username, password, api_key, notes, status, is_active, metadata, updated_at)
+          VALUES ('gtm-session-01', 'Google Tag Manager', 'google-tag-manager', 'Analytics & Measurement', 'https://tagmanager.google.com', 'ibrahim.zed24@gmail.com', '', null, 'Container tag management, server-side conversion telemetry, GA4 event triggers, and pixel health audits.', 'connected', 1, '{"container_id":"GTM-V589K2L","environment":"Live"}', CURRENT_TIMESTAMP)
+        `).run();
+      }
     } catch (_) {}
 
     // Multi-selection pipelines & deliverables + 3-tier Knowledge Bases (Helm, Project, Task)
