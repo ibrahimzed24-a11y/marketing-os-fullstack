@@ -179,8 +179,11 @@ async function ensureTursoSchema(db, c) {
       'ALTER TABLE approvals ADD COLUMN execution_receipt TEXT',
       "ALTER TABLE tasks ADD COLUMN department TEXT DEFAULT 'creative'",
       "ALTER TABLE projects ADD COLUMN department TEXT DEFAULT 'creative'",
+      "ALTER TABLE project_members ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP",
       "ALTER TABLE lead_whatsapp_messages ADD COLUMN custom_audio_blob TEXT DEFAULT ''",
-      "ALTER TABLE lead_whatsapp_messages ADD COLUMN audio_source TEXT DEFAULT 'master_human'"
+      "ALTER TABLE lead_whatsapp_messages ADD COLUMN audio_source TEXT DEFAULT 'master_human'",
+      "ALTER TABLE lead_whatsapp_messages ADD COLUMN voice_ai_prompt_blocks TEXT DEFAULT ''",
+      "ALTER TABLE lead_whatsapp_messages ADD COLUMN voice_ai_audit TEXT DEFAULT ''"
     ];
     for (const alterSql of columnMigrations) {
       try {
@@ -371,18 +374,43 @@ async function pushAllToTurso(db, c) {
   if (!c) return { ok: false, errors: [{ table: '*', error: 'Turso client unavailable' }] };
 
   await ensureTursoSchema(db, c);
+  try {
+    await c.execute('PRAGMA foreign_keys = OFF');
+  } catch (_) {}
   const errors = [];
 
   for (const tableName of SYNC_TABLES) {
     try {
       const localRows = db.prepare(`SELECT * FROM ${tableName}`).all();
       if (localRows.length > 0) {
-        for (const row of localRows) {
-          const cols = Object.keys(row);
-          const placeholders = cols.map(() => '?').join(', ');
-          const sql = `INSERT OR REPLACE INTO ${tableName} (${cols.join(', ')}) VALUES (${placeholders})`;
-          const vals = cols.map((k) => row[k]);
-          await c.execute({ sql, args: vals });
+        const BATCH_SIZE = 25;
+        for (let i = 0; i < localRows.length; i += BATCH_SIZE) {
+          const chunk = localRows.slice(i, i + BATCH_SIZE);
+          const stmts = chunk.map((row) => {
+            const cols = Object.keys(row);
+            const placeholders = cols.map(() => '?').join(', ');
+            let sql;
+            if (cols.includes('id')) {
+              const nonIdCols = cols.filter((c) => c !== 'id');
+              if (nonIdCols.length > 0) {
+                const updateSets = nonIdCols.map((c) => `${c} = excluded.${c}`).join(', ');
+                sql = `INSERT INTO ${tableName} (${cols.join(', ')}) VALUES (${placeholders}) ON CONFLICT(id) DO UPDATE SET ${updateSets}`;
+              } else {
+                sql = `INSERT OR IGNORE INTO ${tableName} (${cols.join(', ')}) VALUES (${placeholders})`;
+              }
+            } else {
+              sql = `INSERT OR REPLACE INTO ${tableName} (${cols.join(', ')}) VALUES (${placeholders})`;
+            }
+            const vals = cols.map((k) => row[k]);
+            return { sql, args: vals };
+          });
+          if (typeof c.batch === 'function') {
+            await c.batch(stmts, 'write');
+          } else {
+            for (const s of stmts) {
+              await c.execute(s);
+            }
+          }
         }
       }
     } catch (err) {
@@ -391,6 +419,9 @@ async function pushAllToTurso(db, c) {
     }
   }
 
+  try {
+    await c.execute('PRAGMA foreign_keys = ON');
+  } catch (_) {}
   return { ok: errors.length === 0, errors };
 }
 

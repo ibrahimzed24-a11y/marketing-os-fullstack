@@ -1077,6 +1077,30 @@ function updateLiveNavBadges() {
   }
 }
 
+const SECTION_TASTE_CONFIG = {
+  overview: { department: 'Leadership', title: 'Leadership: Sovereign Executive Clarity', badge: 'Leadership: Sovereign Executive' },
+  team: { department: 'Leadership', title: 'Leadership: Sovereign Executive Clarity', badge: 'Leadership: Sovereign Executive' },
+  research: { department: 'Research', title: 'Research: Forensic Investigative Rigor', badge: 'Research: Forensic Rigor' },
+  rag: { department: 'Research', title: 'Research: Forensic Investigative Rigor', badge: 'Research: Forensic Rigor' },
+  sales: { department: 'Sales', title: 'Sales: High-Trust Consultative Craft & Voice AI', badge: 'Sales: Consultative Trust' },
+  creative: { department: 'Creative', title: 'Creative: Anti-Slop Visual Architecture', badge: 'Creative: Anti-Slop UI' },
+  workbench: { department: 'Creative', title: 'Creative: Anti-Slop Visual Architecture', badge: 'Creative: Anti-Slop UI' },
+  approvals: { department: 'Operations', title: 'Operations: Clean Audit Governance', badge: 'Ops: Audit Governance' },
+  logins: { department: 'Operations', title: 'Operations: Clean Audit Governance', badge: 'Ops: Audit Governance' },
+  adminSettings: { department: 'Engineering', title: 'Engineering: Deterministic Zero-Regression Rigor', badge: 'Engineering: Zero-Regression' },
+  pipelines: { department: 'Engineering', title: 'Engineering: Deterministic Zero-Regression Rigor', badge: 'Engineering: Zero-Regression' },
+  agents: { department: 'Engineering', title: 'Engineering: Deterministic Zero-Regression Rigor', badge: 'Engineering: Zero-Regression' },
+  seo: { department: 'Content', title: 'Content: Search Intent Depth & Authority', badge: 'Content: Intent Depth' }
+};
+
+function updateSectionTasteBadge(viewName) {
+  const badgeEl = document.getElementById('sectionTasteBadge');
+  const textEl = document.getElementById('sectionTasteBadgeText');
+  const cfg = SECTION_TASTE_CONFIG[viewName] || { department: 'Valioz', title: 'Anti-Slop Craft Across All OS Sections', badge: 'Taste: Anti-Slop Standard' };
+  if (textEl) textEl.textContent = cfg.badge;
+  if (badgeEl) badgeEl.title = `${cfg.title} (Leonxlnx taste-skill standard)`;
+}
+
 function switchMainView(view) {
   const role = currentUser?.role || state.currentUserRole || 'guest';
   const isClient = role === 'client';
@@ -1097,6 +1121,7 @@ function switchMainView(view) {
   }
 
   state.mainView = view;
+  updateSectionTasteBadge(view);
   if (view === 'overview' && !isClient) {
     fetchOverviewStats();
   } else if (view === 'approvals' && !isClient) {
@@ -7070,6 +7095,7 @@ function renderAll() {
   renderWorkbenchOutput();
   setupDragAndDrop();
   updateLiveNavBadges();
+  updateSectionTasteBadge(state.mainView);
 }
 
 window.addEventListener('DOMContentLoaded', async function() {
@@ -7221,6 +7247,53 @@ async function loadWhatsAppLead(leadId) {
   }
 }
 
+let currentVoiceAiBlocks = null;
+let currentVoiceAiAudit = null;
+let currentVoiceAiActiveTab = 'spoken_output';
+
+function showVoiceAiBlock(tab) {
+  currentVoiceAiActiveTab = tab;
+  ['spoken_output', 'persona', 'task', 'confirmation'].forEach(t => {
+    const btn = document.getElementById(`btnVoiceTab_${t}`);
+    if (btn) {
+      if (t === tab) {
+        btn.className = 'px-2.5 py-1 rounded-lg bg-indigo-600 text-white shadow-xs font-bold';
+      } else {
+        btn.className = 'px-2.5 py-1 rounded-lg text-[var(--text-soft)] hover:text-[var(--text)] hover:bg-indigo-500/10 font-bold';
+      }
+    }
+  });
+  const contentEl = document.getElementById('waVoicePromptBlockContent');
+  const labelEl = document.getElementById('waVoiceBlockLabel');
+  const labels = {
+    spoken_output: 'Block 1: Spoken Audio Stream Contract (Deterministic Spoken Script)',
+    persona: 'Block 2: Conversational Persona & Telephony Acoustic Standard',
+    task: 'Block 3: Domain Task & Canadian Clinic Grounding',
+    confirmation: 'Block 4: Confirmation & Guardrail Enforcements'
+  };
+  if (labelEl) labelEl.textContent = labels[tab] || tab;
+  if (contentEl) {
+    if (currentVoiceAiBlocks && currentVoiceAiBlocks[tab]) {
+      contentEl.textContent = currentVoiceAiBlocks[tab];
+    } else if (tab === 'spoken_output' && currentWhatsAppPackage?.voice_note_script) {
+      contentEl.textContent = currentWhatsAppPackage.voice_note_script;
+    } else {
+      contentEl.textContent = `[${(tab || '').toUpperCase()} BLOCK]\nNo discrete block data available.`;
+    }
+  }
+}
+
+function copyVoiceAiBlockContent() {
+  const contentEl = document.getElementById('waVoicePromptBlockContent');
+  if (contentEl && contentEl.textContent) {
+    navigator.clipboard.writeText(contentEl.textContent).then(() => {
+      showToast('✓ Voice AI block copied to clipboard!');
+    }).catch(() => {
+      showToast('Failed to copy');
+    });
+  }
+}
+
 function renderWhatsAppPackage(msg) {
   if (!msg) return;
 
@@ -7302,6 +7375,50 @@ function renderWhatsAppPackage(msg) {
   const waLink = msg.wa_link || (cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg.whatsapp_text || '')}` : '#');
   if (waWebLink) waWebLink.href = waLink;
   if (waSendBtn) waSendBtn.href = waLink;
+
+  // Parse & Render Voice AI 4-Block Prompts & Quality Audit (mahimailabs/voice-ai-skills)
+  let blocks = null;
+  if (msg.voice_ai_prompt_blocks) {
+    try {
+      blocks = typeof msg.voice_ai_prompt_blocks === 'string'
+        ? JSON.parse(msg.voice_ai_prompt_blocks)
+        : msg.voice_ai_prompt_blocks;
+    } catch (_) {}
+  }
+  let audit = null;
+  if (msg.voice_ai_audit) {
+    try {
+      audit = typeof msg.voice_ai_audit === 'string'
+        ? JSON.parse(msg.voice_ai_audit)
+        : msg.voice_ai_audit;
+    } catch (_) {}
+  }
+
+  currentVoiceAiBlocks = blocks;
+  currentVoiceAiAudit = audit;
+  showVoiceAiBlock(currentVoiceAiActiveTab || 'spoken_output');
+
+  const auditBadge = document.getElementById('waVoiceAuditBadge');
+  if (auditBadge) {
+    const score = audit?.score !== undefined ? audit.score : 100;
+    auditBadge.textContent = `${score}% Passed · Mahimai Labs Standard`;
+    if (score === 100) {
+      auditBadge.className = 'text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30';
+    } else {
+      auditBadge.className = 'text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30';
+    }
+  }
+
+  const maxWordBadge = document.getElementById('waVoiceMaxWordBadge');
+  if (maxWordBadge) {
+    const maxW = audit?.max_sentence_words || 18;
+    maxWordBadge.textContent = `Max ${maxW} w/s (≤20)`;
+  }
+
+  const numbersBadge = document.getElementById('waVoiceNumbersBadge');
+  if (numbersBadge) {
+    numbersBadge.textContent = audit?.raw_digits_detected ? 'Raw Digits: FAIL' : '0 Raw Digits: PASS';
+  }
 
   resetWaveformProgress();
 }

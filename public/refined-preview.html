@@ -718,6 +718,28 @@ kbd { background: rgba(255,255,255,.09); border: 1px solid rgba(255,255,255,.12)
                   </div>
                 </div>
 
+                <!-- Voice AI 4-Block Prompt Inspector (mahimailabs/voice-ai-skills) -->
+                <div class="card" style="padding:16px;background:rgba(99,102,241,0.04);border:1px solid rgba(99,102,241,0.25);">
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                    <div>
+                      <h3 style="font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px;">
+                        <span>🎙️ Voice AI Prompt Inspector</span>
+                        <span style="font-size:9px;background:rgba(37,211,102,0.15);color:#10b981;padding:1px 6px;border-radius:8px;font-weight:700;">100% Passed</span>
+                      </h3>
+                      <small style="color:var(--text-soft);font-size:10px;">mahimailabs/voice-ai-skills · voice-prompting v0.1.0</small>
+                    </div>
+                    <span style="font-size:10px;font-family:monospace;background:rgba(16,185,129,0.1);color:#10b981;padding:2px 6px;border-radius:4px;font-weight:700;">Max 18 w/s · 0 Digits</span>
+                  </div>
+                  <!-- Tabs preview -->
+                  <div style="display:flex;gap:4px;margin-bottom:8px;overflow-x:auto;">
+                    <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:#6366f1;color:#fff;">1. Spoken Output</span>
+                    <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:rgba(0,0,0,0.05);color:var(--text-soft);">2. Persona</span>
+                    <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:rgba(0,0,0,0.05);color:var(--text-soft);">3. Task</span>
+                    <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:6px;background:rgba(0,0,0,0.05);color:var(--text-soft);">4. Confirmation</span>
+                  </div>
+                  <pre style="font-size:10px;font-family:monospace;background:#0f172a;color:#e2e8f0;padding:10px;border-radius:8px;max-height:100px;overflow-y:auto;white-space:pre-wrap;margin:0;border:1px solid rgba(99,102,241,0.2);">Hi Fraserview Dentist team, this is Ibrahim Zid calling from Valioz Health in Vancouver. I came across your practice and saw your four point nine star rating with over one thousand reviews. That reputation in Vancouver is genuinely impressive.</pre>
+                </div>
+
                 <!-- Real Human Voice Studio Controls in Preview -->
                 <div class="card" style="padding:16px;background:var(--surface);">
                   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
@@ -1179,6 +1201,19 @@ kbd { background: rgba(255,255,255,.09); border: 1px solid rgba(255,255,255,.12)
   function render() {
     const activeLabel = NAV.find((n) => n.id === state.view)?.label || 'Overview';
     const unread = unreadNotifsCount();
+    const tasteProfiles = {
+      overview: { badge: 'Sovereign Executive', title: 'Leadership: Sovereign Executive Clarity' },
+      research: { badge: 'Forensic Rigor', title: 'Research: Forensic Investigative Rigor' },
+      sales: { badge: 'Consultative Trust', title: 'Sales: High-Trust Consultative Craft & Voice AI' },
+      creative: { badge: 'Anti-Slop UI', title: 'Creative: Anti-Slop Visual Architecture' },
+      projects: { badge: 'Anti-Slop Architecture', title: 'Projects: Anti-Slop Craft & Execution' },
+      approvals: { badge: 'Audit Governance', title: 'Operations: Clean Audit Governance' },
+      team: { badge: 'Sovereign Team', title: 'Leadership: Sovereign Strategic Alignment' },
+      knowledge: { badge: 'Forensic Rigor', title: 'Research: Knowledge Grounding & Rigor' },
+      settings: { badge: 'Zero-Regression', title: 'Engineering: Deterministic Zero-Regression Rigor' }
+    };
+    const taste = tasteProfiles[state.view] || { badge: 'Anti-Slop Standard', title: 'Anti-Slop Craft Across All OS Sections' };
+
     let mainView = '';
     if (state.view === 'overview') mainView = renderOverview();
     else if (state.view === 'projects') mainView = renderProjects();
@@ -1198,7 +1233,13 @@ kbd { background: rgba(255,255,255,.09); border: 1px solid rgba(255,255,255,.12)
         <main class="main-shell">
           <header class="topbar">
             <div class="mobile-brand"><button class="mobile-menu-button" data-action="toggle-mobile-menu">${icon('menu', 19)}</button><div class="brand-lockup brand-compact"><span class="brand-mark"><i></i><i></i><i></i><b></b></span></div></div>
-            <div class="breadcrumb"><span>Workspace</span>${icon('chevron', 14)}<strong>${activeLabel}</strong></div>
+            <div class="breadcrumb">
+              <span>Workspace</span>${icon('chevron', 14)}<strong>${activeLabel}</strong>
+              <span style="display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:12px;font-size:10px;font-weight:700;background:rgba(124,58,237,0.08);color:#7c3aed;border:1px solid rgba(124,58,237,0.2);margin-left:8px;" title="Taste Profile: ${taste.title} (Leonxlnx taste-skill standard)">
+                <span style="width:6px;height:6px;border-radius:50%;background:#7c3aed;"></span>
+                <span>Taste: ${taste.badge}</span>
+              </span>
+            </div>
             <div class="topbar-actions">
               <button class="topbar-search" data-action="open-command">${icon('search', 16)}<span>Search</span><kbd>⌘ K</kbd></button>
               <button class="notification-button" data-action="open-notifs" aria-label="Open notifications">${icon('bell', 18)}${unread > 0 ? `<i>${unread}</i>` : ''}</button>

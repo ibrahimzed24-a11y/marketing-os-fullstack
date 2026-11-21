@@ -35,18 +35,50 @@ const SKILL_CATALOG = [
   },
   {
     id: 'design-taste-frontend',
-    name: 'Taste Skill (Anti-Slop Frontend & Landing Pages)',
+    name: 'Taste Skill (Anti-Slop Craft Across All OS Sections)',
     source_repo: 'https://github.com/Leonxlnx/taste-skill.git',
     version: '2.5.1',
     file: 'design-taste-frontend/SKILL.md',
-    departments: ['creative'],
-    pipelines: ['landing-page', 'brand-kit', 'ads-creative'],
+    departments: ['leadership', 'research', 'sales', 'creative', 'engineering', 'analytics', 'content', 'ops'],
+    pipelines: ['*'],
     directive: [
-      '[SKILL: Leonxlnx/taste-skill v2.5.1]',
-      '- Build pages a real company would ship: state plainly what is sold, show real UI or realistic framing, never generic AI-slop templates.',
-      '- House rules: equal left/right edges, one clear idea per section, no redundant captions under visuals, crisp hierarchy (h1 names category + buyer, verb+object CTAs).',
-      '- Avoid gratuitous purple/violet gradients, cluttered cards, or filler testimonials. Keep copy tight (60-80 words per screen outside UI blocks).',
-      '- Include subtle purposeful hover/press micro-interactions and clean responsive layout down to 390px.'
+      '[SKILL: Leonxlnx/taste-skill v2.5.1 — Anti-Slop House Rules]',
+      '- Deliver work a sovereign, world-class company would ship: plain copy in a voice of its own, real UI and realistic framing, never generic AI-slop templates.',
+      '- House rules: equal left/right edges, one clear idea per screen or section, no redundant captions under visuals, crisp hierarchy, verb+object CTAs.',
+      '- Avoid gratuitous purple/violet gradients, glowing borders, cluttered cards, or filler testimonials. Keep copy tight and factual.',
+      '- Every department on Marketing OS possesses its own distinctive taste profile: executive clarity for Leadership, forensic rigor for Research, consultative trust for Sales, and unslop precision for Creative.'
+    ].join('\n')
+  },
+  {
+    id: 'voice-prompting',
+    name: 'Voice AI Prompting & Spoken Audio Craft',
+    source_repo: 'https://github.com/mahimailabs/voice-ai-skills.git',
+    version: '0.1.0',
+    file: 'voice-ai/voice-prompting/SKILL.md',
+    departments: ['sales', 'creative', 'leadership'],
+    pipelines: ['whatsapp-outreach', 'deal_proposal', 'email-campaign', '*'],
+    directive: [
+      '[SKILL: mahimailabs/voice-ai-skills — voice-prompting v0.1.0]',
+      '- Spoken voice notes are heard, not read. NEVER use markdown, bullet characters, headers, asterisks, or emoji in spoken copy.',
+      '- Maximum 20 words per sentence, exactly one idea per sentence.',
+      '- Spoken numbers must be written out in full words: "$499" becomes "four hundred ninety-nine dollars", "4.8★" becomes "four point eight stars", "307 reviews" becomes "three hundred and seven reviews".',
+      '- Split voice prompts into four discrete blocks: SPOKEN OUTPUT, PERSONA, TASK, and CONFIRMATION.',
+      '- Maintain natural human cadence with conversational commas and realistic breath pauses in an authentic, calm adult male voice.'
+    ].join('\n')
+  },
+  {
+    id: 'voice-telephony',
+    name: 'Voice AI Telephony & Acoustic Quality',
+    source_repo: 'https://github.com/mahimailabs/voice-ai-skills.git',
+    version: '0.1.0',
+    file: 'voice-ai/voice-telephony/SKILL.md',
+    departments: ['sales', 'leadership'],
+    pipelines: ['whatsapp-outreach', '*'],
+    directive: [
+      '[SKILL: mahimailabs/voice-ai-skills — voice-telephony v0.1.0]',
+      '- Acoustic delivery must be a calm, professional, authentic human male voice.',
+      '- Never allow robotic synthesis, flat tone, or artificial speedups.',
+      '- Standardize audio output to 22.05kHz 16-bit Mono PCM WAV with verified waveform headers.'
     ].join('\n')
   },
   {
@@ -157,23 +189,84 @@ function getInstalledSkills() {
   });
 }
 
+const DEPARTMENT_TASTE_PROFILES = {
+  leadership: [
+    '[SECTION TASTE: Leadership & Strategic Command — Sovereign Executive Clarity]',
+    '- Deliverables: Plain business English, decisive OKR framing, resource and risk transparency.',
+    '- Banished: Corporate filler ("synergize", "paradigm shift", "circle back", "value-add").',
+    '- Visual & Structure: Tabular numerals for all telemetry, clean DAG execution assignments, zero vanity charts.'
+  ].join('\n'),
+  research: [
+    '[SECTION TASTE: Market Intelligence & Lead Discovery — Forensic Investigative Rigor]',
+    '- Deliverables: Citation-backed findings, exact CPC and search volume metrics, structured competitor matrices.',
+    '- Banished: Unverified contact extrapolation, speculative market estimates, generic industry summaries.',
+    '- Visual & Structure: Direct evidence URLs, verified Google rating and review count badges, high-contrast tables.'
+  ].join('\n'),
+  sales: [
+    '[SECTION TASTE: Sales CRM & Client Outreach — High-Trust Consultative Craft]',
+    '- Deliverables: Hyper-personalized outreach grounded in real practice audits, humanized conversational tone.',
+    '- Banished: Aggressive sales hype ("10x your revenue overnight"), artificial urgency, spammy clickbait.',
+    '- Voice & WhatsApp: Governed by mahimailabs/voice-ai-skills: no markdown in spoken scripts, max 20 words per sentence, spoken numbers as words, calm authentic human male voice.'
+  ].join('\n'),
+  creative: [
+    '[SECTION TASTE: Creative Studio & Brand Delivery — Anti-Slop Visual Architecture]',
+    '- Deliverables: Valioz Health Deep Navy (#122f47) & Medical Teal (#00a9a4), one section per screen at 1440x900.',
+    '- Banished: Purple/violet gradients, glowing borders, cluttered cards, stock AI illustrations, floating blobs.',
+    '- Visual & Structure: Equal left/right edges, responsive layout down to 390px, purposeful hover micro-lifts, authentic clinical photography.'
+  ].join('\n'),
+  engineering: [
+    '[SECTION TASTE: Systems & Backend Architecture — Deterministic Zero-Regression Rigor]',
+    '- Deliverables: Strict API backward compatibility, AES-256-GCM encrypted key vaults, atomic Turso cloud sync.',
+    '- Banished: Silent error swallowing, hardcoded secrets, unhandled promise rejections, unvalidated inputs.',
+    '- Visual & Structure: Clear error envelopes, comprehensive status codes, end-to-end integration test suites.'
+  ].join('\n'),
+  analytics: [
+    '[SECTION TASTE: Growth Analytics & Attribution — Precision Telemetry Craft]',
+    '- Deliverables: Tabular data grids, verified conversion attribution, cohort retention metrics.',
+    '- Banished: Misleading axis scales, vanity metrics without conversion context, uncalibrated estimations.',
+    '- Visual & Structure: Monospace numbers, clean delta badges (+/- %), high-contrast data visualization.'
+  ].join('\n'),
+  content: [
+    '[SECTION TASTE: Content & SEO Architecture — Search Intent Depth]',
+    '- Deliverables: Clinical authority, patient-first intent satisfaction, semantic HTML hierarchy (h1 to h3).',
+    '- Banished: Keyword stuffing, repetitive filler paragraphs, generic medical advice without disclaimer.',
+    '- Visual & Structure: Clean typography hierarchy, schema markup, scannable editorial callouts.'
+  ].join('\n'),
+  ops: [
+    '[SECTION TASTE: Operations & Human Governance — Clean Audit Governance]',
+    '- Deliverables: Immutable audit logs, strict Gate G2 supervisor approval enforcement, SLA watchdog recovery.',
+    '- Banished: Bypassing human approval on external actions, untracked background mutations.',
+    '- Visual & Structure: Distinct pending vs executed state badges, clear timestamped audit trails.'
+  ].join('\n')
+};
+
 function getSkillsForTask(department = 'creative', pipeline = '') {
   const dept = String(department || '').toLowerCase();
   const pipe = String(pipeline || '').toLowerCase();
   return SKILL_CATALOG.filter((s) => {
     const absPath = path.join(SKILLS_ROOT, s.file);
     if (!fs.existsSync(absPath)) return false;
-    const deptMatch = s.departments.includes(dept);
+    const deptMatch = s.departments.includes('*') || s.departments.includes(dept);
     const pipeMatch = s.pipelines.includes('*') || s.pipelines.includes(pipe);
     return deptMatch && pipeMatch;
   });
 }
 
 function buildSkillDirectives(department, pipeline) {
+  const dept = String(department || '').toLowerCase();
   const matched = getSkillsForTask(department, pipeline);
+  const tasteProfile = DEPARTMENT_TASTE_PROFILES[dept] || DEPARTMENT_TASTE_PROFILES.creative;
+
+  const promptBlocks = matched.map((s) => s.directive);
+  if (tasteProfile) {
+    promptBlocks.unshift(tasteProfile);
+  }
+
   return {
+    department: dept,
+    tasteProfile,
     skills: matched.map((s) => ({ id: s.id, name: s.name, version: s.version, source_repo: s.source_repo })),
-    promptBlock: matched.map((s) => s.directive).join('\n\n')
+    promptBlock: promptBlocks.join('\n\n')
   };
 }
 
@@ -223,6 +316,7 @@ function lintDeliverableQuality(text = '', { skillsApplied = [] } = {}) {
 
 module.exports = {
   SKILL_CATALOG,
+  DEPARTMENT_TASTE_PROFILES,
   getInstalledSkills,
   getSkillsForTask,
   buildSkillDirectives,

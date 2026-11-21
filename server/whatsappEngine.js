@@ -299,22 +299,177 @@ function escapeXml(unsafe) {
 }
 
 /**
- * Generates personalized 25-30s conversational voice note script
+ * Converts numbers into natural spoken words following mahimailabs/voice-ai-skills
+ * (voice-prompting specification: numbers written as spoken words, not digits).
+ */
+function digitToWord(d) {
+  const map = { '0': 'zero', '1': 'one', '2': 'two', '3': 'three', '4': 'four', '5': 'five', '6': 'six', '7': 'seven', '8': 'eight', '9': 'nine' };
+  return map[d] || d;
+}
+
+function numberToSpokenWords(n) {
+  if (n === null || n === undefined || n === '') return '';
+  const str = String(n).trim();
+
+  // Decimal check (e.g. 4.8, 4.9)
+  if (str.includes('.')) {
+    const parts = str.split('.');
+    const intPart = numberToSpokenWords(parts[0]);
+    const decDigits = parts[1].split('').map(digitToWord).join(' ');
+    return `${intPart} point ${decDigits}`;
+  }
+
+  const num = parseInt(str.replace(/[^0-9]/g, ''), 10);
+  if (isNaN(num)) return str;
+
+  const ones = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
+    'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
+  const tens = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+
+  if (num === 0) return 'zero';
+  if (num < 20) return ones[num];
+  if (num < 100) return tens[Math.floor(num / 10)] + (num % 10 !== 0 ? '-' + ones[num % 10] : '');
+  if (num < 1000) {
+    const rem = num % 100;
+    return ones[Math.floor(num / 100)] + ' hundred' + (rem !== 0 ? ' and ' + numberToSpokenWords(rem) : '');
+  }
+  if (num < 1000000) {
+    const thousands = Math.floor(num / 1000);
+    const rem = num % 1000;
+    return numberToSpokenWords(thousands) + ' thousand' + (rem !== 0 ? ' ' + numberToSpokenWords(rem) : '');
+  }
+  return String(num);
+}
+
+function phoneToSpokenGroups(phone) {
+  const digits = String(phone || '').replace(/\D/g, '');
+  if (digits.length === 10) {
+    const p1 = digits.slice(0, 3).split('').map(digitToWord).join(' ');
+    const p2 = digits.slice(3, 6).split('').map(digitToWord).join(' ');
+    const p3 = digits.slice(6).split('').map(digitToWord).join(' ');
+    return `${p1}, ${p2}, ${p3}`;
+  }
+  return digits.split('').map(digitToWord).join(' ');
+}
+
+function spokenClinicName(name) {
+  return String(name || '')
+    .replace(/\b(\d+)\b/g, (match) => {
+      if (match.length <= 4) {
+        return match.split('').map(digitToWord).join(' ');
+      }
+      return numberToSpokenWords(match);
+    });
+}
+
+/**
+ * Builds the 4-block Voice AI system prompt conforming to mahimailabs/voice-ai-skills (voice-prompting).
+ * Discrete blocks: SPOKEN OUTPUT, PERSONA, TASK, CONFIRMATION.
+ */
+function generateVoiceAiPromptBlocks(data) {
+  const clinicName = data.clinic_name || 'your clinic';
+  const spokenName = spokenClinicName(clinicName);
+  const city = data.city || 'Canada';
+  const rating = data.google_rating || '4.8';
+  const reviews = data.review_count || '280';
+  const spokenRating = numberToSpokenWords(rating);
+  const spokenReviews = numberToSpokenWords(reviews);
+
+  return {
+    spoken_output: [
+      'SPOKEN OUTPUT',
+      'You are heard, not read. No markdown, lists, symbols, or emoji in spoken replies.',
+      'One idea per sentence, strictly under twenty words.',
+      'Write spoken numbers as words: say four hundred ninety-nine dollars, not $499.',
+      'Never speak technical IDs, database keys, or raw tracking hashes.'
+    ].join('\n'),
+    persona: [
+      'PERSONA',
+      'You are Ibrahim Zid, founder of Valioz Health.',
+      'You speak in a calm, professional, authentic adult male voice.',
+      'Your cadence is relaxed, confident, and respectful of clinical practice owners.'
+    ].join('\n'),
+    task: [
+      'TASK',
+      `Deliver a personalized outreach audio message to ${spokenName} in ${city}.`,
+      `Acknowledge their verified rating of ${spokenRating} stars on ${spokenReviews} Google reviews.`,
+      'Highlight the identified after-hours emergency patient triage gap.',
+      'Present the four hundred ninety-nine dollar turnkey web engine with complete digital asset ownership.',
+      'Include thirty days of twenty-four seven AI Growth Agent support with zero staff workload.',
+      `Invite the practice owner to reply on WhatsApp for a two-minute live demo.`
+    ].join('\n'),
+    confirmation: [
+      'CONFIRMATION',
+      'Wait for the clinic owner or practice manager to reply directly.',
+      'Do not push for an immediate contract or pressure the clinic.',
+      'Verify that all spoken sentences remain strictly under twenty words.'
+    ].join('\n')
+  };
+}
+
+/**
+ * Runs deterministic Voice AI quality audit against mahimailabs/voice-ai-skills rules
+ */
+function auditVoiceScript(script) {
+  const text = String(script || '').trim();
+  const rawSentences = text.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 0);
+  const sentenceAudits = rawSentences.map((s, idx) => {
+    const cleaned = s.replace(/[^a-zA-Z0-9\s-]/g, '').trim();
+    const words = cleaned.split(/\s+/).filter(Boolean);
+    const wordCount = words.length;
+    return {
+      index: idx + 1,
+      text: s.trim(),
+      word_count: wordCount,
+      passed_length: wordCount <= 20
+    };
+  });
+
+  const maxWords = Math.max(...sentenceAudits.map(s => s.word_count), 0);
+  const allUnder20 = sentenceAudits.every(s => s.passed_length);
+  const hasMarkdown = /[*_#`[\]•]/.test(text);
+  const hasRawDigits = /\b\d+\b|\$\d+/.test(text);
+
+  const passed = allUnder20 && !hasMarkdown && !hasRawDigits;
+  return {
+    passed_audit: passed,
+    standard: 'mahimailabs/voice-ai-skills (voice-prompting v0.1.0)',
+    sentence_count: sentenceAudits.length,
+    max_words_per_sentence: maxWords,
+    word_cap_respected: allUnder20,
+    no_markdown_symbols: !hasMarkdown,
+    spoken_numbers_verified: !hasRawDigits,
+    score: passed ? 100 : Math.max(50, 100 - (hasMarkdown ? 25 : 0) - (hasRawDigits ? 25 : 0) - (allUnder20 ? 0 : 20)),
+    sentences: sentenceAudits
+  };
+}
+
+/**
+ * Generates personalized voice note script strictly compliant with mahimailabs/voice-ai-skills
+ * (voice-prompting rules: no markdown/symbols, max 20 words/sentence, spoken numbers as words).
  */
 function generateVoiceNoteScript(data) {
   const clinicName = data.clinic_name || 'your clinic';
+  const spokenName = spokenClinicName(clinicName);
   const city = data.city || 'Canada';
   const rating = data.google_rating || '4.8';
-  const reviews = data.review_count || '250';
-  const gaps = data.identified_gaps || 'having no live 24/7 emergency intake for after-hours patient inquiries';
+  const reviews = data.review_count || '280';
+  const spokenRating = numberToSpokenWords(rating);
+  const spokenReviews = numberToSpokenWords(reviews);
 
-  return `Hi ${clinicName} team in ${city}! This is Ibrahim from Valioz Health. I was reviewing dental practices across ${city} this morning and was genuinely impressed by your strong community reputation — ${rating} stars on over ${reviews} verified Google reviews is phenomenal.
+  const sentences = [
+    `Hi ${spokenName} team, this is Ibrahim from Valioz Health.`,
+    `I was reviewing dental clinics across ${city} and was impressed by your strong community standing.`,
+    `Your clinic holds ${spokenRating} stars across ${spokenReviews} verified Google reviews.`,
+    `We noticed patients searching for emergency care in the evenings find no automated triage on your site.`,
+    `We built a turnkey clinic web engine for four hundred ninety-nine dollars with complete client ownership.`,
+    `It includes thirty days of our twenty-four seven AI Growth Agent to capture emergency patient bookings.`,
+    `I attached your custom practice preview card right here on WhatsApp.`,
+    `Reply here if you would like to see the two-minute walkthrough for ${spokenName}.`,
+    `Have a wonderful rest of your week.`
+  ];
 
-I did notice an immediate growth opportunity: when local patients search for emergency care in the evenings or on weekends, there's currently no automated triage to capture those appointments before Monday morning.
-
-We've built a turnkey solution specifically for Canadian dental clinics: a complete modern web engine for a one-time purchase of $499 where you own 100% of all digital assets forever, plus 30 free days of our 24/7 AI Patient Growth Agent to recapture 15 to 25 missed emergency inquiries every month with zero staff workload.
-
-I've attached your clinic preview card right here on WhatsApp. If you'd like to see the 2-minute live demo customized for ${clinicName}, just reply here or give me a shout. Have a fantastic rest of your week!`;
+  return sentences.join('\n\n');
 }
 
 /**
@@ -493,6 +648,8 @@ function initWhatsAppTable(db) {
       voice_note_audio_url TEXT,
       custom_audio_blob TEXT,
       audio_source TEXT DEFAULT 'master_human',
+      voice_ai_prompt_blocks TEXT,
+      voice_ai_audit TEXT,
       whatsapp_text TEXT,
       wa_link TEXT,
       status TEXT DEFAULT 'ready' CHECK(status IN ('ready','staged','approved','sent')),
@@ -512,6 +669,12 @@ function initWhatsAppTable(db) {
     }
     if (!pragma.some(c => c.name === 'audio_source')) {
       db.prepare("ALTER TABLE lead_whatsapp_messages ADD COLUMN audio_source TEXT DEFAULT 'master_human'").run();
+    }
+    if (!pragma.some(c => c.name === 'voice_ai_prompt_blocks')) {
+      db.prepare("ALTER TABLE lead_whatsapp_messages ADD COLUMN voice_ai_prompt_blocks TEXT DEFAULT ''").run();
+    }
+    if (!pragma.some(c => c.name === 'voice_ai_audit')) {
+      db.prepare("ALTER TABLE lead_whatsapp_messages ADD COLUMN voice_ai_audit TEXT DEFAULT ''").run();
     }
   } catch (_) {}
 }
@@ -564,6 +727,8 @@ function generateOrGetWhatsAppMessage(db, projectId, leadId, overrides = {}) {
 
   const svgCard = generateSvgCard(payload);
   const voiceScript = overrides.voice_note_script || generateVoiceNoteScript(payload);
+  const voiceAiBlocks = generateVoiceAiPromptBlocks(payload);
+  const voiceAiAudit = auditVoiceScript(voiceScript);
   const waText = overrides.whatsapp_text || generateWhatsAppText(payload);
   const waLink = cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(waText)}` : '';
 
@@ -580,6 +745,8 @@ function generateOrGetWhatsAppMessage(db, projectId, leadId, overrides = {}) {
           voice_note_audio_url = ?,
           custom_audio_blob = COALESCE(?, custom_audio_blob),
           audio_source = COALESCE(?, audio_source),
+          voice_ai_prompt_blocks = ?,
+          voice_ai_audit = ?,
           whatsapp_text = ?, wa_link = ?,
           status = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
@@ -590,6 +757,8 @@ function generateOrGetWhatsAppMessage(db, projectId, leadId, overrides = {}) {
       audioUrl,
       overrides.custom_audio_blob !== undefined ? overrides.custom_audio_blob : null,
       overrides.audio_source || null,
+      JSON.stringify(voiceAiBlocks),
+      JSON.stringify(voiceAiAudit),
       waText, waLink,
       overrides.status || existing.status || 'ready',
       id
@@ -600,14 +769,17 @@ function generateOrGetWhatsAppMessage(db, projectId, leadId, overrides = {}) {
         id, project_id, lead_id, clinic_name, phone, city, province,
         google_rating, review_count, identified_gaps, offer_summary,
         image_card_svg, image_card_url, voice_note_script, voice_note_duration_sec,
-        voice_note_audio_url, custom_audio_blob, audio_source, whatsapp_text, wa_link, status,
+        voice_note_audio_url, custom_audio_blob, audio_source,
+        voice_ai_prompt_blocks, voice_ai_audit,
+        whatsapp_text, wa_link, status,
         created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     `).run(
       id, projectId, leadId, clinicName, phone, city, province,
       rating, reviews, gaps, offer,
       svgCard, imageUrl, voiceScript, 26,
       audioUrl, overrides.custom_audio_blob || '', overrides.audio_source || 'master_human',
+      JSON.stringify(voiceAiBlocks), JSON.stringify(voiceAiAudit),
       waText, waLink, 'ready'
     );
   }
@@ -679,6 +851,10 @@ module.exports = {
   ensureProjectLeads,
   generateSvgCard,
   generateVoiceNoteScript,
+  generateVoiceAiPromptBlocks,
+  auditVoiceScript,
+  numberToSpokenWords,
+  phoneToSpokenGroups,
   generateWhatsAppText,
   generatePcmWav,
   getMasterHumanVoiceWav,

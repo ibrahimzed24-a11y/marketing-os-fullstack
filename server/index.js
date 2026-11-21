@@ -60,6 +60,8 @@ const {
   ensureProjectLeads,
   generateOrGetWhatsAppMessage,
   generateBulkWhatsAppMessages,
+  generateVoiceAiPromptBlocks,
+  auditVoiceScript,
   generatePcmWav,
   getMasterHumanVoiceWav,
   saveLeadCustomAudio,
@@ -68,7 +70,7 @@ const {
   loadClinicIntelligence
 } = require('./whatsappEngine');
 const { POLICY_MATRIX, evaluatePolicy, dispatchExternalAction } = require('./approvalPolicy');
-const { getInstalledSkills } = require('./skillEngine');
+const { getInstalledSkills, DEPARTMENT_TASTE_PROFILES } = require('./skillEngine');
 const {
   startWatchdog,
   stopWatchdog,
@@ -993,6 +995,32 @@ app.post('/api/projects/:id/leads/:leadId/whatsapp-message', authMiddleware, req
   if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
   const message = generateOrGetWhatsAppMessage(db, req.params.id, req.params.leadId, req.body);
   res.json({ ok: true, message });
+}));
+
+// 4b. Get Voice AI Prompt blocks and audit metrics (mahimailabs/voice-ai-skills)
+app.get('/api/projects/:id/leads/:leadId/whatsapp-message/voice-prompt', authMiddleware, asyncHandler(async (req, res) => {
+  if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
+  const message = generateOrGetWhatsAppMessage(db, req.params.id, req.params.leadId);
+  let promptBlocks = null;
+  let audit = null;
+  try {
+    promptBlocks = message.voice_ai_prompt_blocks ? JSON.parse(message.voice_ai_prompt_blocks) : null;
+  } catch (_) {}
+  try {
+    audit = message.voice_ai_audit ? JSON.parse(message.voice_ai_audit) : null;
+  } catch (_) {}
+
+  if (!promptBlocks) promptBlocks = generateVoiceAiPromptBlocks(message);
+  if (!audit) audit = auditVoiceScript(message.voice_note_script);
+
+  res.json({
+    ok: true,
+    clinic_name: message.clinic_name,
+    spoken_script: message.voice_note_script,
+    prompt_blocks: promptBlocks,
+    audit,
+    standard: 'mahimailabs/voice-ai-skills (voice-prompting v0.1.0)'
+  });
 }));
 
 // 5. Download / stream authentic human voice note WAV audio
@@ -4127,6 +4155,7 @@ app.get('/api/skills', authMiddleware, asyncHandler(async (req, res) => {
     ok: true,
     total: skills.length,
     installed_count: skills.filter((s) => s.installed).length,
+    department_taste_profiles: DEPARTMENT_TASTE_PROFILES,
     skills
   });
 }));
