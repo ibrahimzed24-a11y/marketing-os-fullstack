@@ -4274,14 +4274,25 @@ function filterLlmProviders(filter) {
 }
 
 async function pingLlmProvider(provider) {
+  const urlEl = document.getElementById(`llm-url-${provider}`);
+  const modelEl = document.getElementById(`llm-model-${provider}`);
+  const keyEl = document.getElementById(`llm-key-${provider}`);
+  const typedUrl = urlEl?.value?.trim();
+  const typedModel = modelEl?.value?.trim();
+  const typedKey = keyEl?.value?.trim();
+
   showToast(`Testing connection to ${provider}...`);
   try {
     const res = await apiFetch(`/api/admin/llm-config/${provider}/test`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        
-      }
+      },
+      body: JSON.stringify({
+        ...(typedUrl ? { base_url: typedUrl } : {}),
+        ...(typedModel ? { default_model: typedModel } : {}),
+        ...(typedKey ? { api_key: typedKey } : {})
+      })
     });
     const data = await res.json();
     if (data.ok) {
@@ -4611,6 +4622,14 @@ function renderAdminSettingsView() {
         : 'border-[var(--border)]';
 
       const endpointVal = p.base_url || p.endpoint_url || '';
+      const isRemoteHost = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
+      const isLoopbackUrl = endpointVal.includes('127.0.0.1') || endpointVal.includes('localhost');
+      let localEngineHint = '';
+      if (!isCloud && isRemoteHost && isLoopbackUrl) {
+        localEngineHint = '<div class="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[10px] text-amber-700 dark:text-amber-300 leading-snug">' +
+          '<span>💡 <strong>Local Engine Note:</strong> Ollama is running on your Mac (<code>127.0.0.1:11434</code>). Open Marketing OS on <a href="http://localhost:3000" target="_blank" class="underline font-bold text-indigo-600 dark:text-indigo-400">http://localhost:3000</a> to connect directly, or supply a public tunnel URL.</span>' +
+        '</div>';
+      }
 
       return '<div class="card-subtle p-4 rounded-2xl border ' + cardBorder + ' flex flex-col justify-between space-y-3">' +
         '<div>' +
@@ -4624,6 +4643,7 @@ function renderAdminSettingsView() {
             primaryBadge +
           '</div>' +
           '<div class="space-y-2.5 mt-3 text-xs">' +
+            localEngineHint +
             '<div>' +
               '<label class="block text-[10px] font-semibold text-[var(--text-soft)] uppercase mb-1">Base Endpoint URL</label>' +
               '<input id="llm-url-' + p.provider + '" type="text" value="' + escapeHtml(endpointVal) + '" class="input-field text-xs mono py-1 px-2.5" />' +

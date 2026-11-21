@@ -154,9 +154,13 @@ if (turso.isConfigured()) {
 }
 
 app.use('/api', async (req, res, next) => {
+  if (req.path === '/health') return next();
   if (hydrationPromise) {
     try {
-      await hydrationPromise;
+      await Promise.race([
+        hydrationPromise,
+        new Promise((resolve) => setTimeout(resolve, 5000))
+      ]);
     } catch (err) {
       console.error(`[Turso] Hydration gate error: ${err.message}`);
     }

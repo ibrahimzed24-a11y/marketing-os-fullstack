@@ -123,6 +123,19 @@ async function pingProvider({ provider, baseUrl, apiKey, timeoutMs = 6000 }) {
     };
   }
 
+  const isLoopback = normBase.includes('127.0.0.1') || normBase.includes('localhost') || normBase.includes('0.0.0.0');
+  const isCloudRuntime = process.env.VERCEL === '1' || Boolean(process.env.AWS_REGION) || Boolean(process.env.VERCEL_ENV);
+
+  if (isCloudRuntime && isLoopback) {
+    return {
+      ok: false,
+      provider,
+      status: 'offline',
+      latency_ms: 0,
+      error: `Cloud backend cannot connect to local loopback (${normBase}). To use local ${meta.display_name}, open Marketing OS locally at http://localhost:3000, or provide a public tunnel URL (e.g., https://...ngrok-free.app).`
+    };
+  }
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
