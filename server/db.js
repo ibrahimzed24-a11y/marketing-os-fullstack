@@ -657,6 +657,36 @@ try {
   );
   CREATE INDEX IF NOT EXISTS idx_proposals_project ON lead_customized_proposals(project_id);
   CREATE INDEX IF NOT EXISTS idx_proposals_lead ON lead_customized_proposals(lead_id);
+
+  -- 37. Lead WhatsApp Messages & Personalized Voice Notes
+  CREATE TABLE IF NOT EXISTS lead_whatsapp_messages (
+    id TEXT PRIMARY KEY,
+    project_id TEXT NOT NULL,
+    lead_id TEXT NOT NULL,
+    clinic_name TEXT,
+    phone TEXT,
+    city TEXT,
+    province TEXT,
+    google_rating TEXT,
+    review_count TEXT,
+    identified_gaps TEXT,
+    offer_summary TEXT,
+    image_card_svg TEXT,
+    image_card_url TEXT,
+    voice_note_script TEXT,
+    voice_note_duration_sec INTEGER DEFAULT 25,
+    voice_note_audio_url TEXT,
+    whatsapp_text TEXT,
+    wa_link TEXT,
+    status TEXT DEFAULT 'ready' CHECK(status IN ('ready','staged','approved','sent')),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(project_id, lead_id),
+    FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE,
+    FOREIGN KEY(lead_id) REFERENCES leads(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_wa_project ON lead_whatsapp_messages(project_id);
+  CREATE INDEX IF NOT EXISTS idx_wa_lead ON lead_whatsapp_messages(lead_id);
   `);
 
   // Safe runtime migrations for customizable guidelines and multi-format files

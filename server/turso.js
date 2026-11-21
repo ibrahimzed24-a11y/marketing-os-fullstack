@@ -61,7 +61,8 @@ const SYNC_TABLES = [
   'agent_blueprints',
   'local_workers',
   'scheduled_email_campaigns',
-  'lead_customized_proposals'
+  'lead_customized_proposals',
+  'lead_whatsapp_messages'
 ];
 
 const CRITICAL_TABLES = new Set([

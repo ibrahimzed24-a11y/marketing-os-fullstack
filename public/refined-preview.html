@@ -249,11 +249,21 @@ kbd { background: rgba(255,255,255,.09); border: 1px solid rgba(255,255,255,.12)
       liveStream: true
     },
     notifications: [
+      { id: 'n0', title: 'Gate G2: WhatsApp Staged', text: '123 Kerrisdale Dental Centre WhatsApp outreach package staged for supervisor review.', time: 'Just now', tone: 'lime', unread: true, targetView: 'approvals' },
       { id: 'n1', title: 'Approval needed', text: 'Valioz Health dental outreach email sequence is ready for review.', time: '12 min ago', tone: 'coral', unread: true, targetView: 'approvals' },
       { id: 'n2', title: 'Research verified', text: 'Canadian dental clinic demand scan verified 138 high-intent leads.', time: '34 min ago', tone: 'indigo', unread: true, targetView: 'research' },
       { id: 'n3', title: 'Proposal staged', text: 'Brampton Dental Arts customized intake proposal staged with $26k ROI projection.', time: '1 hr ago', tone: 'lime', unread: true, targetView: 'sales' }
     ],
     approvals: [
+      {
+        id: 'APR-105', title: '123 Kerrisdale Dental Centre — WhatsApp Image & Voice Note Outreach', project: 'Valioz Health', owner: 'Ibrahim Zid', type: 'WhatsApp outreach', age: 'Just now', risk: 'Low', progress: 100, initials: 'IZ', status: 'review',
+        previewTag: 'WhatsApp Direct · 800x800 Card & 26s Voice Note', previewTitle: 'Ready-to-send WhatsApp image message card + personalized audio note for Vancouver clinic.', previewBody: 'Personalized dual-branded SVG/PNG image card and 26-second modulated PCM WAV voice note referencing 4.8★ rating on 307 Google reviews and after-hours emergency intake gap with $499 turnkey clinic website offer.',
+        checks: [
+          ['Lead & Reputation', '123 Kerrisdale Dental Centre, Vancouver BC · Verified 4.8★ (307 Google Reviews). Phone: (604) 263-7355.'],
+          ['Deliverable Assets', 'Dual-branded 800x800 SVG card, 26s synthesized PCM WAV audio, and formatted markdown copy with wa.me link.'],
+          ['Governance Status', 'Staged in Gate G2 for supervisor approval before live wa.me direct dispatch.']
+        ]
+      },
       {
         id: 'APR-104', title: 'Valioz Health — Canadian Dental Outreach Sequence', project: 'Valioz Health', owner: 'Ibrahim Zid', type: 'Email sequence', age: '12 min', risk: 'Low', progress: 96, initials: 'IZ', status: 'review',
         previewTag: 'Email sequence · 01 / 06', previewTitle: 'Turn after-hours dental inquiries into confirmed chair appointments.', previewBody: 'Valioz Health deploys a 24/7 AI-driven patient intake engine tailored exclusively for Canadian dental clinics with zero staff friction.',
@@ -560,7 +570,7 @@ kbd { background: rgba(255,255,255,.09); border: 1px solid rgba(255,255,255,.12)
     const tabs = deptId === 'research'
       ? ['Overview', 'Market analysis', 'Competitor audit', 'Lead discovery', 'SEO & GEO']
       : deptId === 'sales'
-      ? ['Overview', 'Pipeline', 'Outreach drafts', 'Lead scoring', 'Activities']
+      ? ['Overview', 'WhatsApp Studio', 'Pipeline', 'Outreach drafts', 'Lead scoring', 'Activities']
       : ['Overview', 'In production', 'Quality review', 'Service library'];
 
     let body = '';
@@ -609,6 +619,122 @@ kbd { background: rgba(255,255,255,.09); border: 1px solid rgba(255,255,255,.12)
     } else if (deptId === 'sales') {
       body = `
         <div class="content-grid">
+          ${tab === 'WhatsApp Studio' || tab === 'Overview' ? `
+          <section class="panel wide-panel" style="border: 1px solid rgba(37,211,102,0.3); background: linear-gradient(180deg, rgba(37,211,102,0.04) 0%, transparent 100%);">
+            <div class="section-heading">
+              <div>
+                <p class="eyebrow" style="color: #25D366;">WhatsApp Direct · Outreach Suite</p>
+                <h2>Ready-to-Send Image Message &amp; Voice Note</h2>
+              </div>
+              <div style="display:flex;gap:8px;align-items:center;">
+                <span class="badge" style="background:rgba(37,211,102,0.15);color:#25D366;border:1px solid rgba(37,211,102,0.3);font-weight:700;">138 / 138 Generated ✓</span>
+                <span class="badge badge-lime" data-action="open-approval" data-id="APR-105" style="cursor:pointer;" title="Click to inspect Gate G2 Approval"><span class="badge-dot"></span>Gate G2 Staged</span>
+                <button class="text-button" data-action="toast" data-msg="All 138 packages bulk synthesized and synchronized with database!">⚡ Bulk Synthesized</button>
+              </div>
+            </div>
+
+            <!-- WhatsApp Preview Grid -->
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:20px;margin-top:16px;">
+              <!-- WhatsApp Phone Mockup Bubble -->
+              <div style="background:#efeae2;border-radius:16px;padding:16px;border:1px solid var(--border);color:#111b21;">
+                <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(0,0,0,0.08);padding-bottom:10px;margin-bottom:12px;">
+                  <div style="display:flex;align-items:center;gap:10px;">
+                    <div style="width:36px;height:36px;border-radius:50%;background:#005c4b;color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;">🦷</div>
+                    <div>
+                      <strong style="font-size:13px;display:block;">Fraserview Dentist</strong>
+                      <small style="color:#667781;font-size:11px;">+1 (604) 325-1711 · Vancouver, BC</small>
+                    </div>
+                  </div>
+                  <span style="font-size:10px;background:#25D366;color:#fff;padding:2px 8px;border-radius:12px;font-weight:700;">ACTIVE</span>
+                </div>
+
+                <!-- Bubble 1: SVG Visual Image Card -->
+                <div style="background:#d9fdd3;border-radius:12px 0 12px 12px;padding:12px;margin-bottom:10px;box-shadow:0 1px 2px rgba(0,0,0,0.1);">
+                  <div style="font-size:10px;font-weight:800;color:#005c4b;text-transform:uppercase;margin-bottom:6px;">🖼️ Prepared Dual-Branded Clinic Card</div>
+                  <div style="background:#0E1318;border-radius:10px;padding:14px;color:#fff;border:1px solid rgba(125,42,232,0.4);">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                      <span style="font-size:10px;font-weight:700;color:#00C4CC;letter-spacing:0.05em;">VALIOZ HEALTH × FRASERVIEW</span>
+                      <span style="font-size:11px;font-weight:800;color:#FFB020;">4.9 ★ (1,220 Reviews)</span>
+                    </div>
+                    <div style="font-size:14px;font-weight:800;margin-bottom:4px;">Fraserview Dentist</div>
+                    <div style="font-size:11px;color:#9AA0A6;margin-bottom:8px;">📍 Vancouver, BC · Authorized CDCP Provider</div>
+                    <div style="background:rgba(255,87,87,0.15);border:1px solid rgba(255,87,87,0.3);border-radius:6px;padding:6px 8px;font-size:11px;color:#FF7059;margin-bottom:8px;">
+                      <strong>Audit Gap:</strong> No automated 24/7 emergency triage detected
+                    </div>
+                    <div style="background:rgba(255,255,255,0.05);border-radius:6px;padding:8px;font-size:11px;color:#E8EAED;">
+                      <div style="color:#00C4CC;font-weight:700;">$499 Turnkey Web Portal · 100% Client Ownership</div>
+                      <div style="color:#9AA0A6;margin-top:2px;">Includes 30 Days 24/7 AI Growth Agent for emergency capture</div>
+                    </div>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;font-size:10px;color:#667781;margin-top:6px;">
+                    <span>SVG / High-Res PNG</span>
+                    <span style="color:#53bdeb;font-weight:bold;">10:42 AM ✓✓</span>
+                  </div>
+                </div>
+
+                <!-- Bubble 2: Personalized Voice Note Player -->
+                <div style="background:#d9fdd3;border-radius:12px 0 12px 12px;padding:10px 12px;margin-bottom:10px;box-shadow:0 1px 2px rgba(0,0,0,0.1);">
+                  <div style="font-size:10px;font-weight:800;color:#005c4b;text-transform:uppercase;margin-bottom:6px;">🎙️ Personalized Voice Note (26s)</div>
+                  <div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.7);padding:8px 12px;border-radius:24px;">
+                    <button class="button-icon" data-action="toast" data-msg="Playing 26s personalized voice note for Fraserview Dentist..." style="width:34px;height:34px;border-radius:50%;background:#25D366;color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px;">▶</button>
+                    <div style="display:flex;gap:2.5px;align-items:center;height:24px;flex:1;">
+                      ${[8,14,22,12,18,26,14,8,16,24,18,10,22,28,16,12,20,24,14,10,18,24,12,6].map(h => `<span style="width:3px;height:${h}px;background:#25D366;border-radius:2px;display:inline-block;"></span>`).join('')}
+                    </div>
+                    <span style="font-size:11px;font-weight:700;color:#111b21;font-family:monospace;">0:26</span>
+                  </div>
+                  <div style="display:flex;justify-content:space-between;font-size:10px;color:#667781;margin-top:6px;">
+                    <span>Voice: Ibrahim Zid (Valioz Health)</span>
+                    <span style="color:#53bdeb;font-weight:bold;">10:42 AM ✓✓</span>
+                  </div>
+                </div>
+
+                <!-- Bubble 3: Formatted WhatsApp Message -->
+                <div style="background:#d9fdd3;border-radius:12px 0 12px 12px;padding:12px;box-shadow:0 1px 2px rgba(0,0,0,0.1);font-size:12px;line-height:1.5;">
+                  <div>👋 <strong>Hi Fraserview Dentist Team,</strong></div>
+                  <div style="margin-top:4px;">Loved seeing your <strong>4.9★ rating (1,220 reviews)</strong> in <strong>Vancouver</strong>!</div>
+                  <div style="margin-top:6px;">We noticed you don't currently have 24/7 automated emergency intake active on your site. We prepared a <strong>turnkey digital preview</strong>: $499 one-time (100% your property) + 30 free days of our AI patient agent to recapture 15-25 missed after-hours inquiries.</div>
+                  <div style="margin-top:6px;color:#005c4b;font-weight:700;">🎙️ Listen to the 26s voice note attached above!</div>
+                  <div style="display:flex;justify-content:space-between;font-size:10px;color:#667781;margin-top:6px;border-top:1px solid rgba(0,0,0,0.06);padding-top:4px;">
+                    <span style="color:#005c4b;font-weight:700;">Ready to send</span>
+                    <span style="color:#53bdeb;font-weight:bold;">10:42 AM ✓✓</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Action & Inspector Bar -->
+              <div style="display:flex;flex-direction:column;gap:14px;justify-content:space-between;">
+                <div class="card" style="padding:16px;">
+                  <h3 style="font-size:13px;font-weight:700;margin-bottom:8px;">Clinic Intelligence Breakdown</h3>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12px;">
+                    <div><span style="color:var(--text-soft);">Clinic:</span> <strong>Fraserview Dentist</strong></div>
+                    <div><span style="color:var(--text-soft);">Location:</span> <strong>Vancouver, BC</strong></div>
+                    <div><span style="color:var(--text-soft);">Rating:</span> <strong style="color:#FFB020;">4.9 ★</strong></div>
+                    <div><span style="color:var(--text-soft);">Reviews:</span> <strong>1,220 Google</strong></div>
+                    <div><span style="color:var(--text-soft);">Offer:</span> <strong>$499 Turnkey</strong></div>
+                    <div><span style="color:var(--text-soft);">AI Trial:</span> <strong>30 Free Days</strong></div>
+                  </div>
+                </div>
+
+                <div class="card" style="padding:16px;background:var(--surface);">
+                  <h3 style="font-size:13px;font-weight:700;margin-bottom:8px;">Instant Dispatch Actions</h3>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                    <button class="button button-primary" data-action="toast" data-msg="Opening WhatsApp Web with prefilled message and media..." style="background:#25D366;border-color:#25D366;color:#fff;">
+                      ${icon('external', 15)} Open WhatsApp
+                    </button>
+                    <button class="button" data-action="toast" data-msg="Downloading high-res SVG card for Fraserview Dentist...">
+                      ${icon('download', 15)} Download SVG
+                    </button>
+                    <button class="button" data-action="toast" data-msg="Downloading 26s synthesized WAV voice note...">
+                      ${icon('download', 15)} Download .WAV
+                    </button>
+                    <button class="button" data-action="toast" data-msg="Queued outreach package to Gate G2 Approval queue...">
+                      ${icon('shield', 15)} Queue Gate G2
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>` : ''}
           ${tab === 'Overview' || tab === 'Pipeline' ? `
           <section class="panel wide-panel">
             <div class="section-heading"><div><p class="eyebrow">Live pipeline</p><h2>Every stage has a next move.</h2></div><button class="text-button" data-action="open-preset" data-preset="Outreach lead">${icon('plus', 15)} Add a lead ${icon('arrow', 15)}</button></div>
@@ -627,7 +753,7 @@ kbd { background: rgba(255,255,255,.09); border: 1px solid rgba(255,255,255,.12)
               `).join('')}
             </div>
           </section>` : ''}
-          <section class="panel ${tab !== 'Overview' && tab !== 'Pipeline' ? 'wide-panel' : ''}">
+          <section class="panel ${tab !== 'Overview' && tab !== 'Pipeline' && tab !== 'WhatsApp Studio' ? 'wide-panel' : ''}">
             <div class="section-heading"><div><p class="eyebrow">${tab === 'Overview' ? 'Outreach performance' : tab}</p><h2>Messages that get replies.</h2></div></div>
             <div class="outreach-stat"><strong>38.4%</strong><span>reply rate</span><span class="badge badge-lime"><span class="badge-dot"></span>+8.2%</span></div>
             <div class="outreach-bars">${miniBars([48, 58, 54, 69, 63, 76, 72, 88], 'lime')}</div>

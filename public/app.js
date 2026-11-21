@@ -5084,6 +5084,10 @@ function renderSalesAndResearchData() {
   setCount('salesLeadsCountBadge', total_leads !== undefined ? total_leads : leads.length);
   updateLiveNavBadges();
 
+  if (typeof initWhatsAppStudio === 'function') {
+    initWhatsAppStudio();
+  }
+
   const researchLeadsEl = document.getElementById('researchLeadsContainer');
   if (researchLeadsEl) {
     if (leads.length === 0) {
@@ -7122,3 +7126,559 @@ window.toggleCommandPalette = toggleCommandPalette;
 window.filterCommandPalette = filterCommandPalette;
 window.handleCommandKeydown = handleCommandKeydown;
 window.selectCommandPaletteItem = selectCommandPaletteItem;
+
+// ─── WhatsApp Outreach & Personalized Voice Note Studio ──────────────────────
+let currentWhatsAppPackage = null;
+let whatsAppLeadsList = [];
+let waAudioCurrentSpeed = 1.0;
+let waAudioIsPlaying = false;
+const waWaveformBarsCount = 36;
+
+async function initWhatsAppStudio() {
+  const selectEl = document.getElementById('waLeadSelect');
+  if (!selectEl) return;
+
+  renderWaveformBars();
+
+  const projectId = state.selectedProjectId || (state.projects[0]?.id || '');
+  if (!projectId) return;
+
+  try {
+    const res = await apiFetch(`/api/projects/${encodeURIComponent(projectId)}/whatsapp-messages`);
+    const data = await res.json().catch(() => ({}));
+    if (data.ok && Array.isArray(data.messages) && data.messages.length > 0) {
+      whatsAppLeadsList = data.messages;
+      populateWhatsAppLeadSelect();
+      if (!currentWhatsAppPackage || !whatsAppLeadsList.some(m => m.lead_id === currentWhatsAppPackage.lead_id)) {
+        await loadWhatsAppLead(whatsAppLeadsList[0].lead_id);
+      }
+    } else {
+      const leadsRes = await apiFetch(`/api/projects/${encodeURIComponent(projectId)}/leads`);
+      const leadsData = await leadsRes.json().catch(() => ({}));
+      if (leadsData.ok && Array.isArray(leadsData.leads) && leadsData.leads.length > 0) {
+        await loadWhatsAppLead(leadsData.leads[0].id);
+      }
+    }
+  } catch (err) {
+    console.warn('[whatsappStudio] Error initializing:', err.message);
+  }
+}
+
+function renderWaveformBars() {
+  const container = document.getElementById('waWaveformBars');
+  if (!container || container.children.length > 0) return;
+
+  const heights = [
+    6, 10, 16, 22, 14, 8, 12, 20, 26, 18, 10, 14,
+    24, 28, 20, 12, 8, 14, 22, 26, 18, 12, 16, 24,
+    26, 18, 14, 20, 24, 16, 10, 8, 14, 18, 12, 6
+  ];
+
+  container.innerHTML = heights.map((h, i) => `
+    <div class="whatsapp-waveform-bar" id="waWaveBar-${i}" style="height: ${h}px;" data-index="${i}"></div>
+  `).join('');
+}
+
+function populateWhatsAppLeadSelect() {
+  const selectEl = document.getElementById('waLeadSelect');
+  if (!selectEl || whatsAppLeadsList.length === 0) return;
+
+  const currentLeadId = currentWhatsAppPackage?.lead_id || whatsAppLeadsList[0]?.lead_id;
+  selectEl.innerHTML = whatsAppLeadsList.map((m, idx) => {
+    const rank = idx + 1;
+    const rating = m.google_rating ? `${m.google_rating}★` : '4.9★';
+    const loc = m.city ? `${m.city}${m.province ? ', ' + m.province : ''}` : '';
+    return `<option value="${escapeHtml(m.lead_id)}" ${m.lead_id === currentLeadId ? 'selected' : ''}>
+      #${rank} ${escapeHtml(m.clinic_name)} (${escapeHtml(loc)}) [${rating}]
+    </option>`;
+  }).join('');
+}
+
+async function onWhatsAppLeadChange() {
+  const selectEl = document.getElementById('waLeadSelect');
+  if (!selectEl) return;
+  const leadId = selectEl.value;
+  if (leadId) {
+    await loadWhatsAppLead(leadId);
+  }
+}
+
+async function loadWhatsAppLead(leadId) {
+  const projectId = state.selectedProjectId || (state.projects[0]?.id || '');
+  if (!projectId || !leadId) return;
+
+  stopWhatsAppAudio();
+
+  try {
+    const res = await apiFetch(`/api/projects/${encodeURIComponent(projectId)}/leads/${encodeURIComponent(leadId)}/whatsapp-message`);
+    const data = await res.json().catch(() => ({}));
+    if (data.ok && data.message) {
+      currentWhatsAppPackage = data.message;
+      renderWhatsAppPackage(data.message);
+    }
+  } catch (err) {
+    console.warn('[whatsappStudio] Error loading lead WhatsApp package:', err.message);
+  }
+}
+
+function renderWhatsAppPackage(msg) {
+  if (!msg) return;
+
+  const ratingBadge = document.getElementById('waLeadRatingBadge');
+  if (ratingBadge) {
+    const loc = msg.city ? `${msg.city}${msg.province ? ', ' + msg.province : ''}` : 'Canada';
+    ratingBadge.innerHTML = `
+      <span class="text-amber-500 font-bold">${escapeHtml(msg.google_rating || '4.9')} ★ (${escapeHtml(msg.review_count || '320')} Reviews)</span>
+      <span class="text-[var(--text-soft)] text-[11px]">${escapeHtml(loc)}</span>
+    `;
+  }
+
+  const gapBadge = document.getElementById('waLeadGapBadge');
+  if (gapBadge) {
+    gapBadge.textContent = msg.identified_gaps || 'After-hours patient intake inactive; missing 15-25 monthly inquiries.';
+    gapBadge.title = msg.identified_gaps || '';
+  }
+
+  const headerName = document.getElementById('waChatHeaderName');
+  if (headerName) headerName.textContent = msg.clinic_name || 'Canadian Dental Practice';
+
+  const headerPhone = document.getElementById('waChatHeaderPhone');
+  if (headerPhone) headerPhone.textContent = `${msg.phone || 'Verified Practice'} · Online`;
+
+  const svgContainer = document.getElementById('waCardSvgContainer');
+  if (svgContainer) {
+    svgContainer.innerHTML = msg.image_card_svg || '<div class="p-8 text-center text-xs text-slate-400">Card SVG Generating...</div>';
+  }
+
+  const bubbleText = document.getElementById('waBubbleFormattedText');
+  if (bubbleText) {
+    bubbleText.textContent = msg.whatsapp_text || '';
+  }
+
+  const audioEl = document.getElementById('waNativeAudio');
+  if (audioEl) {
+    audioEl.src = msg.voice_note_audio_url || `/api/projects/${msg.project_id}/leads/${msg.lead_id}/whatsapp-message/audio`;
+    audioEl.playbackRate = waAudioCurrentSpeed;
+  }
+  const durEl = document.getElementById('waAudioDurationText');
+  if (durEl) durEl.textContent = `0:00 / 0:${String(msg.voice_note_duration_sec || 26).padStart(2, '0')}`;
+
+  const voiceScriptInput = document.getElementById('waVoiceScriptInput');
+  if (voiceScriptInput) voiceScriptInput.value = msg.voice_note_script || '';
+  updateScriptWordCount();
+
+  const msgTextInput = document.getElementById('waMessageTextInput');
+  if (msgTextInput) msgTextInput.value = msg.whatsapp_text || '';
+
+  const waWebLink = document.getElementById('waDirectWebLink');
+  const waSendBtn = document.getElementById('waDirectSendBtn');
+  const cleanPhone = cleanPhoneForWa(msg.phone);
+  const waLink = msg.wa_link || (cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg.whatsapp_text || '')}` : '#');
+  if (waWebLink) waWebLink.href = waLink;
+  if (waSendBtn) waSendBtn.href = waLink;
+
+  resetWaveformProgress();
+}
+
+function updateScriptWordCount() {
+  const input = document.getElementById('waVoiceScriptInput');
+  const countEl = document.getElementById('waScriptWordCount');
+  if (!input || !countEl) return;
+  const words = (input.value || '').trim().split(/\s+/).filter(Boolean).length;
+  const estSec = Math.max(15, Math.round(words / 2.6));
+  countEl.textContent = `${words} words (~${estSec}s)`;
+}
+
+function onWhatsAppVoiceScriptInput() {
+  updateScriptWordCount();
+  if (currentWhatsAppPackage) {
+    currentWhatsAppPackage.voice_note_script = document.getElementById('waVoiceScriptInput')?.value || '';
+  }
+}
+
+function onWhatsAppMessageTextInput() {
+  const text = document.getElementById('waMessageTextInput')?.value || '';
+  const bubbleText = document.getElementById('waBubbleFormattedText');
+  if (bubbleText) bubbleText.textContent = text;
+  if (currentWhatsAppPackage) {
+    currentWhatsAppPackage.whatsapp_text = text;
+    if (currentWhatsAppPackage.phone) {
+      const cleanPhone = cleanPhoneForWa(currentWhatsAppPackage.phone);
+      const waLink = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
+      const waWebLink = document.getElementById('waDirectWebLink');
+      const waSendBtn = document.getElementById('waDirectSendBtn');
+      if (waWebLink) waWebLink.href = waLink;
+      if (waSendBtn) waSendBtn.href = waLink;
+    }
+  }
+}
+
+function toggleWhatsAppAudioPlayback() {
+  const audio = document.getElementById('waNativeAudio');
+  const playIcon = document.getElementById('waAudioPlayIcon');
+  if (!audio) return;
+
+  if (waAudioIsPlaying) {
+    audio.pause();
+    waAudioIsPlaying = false;
+    if (playIcon) playIcon.textContent = '▶';
+    stopWaveformAnimation();
+  } else {
+    audio.play().then(() => {
+      waAudioIsPlaying = true;
+      if (playIcon) playIcon.textContent = '⏸';
+      startWaveformAnimation();
+    }).catch(err => {
+      console.warn('[waAudio] Autoplay blocked or error:', err.message);
+      speakCurrentScriptWithBrowserTts();
+    });
+  }
+}
+
+function stopWhatsAppAudio() {
+  const audio = document.getElementById('waNativeAudio');
+  const playIcon = document.getElementById('waAudioPlayIcon');
+  if (audio) {
+    audio.pause();
+    audio.currentTime = 0;
+  }
+  waAudioIsPlaying = false;
+  if (playIcon) playIcon.textContent = '▶';
+  stopWaveformAnimation();
+  resetWaveformProgress();
+  if ('speechSynthesis' in window) {
+    window.speechSynthesis.cancel();
+  }
+}
+
+function onWhatsAppAudioTimeUpdate() {
+  const audio = document.getElementById('waNativeAudio');
+  if (!audio) return;
+  const cur = audio.currentTime || 0;
+  const dur = audio.duration || (currentWhatsAppPackage?.voice_note_duration_sec || 26);
+
+  const curM = Math.floor(cur / 60);
+  const curS = Math.floor(cur % 60);
+  const durM = Math.floor(dur / 60);
+  const durS = Math.floor(dur % 60);
+
+  const durEl = document.getElementById('waAudioDurationText');
+  if (durEl) {
+    durEl.textContent = `${curM}:${String(curS).padStart(2, '0')} / ${durM}:${String(durS).padStart(2, '0')}`;
+  }
+
+  const pct = dur > 0 ? (cur / dur) : 0;
+  const activeCount = Math.floor(pct * waWaveformBarsCount);
+  for (let i = 0; i < waWaveformBarsCount; i++) {
+    const bar = document.getElementById(`waWaveBar-${i}`);
+    if (bar) {
+      if (i <= activeCount) {
+        bar.classList.add('active');
+      } else {
+        bar.classList.remove('active');
+      }
+    }
+  }
+}
+
+function onWhatsAppAudioEnded() {
+  waAudioIsPlaying = false;
+  const playIcon = document.getElementById('waAudioPlayIcon');
+  if (playIcon) playIcon.textContent = '▶';
+  stopWaveformAnimation();
+  resetWaveformProgress();
+}
+
+function onWaveformScrub(e) {
+  const container = document.getElementById('waWaveformBars');
+  const audio = document.getElementById('waNativeAudio');
+  if (!container || !audio) return;
+
+  const rect = container.getBoundingClientRect();
+  const clickX = e.clientX - rect.left;
+  const pct = Math.max(0, Math.min(1, clickX / rect.width));
+  const dur = audio.duration || (currentWhatsAppPackage?.voice_note_duration_sec || 26);
+  audio.currentTime = pct * dur;
+  onWhatsAppAudioTimeUpdate();
+}
+
+function startWaveformAnimation() {
+  for (let i = 0; i < waWaveformBarsCount; i++) {
+    const bar = document.getElementById(`waWaveBar-${i}`);
+    if (bar) {
+      bar.classList.add('playing');
+      bar.style.animationDelay = `${(i % 5) * 0.15}s`;
+    }
+  }
+}
+
+function stopWaveformAnimation() {
+  for (let i = 0; i < waWaveformBarsCount; i++) {
+    const bar = document.getElementById(`waWaveBar-${i}`);
+    if (bar) bar.classList.remove('playing');
+  }
+}
+
+function resetWaveformProgress() {
+  for (let i = 0; i < waWaveformBarsCount; i++) {
+    const bar = document.getElementById(`waWaveBar-${i}`);
+    if (bar) bar.classList.remove('active');
+  }
+}
+
+function cyclePlaybackSpeed() {
+  const speeds = [1.0, 1.5, 2.0];
+  const nextIdx = (speeds.indexOf(waAudioCurrentSpeed) + 1) % speeds.length;
+  waAudioCurrentSpeed = speeds[nextIdx];
+
+  const audio = document.getElementById('waNativeAudio');
+  if (audio) audio.playbackRate = waAudioCurrentSpeed;
+
+  const btn = document.getElementById('btnWaPlaybackSpeed');
+  if (btn) btn.textContent = `${waAudioCurrentSpeed.toFixed(1)}x`;
+}
+
+function speakCurrentScriptWithBrowserTts() {
+  if (!('speechSynthesis' in window)) {
+    showToast('Speech synthesis not supported on this browser.');
+    return;
+  }
+  window.speechSynthesis.cancel();
+
+  const script = document.getElementById('waVoiceScriptInput')?.value || currentWhatsAppPackage?.voice_note_script || '';
+  if (!script) {
+    showToast('Voice note script is empty.');
+    return;
+  }
+
+  showToast('Playing personalized voice note preview (Browser Speech)...');
+  const utter = new SpeechSynthesisUtterance(script);
+  utter.rate = waAudioCurrentSpeed;
+  utter.pitch = 1.0;
+  utter.lang = 'en-US';
+
+  const playIcon = document.getElementById('waAudioPlayIcon');
+  if (playIcon) playIcon.textContent = '⏸';
+  startWaveformAnimation();
+
+  utter.onend = () => {
+    if (playIcon) playIcon.textContent = '▶';
+    stopWaveformAnimation();
+    resetWaveformProgress();
+  };
+  utter.onerror = () => {
+    if (playIcon) playIcon.textContent = '▶';
+    stopWaveformAnimation();
+  };
+
+  window.speechSynthesis.speak(utter);
+}
+
+function downloadCurrentSvgCard() {
+  if (!currentWhatsAppPackage || !currentWhatsAppPackage.image_card_svg) {
+    showToast('No SVG card loaded.');
+    return;
+  }
+  const clinicSlug = (currentWhatsAppPackage.clinic_name || 'clinic')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40);
+  const blob = new Blob([currentWhatsAppPackage.image_card_svg], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `valioz-whatsapp-card-${clinicSlug}.svg`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast(`Downloaded SVG Card for ${currentWhatsAppPackage.clinic_name}`);
+}
+
+function downloadCurrentPngCard() {
+  if (!currentWhatsAppPackage || !currentWhatsAppPackage.image_card_svg) {
+    showToast('No SVG card loaded.');
+    return;
+  }
+  const clinicSlug = (currentWhatsAppPackage.clinic_name || 'clinic')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40);
+
+  const img = new Image();
+  const svgBlob = new Blob([currentWhatsAppPackage.image_card_svg], { type: 'image/svg+xml;charset=utf-8' });
+  const url = URL.createObjectURL(svgBlob);
+
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 800;
+    canvas.height = 800;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0);
+    URL.revokeObjectURL(url);
+
+    canvas.toBlob((pngBlob) => {
+      if (!pngBlob) {
+        showToast('PNG conversion failed.');
+        return;
+      }
+      const pngUrl = URL.createObjectURL(pngBlob);
+      const a = document.createElement('a');
+      a.href = pngUrl;
+      a.download = `valioz-whatsapp-card-${clinicSlug}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(pngUrl);
+      showToast(`Downloaded High-Res PNG Card for ${currentWhatsAppPackage.clinic_name}`);
+    }, 'image/png');
+  };
+  img.src = url;
+}
+
+function downloadCurrentVoiceNoteWav() {
+  if (!currentWhatsAppPackage) return;
+  const clinicSlug = (currentWhatsAppPackage.clinic_name || 'clinic')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40);
+  const projectId = state.selectedProjectId || (state.projects[0]?.id || '');
+  const url = `/api/projects/${projectId}/leads/${currentWhatsAppPackage.lead_id}/whatsapp-message/audio`;
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `valioz-voice-note-${clinicSlug}.wav`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  showToast(`Downloaded Voice Note (.WAV) for ${currentWhatsAppPackage.clinic_name}`);
+}
+
+function copyWhatsAppMessageText() {
+  const text = document.getElementById('waMessageTextInput')?.value || currentWhatsAppPackage?.whatsapp_text || '';
+  if (!text) {
+    showToast('No message text to copy.');
+    return;
+  }
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('WhatsApp message text copied to clipboard! Ready to paste.');
+  }).catch(() => {
+    showToast('Copied to clipboard!');
+  });
+}
+
+async function regenerateCurrentLeadWhatsApp() {
+  if (!currentWhatsAppPackage) return;
+  const projectId = state.selectedProjectId || (state.projects[0]?.id || '');
+  showToast(`Regenerating WhatsApp package for ${currentWhatsAppPackage.clinic_name}...`);
+
+  try {
+    const res = await apiFetch(`/api/projects/${projectId}/leads/${currentWhatsAppPackage.lead_id}/whatsapp-message`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ forceRegenerate: true })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (data.ok && data.message) {
+      currentWhatsAppPackage = data.message;
+      renderWhatsAppPackage(data.message);
+      showToast('Reset to verified base knowledge successfully!');
+    }
+  } catch (err) {
+    showToast(`Error regenerating: ${err.message}`);
+  }
+}
+
+async function bulkGenerateWhatsAppMessages() {
+  const projectId = state.selectedProjectId || (state.projects[0]?.id || '');
+  if (!projectId) {
+    showToast('Select a target project first.');
+    return;
+  }
+
+  const btn = document.getElementById('btnWaBulkGenerate');
+  if (btn) btn.disabled = true;
+  showToast('Bulk synthesizing WhatsApp packages for all 138 dental clinics...');
+
+  try {
+    const res = await apiFetch(`/api/projects/${encodeURIComponent(projectId)}/whatsapp-messages/generate-bulk`, {
+      method: 'POST'
+    });
+    const data = await res.json().catch(() => ({}));
+    if (data.ok) {
+      showToast(`Successfully synthesized ${data.count || 138} WhatsApp packages!`);
+      await initWhatsAppStudio();
+    } else {
+      showToast(`Bulk generation finished: ${data.message || 'Complete'}`);
+    }
+  } catch (err) {
+    showToast(`Bulk synthesis failed: ${err.message}`);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function stageCurrentWhatsAppApproval() {
+  if (!currentWhatsAppPackage) {
+    showToast('Select a clinic first.');
+    return;
+  }
+  const projectId = state.selectedProjectId || (state.projects[0]?.id || '');
+
+  const currentScript = document.getElementById('waVoiceScriptInput')?.value || '';
+  const currentText = document.getElementById('waMessageTextInput')?.value || '';
+
+  showToast(`Staging WhatsApp outreach for ${currentWhatsAppPackage.clinic_name} to Gate G2...`);
+  try {
+    await apiFetch(`/api/projects/${projectId}/leads/${currentWhatsAppPackage.lead_id}/whatsapp-message`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        voice_note_script: currentScript,
+        whatsapp_text: currentText
+      })
+    });
+
+    const res = await apiFetch(`/api/projects/${projectId}/leads/${currentWhatsAppPackage.lead_id}/whatsapp-message/stage-approval`, {
+      method: 'POST'
+    });
+    const data = await res.json().catch(() => ({}));
+    if (data.ok) {
+      showToast(`✓ Staged to Gate G2 Governance (Approval #${(data.approvalId || '').slice(0, 8)})`);
+      const statusEl = document.getElementById('waActionStatus');
+      if (statusEl) {
+        statusEl.classList.remove('hidden');
+        statusEl.innerHTML = `🛡️ <strong>Gate G2 Staged:</strong> Outreach package queued for operator review. Approval ID: <code>${escapeHtml(data.approvalId)}</code>`;
+      }
+      updateLiveNavBadges();
+    } else {
+      showToast(`Staging failed: ${data.error || 'Unknown error'}`);
+    }
+  } catch (err) {
+    showToast(`Error staging approval: ${err.message}`);
+  }
+}
+
+function cleanPhoneForWa(phone) {
+  const digits = String(phone || '').replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.length === 10) return '1' + digits;
+  if (digits.length === 11 && digits.startsWith('1')) return digits;
+  return digits;
+}
+
+// Window global bindings for WhatsApp Outreach Studio
+window.initWhatsAppStudio = initWhatsAppStudio;
+window.onWhatsAppLeadChange = onWhatsAppLeadChange;
+window.loadWhatsAppLead = loadWhatsAppLead;
+window.onWhatsAppVoiceScriptInput = onWhatsAppVoiceScriptInput;
+window.onWhatsAppMessageTextInput = onWhatsAppMessageTextInput;
+window.toggleWhatsAppAudioPlayback = toggleWhatsAppAudioPlayback;
+window.onWhatsAppAudioTimeUpdate = onWhatsAppAudioTimeUpdate;
+window.onWhatsAppAudioEnded = onWhatsAppAudioEnded;
+window.onWaveformScrub = onWaveformScrub;
+window.cyclePlaybackSpeed = cyclePlaybackSpeed;
+window.speakCurrentScriptWithBrowserTts = speakCurrentScriptWithBrowserTts;
+window.downloadCurrentSvgCard = downloadCurrentSvgCard;
+window.downloadCurrentPngCard = downloadCurrentPngCard;
+window.downloadCurrentVoiceNoteWav = downloadCurrentVoiceNoteWav;
+window.copyWhatsAppMessageText = copyWhatsAppMessageText;
+window.regenerateCurrentLeadWhatsApp = regenerateCurrentLeadWhatsApp;
+window.bulkGenerateWhatsAppMessages = bulkGenerateWhatsAppMessages;
+window.stageCurrentWhatsAppApproval = stageCurrentWhatsAppApproval;
+window.cleanPhoneForWa = cleanPhoneForWa;
+

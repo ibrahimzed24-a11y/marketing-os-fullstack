@@ -55,6 +55,15 @@ const {
   getLeadProposal,
   updateLeadProposal
 } = require('./proposalCustomizer');
+const {
+  initWhatsAppTable,
+  ensureProjectLeads,
+  generateOrGetWhatsAppMessage,
+  generateBulkWhatsAppMessages,
+  generatePcmWav,
+  stageWhatsAppApproval,
+  loadClinicIntelligence
+} = require('./whatsappEngine');
 const { POLICY_MATRIX, evaluatePolicy, dispatchExternalAction } = require('./approvalPolicy');
 const { getInstalledSkills } = require('./skillEngine');
 const {
@@ -924,6 +933,98 @@ app.put('/api/projects/:id/leads/:leadId/proposal', authMiddleware, requireRole(
   if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
   const updated = updateLeadProposal(db, req.params.id, req.params.leadId, req.body);
   res.json({ ok: true, proposal: updated });
+}));
+
+// =============================================================================
+// WHATSAPP IMAGE MESSAGE & PERSONALIZED VOICE NOTE OUTREACH SUITE
+// =============================================================================
+
+// 1. Get all WhatsApp messages for a project
+app.get('/api/projects/:id/whatsapp-messages', authMiddleware, asyncHandler(async (req, res) => {
+  if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
+  initWhatsAppTable(db);
+  ensureProjectLeads(db, req.params.id, uploadDir);
+
+  const rows = db.prepare(`
+    SELECT w.*, l.job_title, l.icp_score
+    FROM lead_whatsapp_messages w
+    JOIN leads l ON l.id = w.lead_id
+    WHERE w.project_id = ?
+    ORDER BY w.updated_at DESC
+  `).all(req.params.id);
+
+  if (rows.length === 0) {
+    const leads = db.prepare('SELECT id FROM leads WHERE project_id = ? LIMIT 25').all(req.params.id);
+    for (const l of leads) {
+      generateOrGetWhatsAppMessage(db, req.params.id, l.id);
+    }
+    const populated = db.prepare(`
+      SELECT w.*, l.job_title, l.icp_score
+      FROM lead_whatsapp_messages w
+      JOIN leads l ON l.id = w.lead_id
+      WHERE w.project_id = ?
+      ORDER BY w.updated_at DESC
+    `).all(req.params.id);
+    return res.json({ ok: true, messages: populated, total: populated.length });
+  }
+
+  res.json({ ok: true, messages: rows, total: rows.length });
+}));
+
+// 2. Bulk generate WhatsApp packages for all qualified project leads
+app.post('/api/projects/:id/whatsapp-messages/generate-bulk', authMiddleware, requireRole('super_admin', 'admin', 'manager'), asyncHandler(async (req, res) => {
+  if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
+  const result = generateBulkWhatsAppMessages(db, req.params.id, uploadDir);
+  res.json({ ok: true, ...result });
+}));
+
+// 3. Get WhatsApp message & voice note for a single lead
+app.get('/api/projects/:id/leads/:leadId/whatsapp-message', authMiddleware, asyncHandler(async (req, res) => {
+  if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
+  const message = generateOrGetWhatsAppMessage(db, req.params.id, req.params.leadId);
+  res.json({ ok: true, message });
+}));
+
+// 4. Update or customize WhatsApp message & voice note for a single lead
+app.post('/api/projects/:id/leads/:leadId/whatsapp-message', authMiddleware, requireRole('super_admin', 'admin', 'manager'), asyncHandler(async (req, res) => {
+  if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
+  const message = generateOrGetWhatsAppMessage(db, req.params.id, req.params.leadId, req.body);
+  res.json({ ok: true, message });
+}));
+
+// 5. Download / stream synthesized voice note WAV audio
+app.get('/api/projects/:id/leads/:leadId/whatsapp-message/audio', asyncHandler(async (req, res) => {
+  const message = generateOrGetWhatsAppMessage(db, req.params.id, req.params.leadId);
+  const clinicSlug = String(message.clinic_name || 'dental-clinic')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40);
+  const wavBuffer = generatePcmWav(message.voice_note_duration_sec || 26);
+  res.set({
+    'Content-Type': 'audio/wav',
+    'Content-Length': wavBuffer.length,
+    'Content-Disposition': `inline; filename="valioz-voice-note-${clinicSlug}.wav"`,
+    'Cache-Control': 'public, max-age=3600'
+  });
+  res.send(wavBuffer);
+}));
+
+// 6. Download / stream SVG card image
+app.get('/api/projects/:id/leads/:leadId/whatsapp-message/card.svg', asyncHandler(async (req, res) => {
+  const message = generateOrGetWhatsAppMessage(db, req.params.id, req.params.leadId);
+  const clinicSlug = String(message.clinic_name || 'dental-clinic')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40);
+  res.set({
+    'Content-Type': 'image/svg+xml',
+    'Content-Disposition': `inline; filename="valioz-whatsapp-card-${clinicSlug}.svg"`,
+    'Cache-Control': 'public, max-age=3600'
+  });
+  res.send(message.image_card_svg);
+}));
+
+// 7. Stage WhatsApp message package to Gate G2 Approvals
+app.post('/api/projects/:id/leads/:leadId/whatsapp-message/stage-approval', authMiddleware, requireRole('super_admin', 'admin', 'manager'), asyncHandler(async (req, res) => {
+  if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
+  const result = stageWhatsAppApproval(db, req.params.id, req.params.leadId, req.user?.id);
+  res.json({ ok: true, ...result });
 }));
 
 // =============================================================================
