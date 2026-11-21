@@ -484,29 +484,29 @@ function generateInteractivePreviewHtml(leads, logoSrc) {
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     iframe { border: none; width: 100%; height: 780px; background: #eef3f4; border-radius: 12px; }
-    .tab-btn.active { background: #4F46E5; color: white; border-color: #4F46E5; }
+    .tab-btn.active { background: #00a9a4; color: white; border-color: #00a9a4; }
   </style>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen font-sans antialiased p-4 md:p-6">
   <div class="max-w-6xl mx-auto space-y-4">
     <!-- Top Controller Banner -->
-    <header class="bg-slate-800 border border-slate-700 p-4 rounded-2xl shadow-xl flex flex-wrap items-center justify-between gap-4">
+    <header class="bg-[#122f47] border border-[#23394e] p-4 rounded-xl shadow-sm flex flex-wrap items-center justify-between gap-4">
       <div class="flex items-center gap-3">
-        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-teal-500 to-indigo-600 flex items-center justify-center font-bold text-white text-lg shadow-md">
+        <div class="w-10 h-10 rounded-xl bg-[#0b1a28] border border-[#00a9a4] flex items-center justify-center font-bold text-[#00c7c2] text-lg shadow-xs">
           VH
         </div>
         <div>
           <div class="flex items-center gap-2">
-            <h1 class="text-base font-extrabold text-white">VALIOZ Health Dual-Branded Email Engine</h1>
-            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-900 text-teal-300 border border-teal-700">GATE G2 STAGED</span>
+            <h1 class="text-base font-bold text-white">VALIOZ Health Dual-Branded Email Engine</h1>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-teal-900/60 text-teal-300 border border-teal-700">GATE G2 STAGED</span>
           </div>
-          <p class="text-xs text-slate-400">Grounded in 22 Priority A Canadian Dental Leads &bull; Human Consent Gate Enforced</p>
+          <p class="text-xs text-slate-300">Grounded in 22 Priority A Canadian Dental Leads &bull; Human Consent Gate Enforced</p>
         </div>
       </div>
 
       <!-- Action & View Controls -->
       <div class="flex flex-wrap items-center gap-3">
-        <div class="flex items-center gap-1.5 bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5 text-xs">
+        <div class="flex items-center gap-1.5 bg-[#0b1a28] border border-[#23394e] rounded-lg px-3 py-1.5 text-xs">
           <span class="text-slate-400">Clinic:</span>
           <select id="clinicSelect" class="bg-transparent text-white font-semibold focus:outline-none cursor-pointer max-w-[240px] truncate" onchange="updatePreview()">
             ${leads.map((l, idx) => `
@@ -515,11 +515,11 @@ function generateInteractivePreviewHtml(leads, logoSrc) {
           </select>
         </div>
 
-        <button onclick="toggleRawHtml()" id="rawHtmlBtn" class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold px-3 py-2 rounded-xl transition flex items-center gap-1.5">
+        <button onclick="toggleRawHtml()" id="rawHtmlBtn" class="bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-semibold px-3 py-2 rounded-lg transition flex items-center gap-1.5">
           <span>&lt;/&gt; View Code</span>
         </button>
 
-        <button onclick="copyCurrentHtml()" class="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-4 py-2 rounded-xl shadow transition">
+        <button onclick="copyCurrentHtml()" class="bg-[#00a9a4] hover:bg-[#008f8b] text-white text-xs font-semibold px-4 py-2 rounded-lg shadow-xs transition">
           Copy HTML
         </button>
       </div>
@@ -713,10 +713,10 @@ function generateInteractivePreviewHtml(leads, logoSrc) {
       for (let s = 1; s <= 5; s++) {
         const btn = document.getElementById('stepTab-' + s);
         if (s === stepNum) {
-          btn.classList.add('active', 'bg-indigo-600', 'text-white');
+          btn.classList.add('active', 'bg-[#00a9a4]', 'text-white');
           btn.classList.remove('text-slate-300', 'hover:bg-slate-700');
         } else {
-          btn.classList.remove('active', 'bg-indigo-600', 'text-white');
+          btn.classList.remove('active', 'bg-[#00a9a4]', 'text-white');
           btn.classList.add('text-slate-300', 'hover:bg-slate-700');
         }
       }
@@ -728,10 +728,10 @@ function generateInteractivePreviewHtml(leads, logoSrc) {
       const btn = document.getElementById('rawHtmlBtn');
       if (container.classList.contains('hidden')) {
         container.classList.remove('hidden');
-        btn.classList.add('bg-indigo-700', 'text-white');
+        btn.classList.add('bg-[#008f8b]', 'text-white');
       } else {
         container.classList.add('hidden');
-        btn.classList.remove('bg-indigo-700', 'text-white');
+        btn.classList.remove('bg-[#008f8b]', 'text-white');
       }
     }
 

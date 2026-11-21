@@ -4,7 +4,7 @@
  * Grounded in:
  *   1. Base Knowledge: Clinic Intelligence (138 leads, scored and verified),
  *      RAG chunks, and Valioz Health offer framework.
- *   2. Brand Guidelines: Canva design tokens (#7d2ae8 -> #00c4cc), WhatsApp UI (#25D366).
+ *   2. Brand Guidelines: Valioz Health Unslop Design System (#122f47 Deep Navy, #00a9a4 Medical Teal).
  *   3. Verified Leads Data: 138 Canadian dental clinics with exact Google ratings,
  *      review counts, cities, phone numbers, and identified after-hours gaps.
  *
@@ -180,142 +180,111 @@ function generateSvgCard(data) {
 
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" width="800" height="800">
   <defs>
-    <!-- Background Gradient -->
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0E1318"/>
-      <stop offset="60%" stop-color="#141B22"/>
-      <stop offset="100%" stop-color="#0B1015"/>
+    <!-- Clean Dark Architectural Neutral Base -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#122f47"/>
+      <stop offset="100%" stop-color="#0b1a28"/>
     </linearGradient>
-
-    <!-- Canva Signature Brand Gradient -->
-    <linearGradient id="canvaBrandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#7D2AE8"/>
-      <stop offset="100%" stop-color="#00C4CC"/>
-    </linearGradient>
-
-    <!-- WhatsApp Green Accent Gradient -->
-    <linearGradient id="waGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#25D366"/>
-      <stop offset="100%" stop-color="#128C7E"/>
-    </linearGradient>
-
-    <!-- Amber Star Rating Gradient -->
-    <linearGradient id="starGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#FFB020"/>
-      <stop offset="100%" stop-color="#FF8A00"/>
-    </linearGradient>
-
-    <!-- Soft Glow Filter -->
-    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="16" result="blur" />
-      <feComposite in="SourceGraphic" in2="blur" operator="over" />
-    </filter>
   </defs>
 
-  <!-- Card Background -->
-  <rect width="800" height="800" rx="32" fill="url(#bgGrad)"/>
-
-  <!-- Ambient Light Halos -->
-  <circle cx="720" cy="80" r="180" fill="#7D2AE8" opacity="0.18" filter="url(#glow)"/>
-  <circle cx="80" cy="720" r="180" fill="#00C4CC" opacity="0.14" filter="url(#glow)"/>
-  <circle cx="400" cy="400" r="260" fill="#25D366" opacity="0.06" filter="url(#glow)"/>
+  <!-- Card Background (Deep Navy) -->
+  <rect width="800" height="800" rx="20" fill="url(#bgGrad)"/>
 
   <!-- Outer Border Frame -->
-  <rect x="24" y="24" width="752" height="752" rx="24" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="2"/>
+  <rect x="20" y="20" width="760" height="760" rx="16" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
 
   <!-- Top Header Ribbon -->
-  <g transform="translate(48, 48)">
-    <!-- WhatsApp Badge -->
-    <rect x="0" y="0" width="180" height="36" rx="18" fill="rgba(37,211,102,0.15)" stroke="#25D366" stroke-width="1.5"/>
-    <circle cx="20" cy="18" r="8" fill="#25D366"/>
-    <text x="36" y="23" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="700" fill="#25D366" letter-spacing="0.05em">WHATSAPP DIRECT</text>
+  <g transform="translate(48, 44)">
+    <!-- WhatsApp Direct Indicator -->
+    <rect x="0" y="0" width="160" height="32" rx="16" fill="rgba(0,169,164,0.12)" stroke="#00a9a4" stroke-width="1.2"/>
+    <circle cx="18" cy="16" r="5" fill="#00a9a4"/>
+    <text x="32" y="20" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11.5" font-weight="600" fill="#00c7c2" letter-spacing="0.02em">WhatsApp direct</text>
 
     <!-- Valioz Health Identity -->
-    <g transform="translate(490, 4)">
-      <rect x="0" y="0" width="214" height="28" rx="14" fill="rgba(255,255,255,0.06)"/>
-      <text x="107" y="19" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="700" fill="#9AA0A6" text-anchor="middle" letter-spacing="0.06em">VALIOZ HEALTH · GROWTH OS</text>
+    <g transform="translate(500, 4)">
+      <rect x="0" y="0" width="204" height="26" rx="6" fill="rgba(255,255,255,0.06)"/>
+      <text x="102" y="17" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="600" fill="#94a3b8" text-anchor="middle">Valioz Health · Growth OS</text>
     </g>
   </g>
 
-  <!-- Clinic Identity Section -->
-  <g transform="translate(48, 110)">
+  <!-- Clinic Identity Section (Dual-Branded Lockup) -->
+  <g transform="translate(48, 104)">
     <!-- Dental Crest Emblem -->
-    <rect x="0" y="0" width="84" height="84" rx="20" fill="url(#canvaBrandGrad)"/>
+    <rect x="0" y="0" width="80" height="80" rx="14" fill="#0b1a28" stroke="#00a9a4" stroke-width="2"/>
     <!-- Tooth / Crest Vector Icon -->
-    <path d="M42 22 C32 22, 24 28, 24 38 C24 48, 28 58, 33 66 C36 71, 40 70, 41 62 C41.5 58, 42.5 58, 43 62 C44 70, 48 71, 51 66 C56 58, 60 48, 60 38 C60 28, 52 22, 42 22 Z" fill="#FFFFFF" opacity="0.95"/>
-    <text x="42" y="52" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="800" fill="#7D2AE8" text-anchor="middle">${initials}</text>
+    <path d="M40 22 C31 22, 25 27, 25 36 C25 45, 29 54, 33 61 C35 65, 38 64, 39 57 C39.5 54, 40.5 54, 41 57 C42 64, 45 65, 47 61 C51 54, 55 45, 55 36 C55 27, 49 22, 40 22 Z" fill="#00a9a4" opacity="0.9"/>
+    <text x="40" y="47" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#ffffff" text-anchor="middle">${initials}</text>
 
     <!-- Clinic Name and Location -->
-    <text x="104" y="36" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="28" font-weight="800" fill="#FFFFFF" letter-spacing="-0.02em">${clinicName}</text>
-    <g transform="translate(104, 48)">
-      <!-- Location Pin -->
-      <text x="0" y="20" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="15" font-weight="600" fill="#00C4CC">📍 ${city}, ${province} · Verified Practice</text>
+    <text x="98" y="34" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="26" font-weight="700" fill="#ffffff" letter-spacing="-0.02em">${clinicName}</text>
+    <g transform="translate(98, 46)">
+      <text x="0" y="20" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="500" fill="#cbd5e1">${city}, ${province} · Verified practice</text>
     </g>
   </g>
 
   <!-- Evidence & Review Metric Cards Row -->
-  <g transform="translate(48, 224)">
+  <g transform="translate(48, 214)">
     <!-- Google Rating Card -->
-    <rect x="0" y="0" width="340" height="96" rx="16" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
-    <text x="24" y="34" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="700" fill="#9AA0A6" letter-spacing="0.06em">VERIFIED GOOGLE REPUTATION</text>
-    <text x="24" y="74" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="34" font-weight="800" fill="#FFB020">${rating} ★</text>
-    <text x="134" y="72" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="600" fill="#E8EAED">(${reviews} Patient Reviews)</text>
+    <rect x="0" y="0" width="340" height="92" rx="12" fill="#0e2335" stroke="rgba(255,255,255,0.06)" stroke-width="1.2"/>
+    <text x="22" y="30" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="600" fill="#94a3b8">Verified Google reputation</text>
+    <text x="22" y="68" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="30" font-weight="700" fill="#f59e0b">${rating} ★</text>
+    <text x="120" y="66" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13.5" font-weight="500" fill="#cbd5e1">(${reviews} patient reviews)</text>
 
     <!-- CDCP & Practice Standing Card -->
-    <rect x="364" y="0" width="340" height="96" rx="16" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.08)" stroke-width="1.5"/>
-    <text x="388" y="34" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="700" fill="#9AA0A6" letter-spacing="0.06em">LOCAL SEARCH STANDING</text>
-    <text x="388" y="74" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="28" font-weight="800" fill="#00C4CC">Top Tier</text>
-    <text x="510" y="72" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="600" fill="#E8EAED">High Local Demand</text>
+    <rect x="364" y="0" width="340" height="92" rx="12" fill="#0e2335" stroke="rgba(255,255,255,0.06)" stroke-width="1.2"/>
+    <text x="386" y="30" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="600" fill="#94a3b8">Local search standing</text>
+    <text x="386" y="68" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="24" font-weight="700" fill="#00c7c2">Top tier</text>
+    <text x="480" y="66" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13.5" font-weight="500" fill="#cbd5e1">High local demand</text>
   </g>
 
   <!-- Main Focus Container: Identified Practice Gap & Turnkey Solution -->
-  <g transform="translate(48, 344)">
-    <rect x="0" y="0" width="704" height="280" rx="20" fill="rgba(14,19,24,0.7)" stroke="rgba(125,42,232,0.4)" stroke-width="2"/>
+  <g transform="translate(48, 332)">
+    <rect x="0" y="0" width="704" height="288" rx="14" fill="#0b1a28" stroke="rgba(0,169,164,0.25)" stroke-width="1.5"/>
 
     <!-- Operational Gap Banner -->
-    <g transform="translate(24, 24)">
-      <rect x="0" y="0" width="656" height="64" rx="12" fill="rgba(255,87,87,0.12)" stroke="rgba(255,87,87,0.3)" stroke-width="1"/>
-      <text x="18" y="26" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="800" fill="#FF5757" letter-spacing="0.06em">IDENTIFIED PATIENT INTAKE GAP</text>
-      <text x="18" y="48" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="600" fill="#FFFFFF">${gaps}</text>
+    <g transform="translate(22, 22)">
+      <rect x="0" y="0" width="660" height="64" rx="8" fill="rgba(239,68,68,0.1)" stroke="rgba(239,68,68,0.2)" stroke-width="1"/>
+      <text x="16" y="24" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="10.5" font-weight="700" fill="#f87171" letter-spacing="0.04em">IDENTIFIED PATIENT INTAKE GAP</text>
+      <text x="16" y="46" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12.5" font-weight="500" fill="#f1f5f9">${gaps}</text>
     </g>
 
     <!-- Turnkey Offer Box -->
-    <g transform="translate(24, 104)">
-      <rect x="0" y="0" width="656" height="152" rx="16" fill="rgba(255,255,255,0.03)" stroke="rgba(0,196,204,0.3)" stroke-width="1.5"/>
+    <g transform="translate(22, 102)">
+      <rect x="0" y="0" width="660" height="162" rx="10" fill="#0e2335" stroke="rgba(255,255,255,0.06)" stroke-width="1.2"/>
       
-      <text x="24" y="34" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="800" fill="#00C4CC" letter-spacing="0.06em">PREPARED TAILORED SOLUTION FOR ${initials}</text>
+      <text x="22" y="30" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="600" fill="#00c7c2">Tailored solution for ${initials}</text>
       
-      <text x="24" y="68" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="22" font-weight="800" fill="#FFFFFF">Turnkey Digital Patient Engine · $499 One-Time</text>
+      <text x="22" y="62" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="20" font-weight="700" fill="#ffffff">Turnkey clinic web engine · $499 one-time</text>
       
       <!-- Bullet 1 -->
-      <circle cx="30" cy="98" r="4" fill="#25D366"/>
-      <text x="44" y="103" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="600" fill="#E8EAED">100% Digital Asset Ownership (Zero vendor lock-in, your property forever)</text>
+      <circle cx="28" cy="94" r="3.5" fill="#00a9a4"/>
+      <text x="40" y="98" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="500" fill="#cbd5e1">100% digital asset ownership (zero vendor lock-in, client property forever)</text>
       
       <!-- Bullet 2 -->
-      <circle cx="30" cy="126" r="4" fill="#25D366"/>
-      <text x="44" y="131" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="600" fill="#E8EAED">30 Free Days of Valioz AI Growth Agent (Captures 24/7 after-hours triage)</text>
+      <circle cx="28" cy="124" r="3.5" fill="#00a9a4"/>
+      <text x="40" y="128" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="500" fill="#cbd5e1">30 days of Valioz AI Growth Agent for 24/7 after-hours triage</text>
     </g>
   </g>
 
   <!-- Attached Voice Note Teaser Bar -->
   <g transform="translate(48, 644)">
-    <rect x="0" y="0" width="704" height="68" rx="16" fill="rgba(37,211,102,0.12)" stroke="#25D366" stroke-width="1.5"/>
+    <rect x="0" y="0" width="704" height="64" rx="12" fill="rgba(0,169,164,0.1)" stroke="#00a9a4" stroke-width="1.2"/>
     
-    <!-- Audio Waveform Simulation Vector -->
-    <circle cx="44" cy="34" r="20" fill="#25D366"/>
-    <!-- Mic Icon -->
-    <path d="M44 26 C41.8 26, 40 27.8, 40 30 L40 34 C40 36.2, 41.8 38, 44 38 C46.2 38, 48 36.2, 48 34 L48 30 C48 27.8, 46.2 26, 44 26 Z M37 33 C37 36.9, 40.1 40, 44 40 C47.9 40, 51 36.9, 51 33 M44 40 L44 43 M40 43 L48 43" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"/>
+    <!-- Audio Waveform Indicator Vector -->
+    <circle cx="40" cy="32" r="16" fill="#00a9a4"/>
+    <!-- Mic Icon Line Art -->
+    <path d="M40 25 C38.5 25, 37 26.2, 37 28 L37 32 C37 33.8, 38.5 35, 40 35 C41.5 35, 43 33.8, 43 32 L43 28 C43 26.2, 41.5 25, 40 25 Z M35 31 C35 34.5, 37.5 36.5, 40 36.5 C42.5 36.5, 45 34.5, 45 31 M40 36.5 L40 39 M37 39 L43 39" fill="none" stroke="#FFFFFF" stroke-width="1.6" stroke-linecap="round"/>
 
-    <text x="76" y="32" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="14" font-weight="800" fill="#FFFFFF">🎙️ Personalized 25-Second Audio Note Attached</text>
-    <text x="76" y="52" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="500" fill="#9AA0A6">Tap play in WhatsApp to hear specific practice audit breakdown &amp; ROI projection</text>
+    <text x="68" y="29" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13.5" font-weight="700" fill="#FFFFFF">Personalized 26-second voice note attached</text>
+    <text x="68" y="49" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11.5" font-weight="400" fill="#94a3b8">Tap play in WhatsApp to hear practice audit breakdown &amp; ROI projection</text>
 
-    <text x="670" y="40" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="800" fill="#25D366" text-anchor="end">0:25 ▶</text>
+    <text x="674" y="37" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12.5" font-weight="600" fill="#00c7c2" text-anchor="end">0:26 ▶</text>
   </g>
 
   <!-- Bottom Timestamp & Delivery Protocol -->
-  <g transform="translate(48, 742)">
-    <text x="0" y="14" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="600" fill="#5F6368">CONFIDENTIAL CLINIC GROWTH PROPOSAL · VALIOZ HEALTH 2026</text>
-    <text x="704" y="14" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="700" fill="#25D366" text-anchor="end">READY TO DISPATCH ✓✓</text>
+  <g transform="translate(48, 736)">
+    <text x="0" y="14" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="500" fill="#64748b">Confidential clinic growth proposal · Valioz Health</text>
+    <text x="704" y="14" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="11" font-weight="600" fill="#00c7c2" text-anchor="end">Ready to dispatch ✓✓</text>
   </g>
 </svg>`;
 }
@@ -656,7 +625,7 @@ function generateBulkWhatsAppMessages(db, projectId, uploadsDir) {
   const leads = db.prepare('SELECT id FROM leads WHERE project_id = ?').all(projectId);
   let count = 0;
   for (const l of leads) {
-    generateOrGetWhatsAppMessage(db, projectId, l.id);
+    generateOrGetWhatsAppMessage(db, projectId, l.id, { forceRegenerate: true });
     count++;
   }
   return { ok: true, count, total: leads.length };

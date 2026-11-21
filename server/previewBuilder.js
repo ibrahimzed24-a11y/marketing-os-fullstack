@@ -523,17 +523,17 @@ function wrapInteractiveTemplatePreview({ title, subtitle, templateHtml, leads, 
     body { display: flex; flex-direction: column; overflow: hidden; }
     .topbar { background: #1e293b; border-bottom: 1px solid #334155; padding: 12px 16px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
     .brand { display: flex; align-items: center; gap: 10px; }
-    .badge-icon { width: 34px; height: 34px; border-radius: 9px; background: linear-gradient(135deg, #0d9488, #0284c7); display: grid; place-items: center; font-weight: 800; font-size: 13px; color: #fff; flex-shrink: 0; }
-    .title { font-size: 14px; font-weight: 800; color: #fff; margin: 0; }
+    .badge-icon { width: 34px; height: 34px; border-radius: 8px; background: #122f47; border: 1px solid #23394e; display: grid; place-items: center; font-weight: 700; font-size: 13px; color: #00c7c2; flex-shrink: 0; }
+    .title { font-size: 14px; font-weight: 700; color: #fff; margin: 0; }
     .subtitle { font-size: 11px; color: #94a3b8; margin-top: 2px; }
-    .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 700; background: rgba(16, 185, 129, 0.16); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35); margin-left: 6px; vertical-align: middle; }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10px; font-weight: 600; background: rgba(0, 169, 164, 0.16); color: #00c7c2; border: 1px solid rgba(0, 169, 164, 0.35); margin-left: 6px; vertical-align: middle; }
     .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-    select { background: #0f172a; color: #f8fafc; border: 1px solid #475569; border-radius: 8px; padding: 6px 10px; font-size: 12px; max-width: 260px; }
-    .btn { background: #334155; color: #e2e8f0; border: 1px solid #475569; border-radius: 8px; padding: 6px 11px; font-size: 12px; font-weight: 600; cursor: pointer; }
+    select { background: #0f172a; color: #f8fafc; border: 1px solid #475569; border-radius: 6px; padding: 6px 10px; font-size: 12px; max-width: 260px; }
+    .btn { background: #334155; color: #e2e8f0; border: 1px solid #475569; border-radius: 6px; padding: 6px 11px; font-size: 12px; font-weight: 500; cursor: pointer; }
     .btn:hover { background: #475569; }
-    .btn-primary { background: #4f46e5; border-color: #6366f1; color: #fff; }
-    .btn-primary:hover { background: #4338ca; }
-    .btn-active { background: #0d9488; border-color: #14b8a6; color: #fff; }
+    .btn-primary { background: #00a9a4; border-color: #008f8b; color: #fff; font-weight: 600; }
+    .btn-primary:hover { background: #008f8b; }
+    .btn-active { background: #00a9a4; border-color: #008f8b; color: #fff; }
     .metabar { background: #0b1220; border-bottom: 1px solid #1e293b; padding: 8px 16px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center; font-size: 11px; color: #cbd5e1; }
     .metabar code { background: #1e293b; color: #5eead4; padding: 2px 6px; border-radius: 5px; font-size: 11px; }
     .stage { flex: 1; display: flex; min-height: 0; padding: 12px; gap: 12px; background: #0f172a; }

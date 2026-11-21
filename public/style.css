@@ -1,142 +1,150 @@
 /* ─────────────────────────────────────────────────────────────────────────
- * public/style.css — Marketing OS Design System Inspired by Canva
- * Clean white canvas (#ffffff), signature purple-to-cyan brand gradient
- * (#7d2ae8 → #00c4cc), generous spacing, soft geometry (8–16px radii),
- * high-contrast legible typography hierarchy, cool-toned hover elevations.
+ * public/style.css — Marketing OS Unslop Design System (Valioz Health)
+ * Grounded in admin brand guidelines (Valioz_Brand_Kit_and_Guidelines.md)
+ * and strict unslopping principles (@heydamir/unslop).
+ *
+ * Core Tokens:
+ *   - Deep Navy (#122f47): primary ink, structured chrome, brand baseline
+ *   - Medical Teal (#00a9a4): single deliberate accent for primary CTAs and focus
+ *   - Pure Canvas (#ffffff) with quiet slate surfaces (#f8fafc, #f1f5f9)
+ *   - Hairline borders (#e2e8f0), zero glowing halos, zero neon gradients
+ *   - Clean 4px/8px rhythm, sentence case, tabular numerals on telemetry
  * ─────────────────────────────────────────────────────────────────── */
 
 :root {
-  /* ─── Surface ───────────────────────────────────────────────────── */
+  /* ─── Surface (Clean white canvas, quiet editorial steps) ───────── */
   --bg: #ffffff;
-  --bg-soft: #f4f5f7;
+  --bg-soft: #f8fafc;
   --surface: #ffffff;
-  --surface-2: #f4f5f7;
-  --surface-inset: #e8eaed;
-  --surface-cool: #eef0fc;
-  --surface-glass: rgba(255, 255, 255, 0.92);
+  --surface-2: #f8fafc;
+  --surface-inset: #f1f5f9;
+  --surface-cool: #f1f8f7;
+  --surface-glass: rgba(255, 255, 255, 0.96);
 
-  /* ─── Border ────────────────────────────────────────────────────── */
-  --border: #e1e3e6;
-  --border-strong: #c7cdd3;
-  --border-soft: #f0f2f5;
+  /* ─── Border (Subtle, quiet hairlines) ─────────────────────────── */
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --border-soft: #f1f5f9;
 
-  /* ─── Ink & Text (Weight contrast over raw color) ────────────────── */
-  --fg: #0e1318;             /* Ink Primary — headings & maximum emphasis */
-  --fg-2: #3c4043;           /* Ink Secondary — body copy & descriptions */
-  --muted: #5f6368;          /* Ink Muted — captions & secondary meta */
-  --meta: #9aa0a6;           /* Ink Faint — disabled, placeholders */
-  --text: #0e1318;
-  --text-soft: #3c4043;
-  --text-faint: #5f6368;
+  /* ─── Ink & Text (Deep Navy primary, legible slate tiers) ──────── */
+  --fg: #122f47;             /* Deep Navy — primary headings & maximum emphasis */
+  --fg-2: #475569;           /* Slate Secondary — readable body copy */
+  --muted: #64748b;          /* Slate Muted — descriptions, captions */
+  --meta: #94a3b8;           /* Slate Faint — placeholders, disabled text */
+  --text: #122f47;
+  --text-soft: #475569;
+  --text-faint: #64748b;
 
-  /* ─── Brand Gradient & Accents ──────────────────────────────────── */
-  --accent: #7d2ae8;         /* Canva Purple — gradient origin */
-  --accent-cyan: #00c4cc;    /* Canva Cyan — gradient terminus */
+  /* ─── Brand Accents (Single purposeful Medical Teal) ───────────── */
+  --accent: #00a9a4;         /* Medical Teal — primary action */
+  --accent-hover: #008f8b;
+  --accent-active: #007a76;
   --accent-on: #ffffff;
-  --accent-hover: #6815d4;
-  --accent-active: #530fb1;
-  --brand-gradient: linear-gradient(135deg, #7d2ae8 0%, #00c4cc 100%);
-  --brand-gradient-hover: linear-gradient(135deg, #6815d4 0%, #00adb5 100%);
+  --accent-soft: rgba(0, 169, 164, 0.08);
+  --accent-cyan: #00a9a4;
+  --brand-gradient: #00a9a4; /* Solid deliberate accent; no dual-color gradient */
+  --brand-gradient-hover: #008f8b;
 
   /* Backward Compatibility Aliases */
   --helm-ivory: #ffffff;
   --helm-surface: #ffffff;
-  --helm-surface-soft: #f4f5f7;
-  --helm-line: #e1e3e6;
-  --helm-plum: #0e1318;
-  --helm-cobalt: #7d2ae8;
-  --helm-cobalt-soft: #eef0fc;
-  --helm-peach: #ff7059;
-  --helm-peach-soft: #fff0ee;
-  --helm-sage: #00b894;
-  --helm-sage-soft: #e6f8f3;
-  --helm-amber: #ff9633;
-  --helm-amber-soft: #fff5e8;
-  --helm-coral: #ff5757;
-  --helm-coral-soft: #ffebeb;
-  --helm-muted: #5f6368;
-  --helm-soft-muted: #9aa0a6;
+  --helm-surface-soft: #f8fafc;
+  --helm-line: #e2e8f0;
+  --helm-plum: #122f47;
+  --helm-cobalt: #00a9a4;
+  --helm-cobalt-soft: #f1f8f7;
+  --helm-peach: #ea580c;
+  --helm-peach-soft: #fff7ed;
+  --helm-sage: #10b981;
+  --helm-sage-soft: #ecfdf5;
+  --helm-amber: #d97706;
+  --helm-amber-soft: #fffbeb;
+  --helm-coral: #ef4444;
+  --helm-coral-soft: #fef2f2;
+  --helm-muted: #64748b;
+  --helm-soft-muted: #94a3b8;
 
-  --primary: #7d2ae8;
-  --primary-2: #00c4cc;
-  --primary-soft: rgba(125, 42, 232, 0.08);
+  --primary: #00a9a4;
+  --primary-2: #122f47;
+  --primary-soft: rgba(0, 169, 164, 0.08);
 
-  /* ─── Semantic Accents ──────────────────────────────────────────── */
-  --success: #00b894;
-  --warn: #ffb020;
-  --danger: #ff5757;
-  --info: #0d99ff;
+  /* ─── Semantic Accents (Toned down, purposeful) ─────────────────── */
+  --success: #10b981;
+  --warn: #d97706;
+  --danger: #ef4444;
+  --info: #0284c7;
 
-  /* ─── Category Accents (Tags & Domain Badges) ───────────────────── */
-  --coral: #ff7059;
-  --tangerine: #ff9633;
-  --mint: #48c997;
-  --sky: #3ea6ff;
-  --lavender: #9b87f5;
+  /* ─── Category Accents (Subtle tags & chips) ────────────────────── */
+  --coral: #ea580c;
+  --tangerine: #d97706;
+  --mint: #00a9a4;
+  --sky: #0284c7;
+  --lavender: #475569;
 
-  /* ─── Geometry & Border Radii ───────────────────────────────────── */
-  --radius-sm: 8px;          /* Buttons, inputs, chips */
-  --radius-md: 12px;         /* Standard cards, template tiles */
-  --radius-lg: 16px;         /* Featured panels, modal dialogs */
-  --radius-pill: 9999px;     /* Status badges, category pills */
+  /* ─── Geometry & Radii (Crisp, disciplined) ────────────────────── */
+  --radius-sm: 6px;          /* Buttons, inputs, small chips */
+  --radius-md: 10px;         /* Standard cards, feed panels */
+  --radius-lg: 14px;         /* Featured panels, modal dialogs */
+  --radius-pill: 9999px;     /* Status indicators, count badges */
 
-  /* ─── Elevation & Shadows ───────────────────────────────────────── */
-  --shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.04);
-  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.05);
-  --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.08);
-  --shadow-hover: 0 12px 32px rgba(125, 42, 232, 0.12);
-  --shadow-cta: 0 2px 8px rgba(125, 42, 232, 0.22);
-  --shadow-cta-hover: 0 4px 14px rgba(125, 42, 232, 0.35);
+  /* ─── Elevation & Shadows (Neutral, small, no glowing halos) ───── */
+  --shadow-soft: 0 1px 2px rgba(18, 47, 71, 0.04);
+  --shadow-card: 0 1px 3px rgba(18, 47, 71, 0.05), 0 1px 2px rgba(18, 47, 71, 0.03);
+  --shadow-elevated: 0 4px 12px rgba(18, 47, 71, 0.06);
+  --shadow-hover: 0 6px 16px rgba(18, 47, 71, 0.08);
+  --shadow-cta: 0 1px 2px rgba(0, 169, 164, 0.2);
+  --shadow-cta-hover: 0 2px 6px rgba(0, 169, 164, 0.3);
 
-  --focus-ring: 0 0 0 3px rgba(125, 42, 232, 0.18);
-  --motion-fast: 180ms;
-  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --focus-ring: 0 0 0 3px rgba(0, 169, 164, 0.18);
+  --motion-fast: 160ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
 }
 
 html.dark {
-  --bg: #0e1318;
-  --bg-soft: #141b22;
-  --surface: #18222c;
-  --surface-2: #202c38;
-  --surface-inset: #263341;
-  --surface-cool: #1b2636;
-  --surface-glass: rgba(20, 27, 34, 0.94);
+  /* ─── Dark Mode (Deep Navy ground, slate steps, quiet chrome) ─── */
+  --bg: #0b1622;
+  --bg-soft: #0f1d2b;
+  --surface: #122334;
+  --surface-2: #162738;
+  --surface-inset: #1b3046;
+  --surface-cool: #14293d;
+  --surface-glass: rgba(18, 35, 52, 0.95);
 
-  --border: #283543;
-  --border-strong: #38485a;
-  --border-soft: #1e2936;
+  --border: #23394e;
+  --border-strong: #334e68;
+  --border-soft: #1b2e40;
 
-  --fg: #f4f5f7;
-  --fg-2: #c7cdd3;
-  --muted: #8c97a5;
-  --meta: #677484;
-  --text: #f4f5f7;
-  --text-soft: #c7cdd3;
-  --text-faint: #8c97a5;
+  --fg: #f1f5f9;
+  --fg-2: #cbd5e1;
+  --muted: #94a3b8;
+  --meta: #64748b;
+  --text: #f1f5f9;
+  --text-soft: #cbd5e1;
+  --text-faint: #94a3b8;
 
-  --accent: #9b5cf6;
-  --accent-cyan: #22d3ee;
-  --accent-hover: #ab72fb;
-  --accent-active: #8b3ef3;
-  --brand-gradient: linear-gradient(135deg, #9b5cf6 0%, #22d3ee 100%);
-  --brand-gradient-hover: linear-gradient(135deg, #a872f8 0%, #38bdf8 100%);
+  --accent: #00c7c2;
+  --accent-hover: #26ded9;
+  --accent-active: #00aba6;
+  --accent-cyan: #00c7c2;
+  --brand-gradient: #00c7c2;
+  --brand-gradient-hover: #26ded9;
 
-  --helm-ivory: #0e1318;
-  --helm-surface: #18222c;
-  --helm-surface-soft: #202c38;
-  --helm-line: #283543;
-  --helm-plum: #f4f5f7;
-  --helm-cobalt: #9b5cf6;
-  --helm-cobalt-soft: #25283b;
+  --helm-ivory: #0b1622;
+  --helm-surface: #122334;
+  --helm-surface-soft: #162738;
+  --helm-line: #23394e;
+  --helm-plum: #f1f5f9;
+  --helm-cobalt: #00c7c2;
+  --helm-cobalt-soft: #14293d;
 
-  --primary: #9b5cf6;
-  --primary-2: #22d3ee;
-  --primary-soft: rgba(155, 92, 246, 0.16);
+  --primary: #00c7c2;
+  --primary-2: #f1f5f9;
+  --primary-soft: rgba(0, 199, 194, 0.14);
 
-  --shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.4);
-  --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.5);
-  --shadow-elevated: 0 12px 32px rgba(0, 0, 0, 0.6);
-  --focus-ring: 0 0 0 3px rgba(155, 92, 246, 0.28);
+  --shadow-soft: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-card: 0 2px 6px rgba(0, 0, 0, 0.45);
+  --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.55);
+  --focus-ring: 0 0 0 3px rgba(0, 199, 194, 0.25);
 }
 
 /* ─── Global Base & Reset ────────────────────────────────────────── */
@@ -150,27 +158,26 @@ body {
   color: var(--fg-2);
   margin: 0;
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
 }
 
 h1, h2, h3, h4 {
   font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
   color: var(--fg);
-  line-height: 1.18;
+  line-height: 1.25;
   margin: 0;
+  font-weight: 600;
 }
 
 .mono {
   font-family: 'DM Mono', ui-monospace, SFMono-Regular, monospace;
+  font-variant-numeric: tabular-nums;
 }
 
-/* ─── Background Mesh ────────────────────────────────────────────── */
+/* ─── Background Mesh (Quiet, calm, zero loud glows) ─────────────── */
 .gradient-mesh {
-  background:
-    radial-gradient(900px 500px at 4% 0%, rgba(125, 42, 232, 0.04), transparent 60%),
-    radial-gradient(800px 450px at 96% 0%, rgba(0, 196, 204, 0.04), transparent 60%),
-    linear-gradient(180deg, var(--bg) 0%, var(--bg-soft) 100%);
+  background: var(--bg);
 }
 
 /* ─── Card Components ────────────────────────────────────────────── */
@@ -189,7 +196,7 @@ h1, h2, h3, h4 {
 }
 
 .card-interactive:hover {
-  transform: translateY(-2px);
+  transform: translateY(-1px);
   border-color: var(--border-strong);
 }
 
@@ -201,31 +208,32 @@ h1, h2, h3, h4 {
 
 .glass-bar {
   background: var(--surface-glass);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border);
 }
 
 /* ─── Buttons & Primary CTAs ─────────────────────────────────────── */
 .btn-primary {
-  background: var(--brand-gradient);
+  background: var(--accent);
   color: var(--accent-on) !important;
   border-radius: var(--radius-sm);
-  font-weight: 700;
+  font-weight: 600;
   box-shadow: var(--shadow-cta);
   border: 1px solid transparent;
   cursor: pointer;
   transition:
+    background-color var(--motion-fast) var(--ease-standard),
     box-shadow var(--motion-fast) var(--ease-standard),
-    transform var(--motion-fast) var(--ease-standard),
-    filter var(--motion-fast) var(--ease-standard);
+    transform var(--motion-fast) var(--ease-standard);
 }
 .btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
   box-shadow: var(--shadow-cta-hover);
   transform: translateY(-1px);
-  filter: brightness(1.05);
 }
 .btn-primary:active:not(:disabled) {
+  background: var(--accent-active);
   transform: translateY(0);
 }
 
@@ -249,7 +257,7 @@ h1, h2, h3, h4 {
   color: var(--fg-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
   transition: all var(--motion-fast) var(--ease-standard);
 }
@@ -262,19 +270,20 @@ h1, h2, h3, h4 {
 
 .btn-ink {
   background: var(--fg);
-  color: var(--bg);
+  color: #ffffff;
   border-radius: var(--radius-sm);
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
+  border: 1px solid transparent;
   transition: all var(--motion-fast) var(--ease-standard);
 }
 .btn-ink:hover:not(:disabled) {
-  opacity: 0.9;
+  opacity: 0.92;
   transform: translateY(-1px);
 }
 
 .btn-subtle {
-  background: rgba(125, 42, 232, 0.08);
+  background: var(--accent-soft);
   color: var(--accent);
   border-radius: var(--radius-sm);
   font-weight: 600;
@@ -283,7 +292,7 @@ h1, h2, h3, h4 {
   transition: all var(--motion-fast) var(--ease-standard);
 }
 .btn-subtle:hover:not(:disabled) {
-  background: rgba(125, 42, 232, 0.14);
+  background: rgba(0, 169, 164, 0.14);
 }
 
 /* ─── Form Inputs ────────────────────────────────────────────────── */
@@ -292,8 +301,8 @@ h1, h2, h3, h4 {
   color: var(--fg);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 10px 14px;
-  font-size: 14px;
+  padding: 8px 12px;
+  font-size: 13.5px;
   outline: none;
   width: 100%;
   transition:
@@ -308,36 +317,34 @@ h1, h2, h3, h4 {
   color: var(--meta);
 }
 
-/* ─── Chips, Pills & Pro Badges ──────────────────────────────────── */
+/* ─── Chips, Pills & Status Badges (Sentence Case, Quiet) ────────── */
 .chip {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 10px;
+  padding: 3px 8px;
   border-radius: var(--radius-pill);
   font-size: 11px;
-  font-weight: 700;
-  line-height: 1.2;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: normal;
 }
-.chip-coral { background: rgba(255, 112, 89, 0.14); color: #c2412c; }
-.chip-mint { background: rgba(72, 201, 151, 0.16); color: #1d8a5d; }
-.chip-lavender { background: rgba(155, 135, 245, 0.18); color: #5b3fcf; }
-.chip-tangerine { background: rgba(255, 150, 51, 0.16); color: #b85a08; }
-.chip-sky { background: rgba(62, 166, 255, 0.16); color: #0f70c7; }
+.chip-coral { background: rgba(234, 88, 12, 0.1); color: #c2410c; }
+.chip-mint { background: rgba(0, 169, 164, 0.1); color: #008f8b; }
+.chip-lavender { background: rgba(71, 85, 105, 0.1); color: #334155; }
+.chip-tangerine { background: rgba(217, 119, 6, 0.1); color: #b45309; }
+.chip-sky { background: rgba(2, 132, 199, 0.1); color: #0369a1; }
 
 .pro-badge {
   display: inline-flex;
   align-items: center;
-  padding: 3px 8px;
+  padding: 2px 7px;
   border-radius: var(--radius-pill);
-  background: linear-gradient(135deg, #7d2ae8 0%, #ff5757 100%);
-  color: #ffffff;
+  background: var(--fg);
+  color: var(--accent);
   font-size: 10px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-weight: 600;
+  letter-spacing: normal;
 }
 
 /* ─── Domain Nav Tabs & Grouping ─────────────────────────────────── */
@@ -345,10 +352,10 @@ h1, h2, h3, h4 {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 14px;
+  padding: 6px 12px;
   border-radius: var(--radius-pill);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
   transition: all var(--motion-fast) var(--ease-standard);
   border: 1px solid transparent;
@@ -371,10 +378,10 @@ h1, h2, h3, h4 {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 13px;
+  padding: 6px 12px;
   border-radius: var(--radius-pill);
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 12.5px;
+  font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
   border: 1px solid transparent;
@@ -384,8 +391,8 @@ h1, h2, h3, h4 {
   background: var(--surface);
   color: var(--accent);
   border-color: var(--border);
-  font-weight: 700;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(18, 47, 71, 0.05);
 }
 .nav-pill-item:not(.active) {
   color: var(--fg-2);
@@ -398,27 +405,27 @@ h1, h2, h3, h4 {
 /* ─── Scrollbars & Utilities ─────────────────────────────────────── */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 99px; }
 
-/* ─── WhatsApp Outreach Studio & Audio Player ───────────────────────── */
+/* ─── WhatsApp Outreach Studio & Audio Player ─────────────────────── */
 .btn-whatsapp {
-  background: #25D366;
+  background: #128c7e;
   color: #ffffff;
-  font-weight: 700;
+  font-weight: 600;
   border-radius: var(--radius-sm);
-  padding: 8px 16px;
+  padding: 8px 14px;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
   cursor: pointer;
   border: 1px solid transparent;
   transition: all var(--motion-fast) var(--ease-standard);
   text-decoration: none;
 }
 .btn-whatsapp:hover {
-  background: #1EBE5D;
-  box-shadow: 0 4px 14px rgba(37, 211, 102, 0.35);
+  background: #075e54;
+  box-shadow: 0 2px 6px rgba(18, 140, 126, 0.3);
   transform: translateY(-1px);
 }
 .btn-whatsapp:active {
@@ -426,11 +433,11 @@ h1, h2, h3, h4 {
 }
 
 .whatsapp-chat-frame {
-  background: #efeae2;
+  background: #f0f2f5;
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   overflow: hidden;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--shadow-card);
   position: relative;
 }
 .dark .whatsapp-chat-frame {
@@ -439,61 +446,63 @@ h1, h2, h3, h4 {
 }
 
 .whatsapp-chat-header {
-  background: #005c4b;
+  background: #122f47;
   color: #ffffff;
-  padding: 12px 16px;
+  padding: 10px 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .whatsapp-bubble-out {
-  background: #d9fdd3;
-  color: #111b21;
-  border-radius: 12px 0 12px 12px;
-  padding: 10px 14px;
+  background: #e7f7f5;
+  color: #122f47;
+  border-radius: 10px 0 10px 10px;
+  padding: 10px 12px;
   max-width: 90%;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 1px 2px rgba(18, 47, 71, 0.08);
   position: relative;
   margin-left: auto;
+  border: 1px solid rgba(0, 169, 164, 0.15);
 }
 .dark .whatsapp-bubble-out {
-  background: #005c4b;
+  background: #122f47;
   color: #e9edef;
+  border-color: #23394e;
 }
 
 .whatsapp-audio-player {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.7);
-  border-radius: 24px;
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  gap: 10px;
+  padding: 7px 11px;
+  background: #ffffff;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
 }
 .dark .whatsapp-audio-player {
-  background: rgba(0, 0, 0, 0.25);
-  border-color: rgba(255, 255, 255, 0.08);
+  background: #162738;
+  border-color: #23394e;
 }
 
 .whatsapp-waveform {
   display: flex;
   align-items: center;
-  gap: 2.5px;
-  height: 28px;
+  gap: 2px;
+  height: 24px;
   flex: 1;
   cursor: pointer;
 }
 
 .whatsapp-waveform-bar {
-  width: 3px;
+  width: 2.5px;
   border-radius: 2px;
-  background: #8696a0;
+  background: #94a3b8;
   transition: height 0.15s ease, background 0.15s ease;
 }
 .whatsapp-waveform-bar.active {
-  background: #25d366;
+  background: #00a9a4;
 }
 .whatsapp-waveform-bar.playing {
   animation: waWavePulse 0.8s ease-in-out infinite alternate;
@@ -505,6 +514,6 @@ h1, h2, h3, h4 {
 }
 
 .whatsapp-tick-read {
-  color: #53bdeb;
-  font-weight: bold;
+  color: #00a9a4;
+  font-weight: 600;
 }

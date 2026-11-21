@@ -1966,8 +1966,8 @@ function renderHeaderAndRoleBanner() {
       }
       const isActive = tab.activeFor.includes(state.mainView);
       el.className = isActive
-        ? 'px-3.5 py-1.5 rounded-full text-xs font-bold bg-white dark:bg-slate-800 text-[#7d2ae8] dark:text-purple-300 shadow-xs border border-[#e1e3e6] dark:border-slate-700 transition inline-flex items-center gap-1.5 whitespace-nowrap'
-        : 'px-3.5 py-1.5 rounded-full text-xs font-medium text-[#5f6368] dark:text-slate-400 hover:text-[#0e1318] dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-slate-700/50 transition inline-flex items-center gap-1.5 border border-transparent whitespace-nowrap';
+        ? 'px-3.5 py-1.5 rounded-full text-xs font-semibold bg-white dark:bg-slate-800 text-[#00a9a4] dark:text-teal-300 shadow-xs border border-[#e2e8f0] dark:border-slate-700 transition inline-flex items-center gap-1.5 whitespace-nowrap'
+        : 'px-3.5 py-1.5 rounded-full text-xs font-medium text-[#475569] dark:text-slate-400 hover:text-[#122f47] dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-slate-700/50 transition inline-flex items-center gap-1.5 border border-transparent whitespace-nowrap';
     }
   });
 
@@ -2374,14 +2374,14 @@ function renderWorkbenchOutput() {
       const taskId = proj.activeTask?.id || 'active-task';
       vp.innerHTML =
         '<div class="p-5 space-y-4">' +
-          '<div class="flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-indigo-700 to-purple-700 text-white p-4 rounded-xl shadow-sm">' +
+          '<div class="flex flex-wrap items-center justify-between gap-3 bg-[#122f47] text-white p-4 rounded-xl border border-[#23394e] shadow-xs">' +
             '<div>' +
-              '<div class="text-[10px] uppercase tracking-wider opacity-80">' + escapeHtml(proj.client || 'Client Deliverable') + ' &bull; ' + escapeHtml(deliverable.title || proj.name) + '</div>' +
-              '<h4 class="text-base font-bold mt-0.5">' + escapeHtml(deliverable.title || 'Responsive Landing Page') + '</h4>' +
-              '<p class="text-xs text-indigo-100 mt-1 max-w-xl">' + escapeHtml(deliverable.summary || 'High-conversion responsive landing page with Tailwind CSS.') + '</p>' +
+              '<div class="text-[10px] uppercase tracking-wider text-teal-300 font-semibold">' + escapeHtml(proj.client || 'Client Deliverable') + ' &bull; ' + escapeHtml(deliverable.title || proj.name) + '</div>' +
+              '<h4 class="text-base font-semibold mt-0.5">' + escapeHtml(deliverable.title || 'Responsive Landing Page') + '</h4>' +
+              '<p class="text-xs text-slate-300 mt-1 max-w-xl">' + escapeHtml(deliverable.summary || 'High-conversion responsive landing page with Tailwind CSS.') + '</p>' +
             '</div>' +
-            '<button onclick="openLiveHtmlPreview(\'' + escapeHtml(taskId) + '\', \'' + escapeHtml(proj.id || '') + '\')" class="bg-white text-indigo-900 font-bold px-4 py-2 rounded-xl text-xs shadow hover:bg-slate-100 transition">' +
-              '🌐 Open Fullscreen Preview →' +
+            '<button onclick="openLiveHtmlPreview(\'' + escapeHtml(taskId) + '\', \'' + escapeHtml(proj.id || '') + '\')" class="bg-[#00a9a4] hover:bg-[#008f8b] text-white font-semibold px-4 py-2 rounded-lg text-xs shadow-xs transition">' +
+              'Open fullscreen preview →' +
             '</button>' +
           '</div>' +
           '<div class="border border-[var(--border)] rounded-xl overflow-hidden shadow-inner bg-white">' +
@@ -2463,18 +2463,18 @@ function renderWorkbenchOutput() {
       const hasHtmlHarness = (proj.harnessFiles || []).some(f => /\.html?$/i.test(f.name || f.original_name || ''));
       vp.innerHTML =
         '<div class="p-5 space-y-4">' +
-          '<div class="flex flex-wrap items-center justify-between gap-3 bg-gradient-to-r from-teal-700 via-indigo-700 to-purple-700 text-white p-4 rounded-xl">' +
+          '<div class="flex flex-wrap items-center justify-between gap-3 bg-[#122f47] text-white p-4 rounded-xl border border-[#23394e] shadow-xs">' +
             '<div>' +
-              '<div class="text-[10px] uppercase tracking-wider opacity-80">' + escapeHtml(proj.client || 'Client') + ' &bull; ' + escapeHtml(pipe.name) + '</div>' +
-              '<h4 class="text-base font-bold mt-0.5">' + escapeHtml(proj.name) + '</h4>' +
-              '<p class="text-xs text-teal-100 mt-1">' + escapeHtml(proj.goal || 'Production deliverable pipeline.') + '</p>' +
+              '<div class="text-[10px] uppercase tracking-wider text-teal-300 font-semibold">' + escapeHtml(proj.client || 'Client') + ' &bull; ' + escapeHtml(pipe.name) + '</div>' +
+              '<h4 class="text-base font-semibold mt-0.5">' + escapeHtml(proj.name) + '</h4>' +
+              '<p class="text-xs text-slate-300 mt-1">' + escapeHtml(proj.goal || 'Production deliverable pipeline.') + '</p>' +
             '</div>' +
             '<div class="flex flex-wrap items-center gap-2">' +
-              '<button onclick="openBrandKitModal(\'' + escapeHtml(proj.id || '') + '\')" class="bg-white/15 hover:bg-white/25 text-white border border-white/30 font-bold px-3.5 py-2 rounded-xl text-xs transition">' +
-                '🎨 Brand Kit' +
+              '<button onclick="openBrandKitModal(\'' + escapeHtml(proj.id || '') + '\')" class="bg-white/10 hover:bg-white/20 text-white border border-white/20 font-semibold px-3.5 py-2 rounded-lg text-xs transition">' +
+                'Brand kit' +
               '</button>' +
-              '<button onclick="openLiveHtmlPreview(\'' + escapeHtml(activeTaskId) + '\', \'' + escapeHtml(proj.id || '') + '\')" class="bg-white text-indigo-900 font-bold px-4 py-2 rounded-xl text-xs shadow hover:bg-slate-100 transition">' +
-                '🌐 Open Preview Modal →' +
+              '<button onclick="openLiveHtmlPreview(\'' + escapeHtml(activeTaskId) + '\', \'' + escapeHtml(proj.id || '') + '\')" class="bg-[#00a9a4] hover:bg-[#008f8b] text-white font-semibold px-4 py-2 rounded-lg text-xs shadow-xs transition">' +
+                'Open preview modal →' +
               '</button>' +
             '</div>' +
           '</div>' +
@@ -6956,7 +6956,7 @@ function renderCommandPaletteResults() {
   container.innerHTML = cmdFilteredItems.map((item, idx) => {
     const isSelected = idx === cmdSelectedIndex;
     return `
-      <div onclick="selectCommandPaletteItem(${idx})" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer transition ${isSelected ? 'bg-[#7d2ae8] text-white font-bold' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-[var(--fg)]'}">
+      <div onclick="selectCommandPaletteItem(${idx})" class="flex items-center justify-between px-3.5 py-2.5 rounded-xl cursor-pointer transition ${isSelected ? 'bg-[#00a9a4] text-white font-semibold' : 'hover:bg-slate-100 dark:hover:bg-slate-800 text-[var(--fg)]'}">
         <div class="flex items-center gap-3 min-w-0">
           <span class="text-base">${item.icon}</span>
           <div class="truncate">
