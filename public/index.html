@@ -2976,12 +2976,12 @@
       </div>
       <div class="grid sm:grid-cols-2 gap-3 text-xs">
         <div class="card-subtle p-3">
-          <div class="font-bold mb-1">1. Antigravity ~/.gemini/antigravity/mcp_config.json</div>
+          <div class="font-bold mb-1">1. Global MCP Configuration (~/.gemini/config/mcp_config.json)</div>
           <pre id="mcpJsonSnippet" class="mono text-[10px] bg-slate-950 text-lime-300 p-2.5 rounded-lg overflow-x-auto">{
   "mcpServers": {
     "n8n-mcp": {
       "command": "node",
-      "args": ["/opt/homebrew/lib/node_modules/n8n-mcp/dist/mcp/index.js"],
+      "args": ["/Users/ibrahimzid/.local/node-versions/node-v24.22.3-darwin-x64/lib/node_modules/n8n-mcp/dist/mcp/index.js"],
       "env": {
         "MCP_MODE": "stdio",
         "LOG_LEVEL": "error",
@@ -2996,18 +2996,15 @@
           <button onclick="copySnippetText('mcpJsonSnippet')" class="btn-outline px-3 py-1 text-[11px] mt-2">Copy mcp_config.json</button>
         </div>
         <div class="card-subtle p-3">
-          <div class="font-bold mb-1">2. Offline LLM SDK Configuration</div>
+          <div class="font-bold mb-1">2. Google Antigravity Python SDK Configuration</div>
           <pre id="ollamaPySnippet" class="mono text-[10px] bg-slate-950 text-cyan-300 p-2.5 rounded-lg overflow-x-auto">from google.antigravity import Agent, LocalOpenAIAgentConfig
 
 config = LocalOpenAIAgentConfig(
-    model="qwen2.5-coder:7b",
-    base_url="http://localhost:11435/v1"
+    model="qwen2.5:7b",
+    base_url="http://localhost:11434/v1",
+    system_instructions="Execute helm pipelines from /uploads harness."
 )
-agent = Agent(
-    name="helm_coordinator",
-    config=config,
-    instructions="Execute helm pipelines from /uploads harness."
-)</pre>
+agent = Agent(config)</pre>
           <button onclick="copySnippetText('ollamaPySnippet')" class="btn-outline px-3 py-1 text-[11px] mt-2">Copy Python SDK Config</button>
         </div>
       </div>
