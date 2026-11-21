@@ -1086,6 +1086,13 @@ function updateLiveNavBadges() {
     salesBadge.classList.remove('hidden');
   }
 
+  const projBadge = document.getElementById('navProjectsCountBadge');
+  if (projBadge) {
+    const validProjects = Array.isArray(state.projects) ? state.projects.filter(p => p.id !== 'helm') : [];
+    projBadge.textContent = validProjects.length;
+    projBadge.classList.remove('hidden');
+  }
+
   // Update dynamic logo counts in Sales and Knowledge base
   const salesLogosText = document.getElementById('salesLogosCountText');
   if (salesLogosText) {
@@ -1241,6 +1248,8 @@ function switchMainView(view) {
     fetchAdminSettingsData().then(renderAdminSettingsView);
   } else if (view === 'rag') {
     renderRagView();
+  } else if (view === 'projects') {
+    renderProjectsView();
   } else if (view === 'logins') {
     renderSavedLoginsView();
   } else if (view === 'agents') {
@@ -1350,6 +1359,40 @@ function toggleNewProjectDrawer() {
   if (el) el.classList.toggle('hidden');
 }
 
+function toggleProjectPipelinePill(btn) {
+  btn.classList.toggle('bg-teal-500/15');
+  btn.classList.toggle('border-teal-500');
+  btn.classList.toggle('text-teal-700');
+  btn.classList.toggle('dark:text-teal-300');
+  btn.classList.toggle('border-[var(--border)]');
+  btn.classList.toggle('text-[var(--text-soft)]');
+  const isSelected = btn.classList.contains('border-teal-500');
+  const val = btn.getAttribute('data-value') || '';
+  const cleanVal = val.replace(/^✓\s*/, '');
+  btn.textContent = isSelected ? `✓ ${cleanVal}` : cleanVal;
+
+  const activePills = document.querySelectorAll('#npPipelinePills .border-teal-500');
+  const countEl = document.getElementById('npPipelinesSelectedCount');
+  if (countEl) countEl.textContent = `${activePills.length} selected`;
+}
+
+function toggleProjectDeliverablePill(btn) {
+  btn.classList.toggle('bg-teal-500/15');
+  btn.classList.toggle('border-teal-500');
+  btn.classList.toggle('text-teal-700');
+  btn.classList.toggle('dark:text-teal-300');
+  btn.classList.toggle('border-[var(--border)]');
+  btn.classList.toggle('text-[var(--text-soft)]');
+  const isSelected = btn.classList.contains('border-teal-500');
+  const val = btn.getAttribute('data-value') || '';
+  const cleanVal = val.replace(/^✓\s*/, '');
+  btn.textContent = isSelected ? `✓ ${cleanVal}` : cleanVal;
+
+  const activePills = document.querySelectorAll('#npDeliverablePills .border-teal-500');
+  const countEl = document.getElementById('npDeliverablesSelectedCount');
+  if (countEl) countEl.textContent = `${activePills.length} selected`;
+}
+
 async function createNewProject() {
   if (!['super_admin', 'owner', 'admin', 'manager'].includes(state.currentUserRole)) {
     return showToast('RBAC Restriction: Only Super Admin, Admin, or Manager can create projects.');
@@ -1358,9 +1401,28 @@ async function createNewProject() {
   const brand = (document.getElementById('npClient')?.value || '').trim() || 'Internal Marketing';
   if (!name) return showToast('Please enter a Project Name.');
 
-  const pipeline = document.getElementById('npPipeline')?.value || 'email-campaign';
+  const department = document.getElementById('npDepartment')?.value || 'sales';
   const goal = (document.getElementById('npGoal')?.value || '').trim() || 'Execute grounded marketing pipeline.';
-  const deliverable = document.getElementById('npDeliverable')?.value || 'Email Sequence';
+  const knowledge_notes = (document.getElementById('npKnowledgeNotes')?.value || '').trim();
+
+  // Collect selected pipelines from pills
+  const pipelinePills = Array.from(document.querySelectorAll('#npPipelinePills .border-teal-500'));
+  let pipelines = pipelinePills.map(p => p.getAttribute('data-value')).filter(Boolean);
+  if (!pipelines.length) {
+    const singlePipe = document.getElementById('npPipeline')?.value;
+    pipelines = singlePipe ? [singlePipe] : ['offer-campaign'];
+  }
+
+  // Collect selected deliverables from pills
+  const delivPills = Array.from(document.querySelectorAll('#npDeliverablePills .border-teal-500'));
+  let deliverables = delivPills.map(p => p.getAttribute('data-value')).filter(Boolean);
+  if (!deliverables.length) {
+    const singleDeliv = document.getElementById('npDeliverable')?.value;
+    deliverables = singleDeliv ? [singleDeliv] : ['Commercial Offer & Proposal'];
+  }
+
+  const primaryPipeline = pipelines[0] || 'offer-campaign';
+  const primaryDeliverable = deliverables[0] || 'Commercial Offer & Proposal';
 
   try {
     const res = await apiFetch('/api/projects', {
@@ -1370,7 +1432,11 @@ async function createNewProject() {
         name,
         client_name: brand,
         goal,
-        type: pipeline
+        department,
+        type: primaryPipeline,
+        pipelines,
+        deliverables,
+        knowledge_notes
       })
     });
     const data = await res.json().catch(() => ({}));
@@ -1380,29 +1446,30 @@ async function createNewProject() {
 
     const projectId = data.id;
     state.selectedProjectId = projectId;
-    state.selectedPipeline = pipeline;
+    state.selectedPipeline = primaryPipeline;
 
-    const npName = document.getElementById('npName');
-    const npClient = document.getElementById('npClient');
-    const npGoal = document.getElementById('npGoal');
-    if (npName) npName.value = '';
-    if (npClient) npClient.value = '';
-    if (npGoal) npGoal.value = '';
+    if (document.getElementById('npName')) document.getElementById('npName').value = '';
+    if (document.getElementById('npClient')) document.getElementById('npClient').value = '';
+    if (document.getElementById('npGoal')) document.getElementById('npGoal').value = '';
+    if (document.getElementById('npKnowledgeNotes')) document.getElementById('npKnowledgeNotes').value = '';
 
     document.getElementById('newProjectDrawer')?.classList.add('hidden');
 
     await syncFromBackend();
     const createdProj = state.projects.find(p => p.id === projectId);
     if (createdProj) {
-      createdProj.deliverable = deliverable;
+      createdProj.deliverable = primaryDeliverable;
+      createdProj.deliverables = deliverables;
       createdProj.goal = goal;
-      createdProj.pipeline = pipeline;
-      createdProj.squad = PIPELINE_CATALOG[pipeline] ? PIPELINE_CATALOG[pipeline].squad.slice() : ['CO', 'BR', 'SE', 'MR'];
+      createdProj.pipeline = primaryPipeline;
+      createdProj.pipelines = pipelines;
+      createdProj.knowledge_notes = knowledge_notes;
+      createdProj.squad = PIPELINE_CATALOG[primaryPipeline] ? PIPELINE_CATALOG[primaryPipeline].squad.slice() : ['CO', 'BR', 'SE', 'MR'];
     }
     state.selectedProjectId = projectId;
     saveState();
     renderAll();
-    showToast('Created project "' + name + '".');
+    showToast('Created project "' + name + '" with ' + pipelines.length + ' pipelines & attached knowledge base.');
   } catch (err) {
     showToast('Error creating project: ' + err.message);
   }
@@ -2086,6 +2153,7 @@ function renderHeaderAndRoleBanner() {
     { id: 'adminSettings', activeFor: ['adminSettings'], clientAllowed: false, domain: 'ops' },
 
     // Extended / Compatibility
+    { id: 'projects', activeFor: ['projects'], clientAllowed: true, domain: 'compat' },
     { id: 'overview', activeFor: ['overview'], clientAllowed: false, domain: 'compat' },
     { id: 'sales', activeFor: ['sales'], clientAllowed: false, domain: 'compat' },
     { id: 'workbench', activeFor: ['workbench'], clientAllowed: true, domain: 'compat' },
@@ -2141,6 +2209,7 @@ function renderHeaderAndRoleBanner() {
     creative: ['view-creative-media', 'view-creative'],
     'executive-reporting': ['view-executive-reporting'],
     reporting: ['view-executive-reporting'],
+    projects: ['view-projects'],
     overview: ['view-overview'],
     workbench: ['view-workbench'],
     sales: ['view-sales'],
@@ -2160,6 +2229,7 @@ function renderHeaderAndRoleBanner() {
     'view-workflow-coordination', 'view-browser-research', 'view-research',
     'view-software-engineering', 'view-creative-media', 'view-creative',
     'view-executive-reporting', 'view-overview', 'view-workbench',
+    'view-projects',
     'view-sales', 'view-approvals', 'view-roleDash', 'view-pipelines',
     'view-team', 'view-seo', 'view-logins', 'view-agents', 'view-rag',
     'view-adminSettings'
@@ -3263,20 +3333,89 @@ function filterKnowledgeTab(category) {
   filterKnowledgeCategory(category);
 }
 
+let currentRagScope = 'project'; // 'helm' | 'project' | 'task'
+let currentRagTaskId = null;
+
+function switchRagScope(scope) {
+  currentRagScope = scope;
+  const helmBtn = document.getElementById('ragScopeBtn-helm');
+  const projBtn = document.getElementById('ragScopeBtn-project');
+  const taskBtn = document.getElementById('ragScopeBtn-task');
+  const taskWrapper = document.getElementById('ragTaskSelectWrapper');
+  const projSelect = document.getElementById('ragProjectSelect');
+
+  [helmBtn, projBtn, taskBtn].forEach(b => {
+    if (b) {
+      b.className = 'px-3 py-1.5 rounded-lg text-xs font-bold border border-[var(--border)] transition flex items-center gap-1.5 text-[var(--text-soft)] hover:border-teal-500/50';
+    }
+  });
+
+  if (scope === 'helm' && helmBtn) {
+    helmBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold border transition flex items-center gap-1.5 bg-amber-500/15 border-amber-500 text-amber-700 dark:text-amber-300';
+    if (taskWrapper) taskWrapper.classList.add('hidden');
+    if (projSelect) projSelect.classList.add('hidden');
+  } else if (scope === 'task' && taskBtn) {
+    taskBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold border transition flex items-center gap-1.5 bg-teal-500/15 border-teal-500 text-teal-700 dark:text-teal-300';
+    if (taskWrapper) taskWrapper.classList.remove('hidden');
+    if (projSelect) projSelect.classList.remove('hidden');
+    populateRagTaskSelector();
+  } else {
+    // project scope default
+    if (projBtn) projBtn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold border transition flex items-center gap-1.5 bg-teal-500/15 border-teal-500 text-teal-700 dark:text-teal-300';
+    if (taskWrapper) taskWrapper.classList.add('hidden');
+    if (projSelect) projSelect.classList.remove('hidden');
+  }
+
+  renderRagView();
+}
+
+function populateRagTaskSelector() {
+  const sel = document.getElementById('ragTaskSelect');
+  if (!sel) return;
+  const tasks = state.tasks || [];
+  if (!tasks.length) {
+    sel.innerHTML = '<option value="">No tasks found</option>';
+    currentRagTaskId = null;
+    return;
+  }
+  sel.innerHTML = tasks.map(t =>
+    `<option value="${t.id}" ${t.id === currentRagTaskId ? 'selected' : ''}>${escapeHtml(t.title)}</option>`
+  ).join('');
+  if (!currentRagTaskId && tasks[0]) {
+    currentRagTaskId = tasks[0].id;
+  }
+}
+
+function onRagTaskSelectChange(taskId) {
+  currentRagTaskId = taskId;
+  renderRagView();
+}
+
 async function renderRagView() {
   const selEl = document.getElementById('ragProjectSelect');
   if (selEl) {
-    selEl.innerHTML = state.projects.map(p => `
+    const validProjects = (state.projects || []).filter(p => p.id !== 'helm');
+    selEl.innerHTML = validProjects.map(p => `
       <option value="${p.id}" ${p.id === state.selectedProjectId ? 'selected' : ''}>${escapeHtml(p.name)}</option>
     `).join('');
   }
 
   if (!authToken) return;
   const proj = getSelectedProject();
-  if (!proj) return;
+  if (!proj && currentRagScope !== 'helm') return;
 
   try {
-    const res = await apiFetch(`/api/projects/${proj.id}/knowledge`);
+    let endpoint = '';
+    if (currentRagScope === 'helm') {
+      endpoint = '/api/projects/helm/knowledge?scope=helm';
+    } else if (currentRagScope === 'task' && currentRagTaskId) {
+      endpoint = `/api/projects/${proj.id}/knowledge?scope=task&task_id=${encodeURIComponent(currentRagTaskId)}`;
+    } else {
+      const pId = proj ? proj.id : 'helm';
+      endpoint = `/api/projects/${pId}/knowledge?scope=project`;
+    }
+
+    const res = await apiFetch(endpoint);
     if (res.ok) {
       const data = await res.json();
       knowledgeSummaryCache = data.summary || null;
@@ -3304,7 +3443,7 @@ async function renderRagView() {
       if (statProp) statProp.textContent = `${pMet.total || 0} / ${pMet.total_leads || 0}`;
       if (propCountLabel) propCountLabel.textContent = `${pMet.total || 0}`;
       if (docsCountLabel) docsCountLabel.textContent = `${knowledgeFilesCache.length || data.summary?.total_documents || 0}`;
-      if (badgeChunks) badgeChunks.textContent = `${data.summary?.total_chunks || 0} chunks indexed`;
+      if (badgeChunks) badgeChunks.textContent = `${data.summary?.total_chunks || 0} chunks indexed [${(currentRagScope || 'project').toUpperCase()}]`;
 
       renderKnowledgeDocuments();
       renderKnowledgeProposals();
@@ -3661,7 +3800,13 @@ function handleKnowledgeFileSelected(input) {
 
 async function submitKnowledgeItem() {
   const proj = getSelectedProject();
-  if (!proj) return;
+  const effectiveProjectId = (currentRagScope === 'helm') ? 'helm' : (proj?.id || 'helm');
+
+  // RBAC Enforcement for Helm Global Knowledge
+  if (currentRagScope === 'helm' && !['super_admin', 'admin'].includes(state.currentUserRole)) {
+    return showToast('RBAC Restriction: Helm Global Knowledge can only be set or modified by Super Admins and Admins.');
+  }
+
   const category = document.getElementById('kuCategorySelect')?.value || 'market_research';
   const submitBtn = document.getElementById('kuSubmitBtn');
 
@@ -3675,17 +3820,21 @@ async function submitKnowledgeItem() {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('category', category);
+    formData.append('scope', currentRagScope);
+    if (currentRagScope === 'task' && currentRagTaskId) {
+      formData.append('task_id', currentRagTaskId);
+    }
 
     if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Ingesting & Chunking...'; }
     try {
-      const res = await apiFetch(`/api/projects/${proj.id}/knowledge/upload`, {
+      const res = await apiFetch(`/api/projects/${effectiveProjectId}/knowledge/upload`, {
         method: 'POST',
         body: formData
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Upload failed');
 
-      showToast(`Ingested ${file.name} into Knowledge Base (${data.chunks_created || 0} chunks, ${data.total_tokens || 0} tokens)!`);
+      showToast(`Ingested ${file.name} into [${currentRagScope.toUpperCase()}] Knowledge Base (${data.chunks_created || 0} chunks, ${data.total_tokens || 0} tokens)!`);
       closeKnowledgeUploadModal();
       renderRagView();
     } catch (err) {
@@ -3703,15 +3852,21 @@ async function submitKnowledgeItem() {
 
     if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Ingesting...'; }
     try {
-      const res = await apiFetch(`/api/projects/${proj.id}/knowledge/document`, {
+      const res = await apiFetch(`/api/projects/${effectiveProjectId}/knowledge/document`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title, content, category })
+        body: JSON.stringify({
+          title,
+          content,
+          category,
+          scope: currentRagScope,
+          task_id: currentRagScope === 'task' ? currentRagTaskId : null
+        })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to create document');
 
-      showToast(`Saved & indexed "${title}" into Knowledge Base (${data.chunks_created || 0} chunks)!`);
+      showToast(`Saved & indexed "${title}" into [${currentRagScope.toUpperCase()}] Knowledge Base (${data.chunks_created || 0} chunks)!`);
       closeKnowledgeUploadModal();
       renderRagView();
     } catch (err) {
@@ -3724,17 +3879,22 @@ async function submitKnowledgeItem() {
 
 async function downloadKnowledgeFile(fileId) {
   const proj = getSelectedProject();
-  if (!proj) return;
-  window.open(`/api/projects/${proj.id}/harness/${fileId}/download?token=${encodeURIComponent(authToken)}`, '_blank');
+  const effectiveProjectId = (currentRagScope === 'helm') ? 'helm' : (proj?.id || 'helm');
+  window.open(`/api/projects/${effectiveProjectId}/harness/${fileId}/download?token=${encodeURIComponent(authToken)}`, '_blank');
 }
 
 async function deleteKnowledgeFile(fileId) {
   const proj = getSelectedProject();
-  if (!proj) return;
-  if (!confirm('Are you sure you want to remove this document and all its indexed chunks from the project Knowledge Base?')) return;
+  const effectiveProjectId = (currentRagScope === 'helm') ? 'helm' : (proj?.id || 'helm');
+
+  if (currentRagScope === 'helm' && !['super_admin', 'admin'].includes(state.currentUserRole)) {
+    return showToast('RBAC Restriction: Only Super Admins and Admins can delete Helm Global Knowledge Base files.');
+  }
+
+  if (!confirm(`Are you sure you want to remove this document and all its indexed chunks from the ${currentRagScope.toUpperCase()} Knowledge Base?`)) return;
 
   try {
-    const res = await apiFetch(`/api/projects/${proj.id}/knowledge/${fileId}`, { method: 'DELETE' });
+    const res = await apiFetch(`/api/projects/${effectiveProjectId}/knowledge/${fileId}`, { method: 'DELETE' });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Delete failed');
 
@@ -3750,6 +3910,240 @@ function selectProjectFromRag(projectId) {
   saveState();
   renderAll();
   renderRagView();
+}
+
+// =============================================================================
+// DEDICATED PROJECTS DIRECTORY VIEW
+// =============================================================================
+let projectsDepartmentFilter = 'all';
+let projectsSearchQuery = '';
+
+function filterProjectsDirectory(dept) {
+  projectsDepartmentFilter = dept;
+  ['all', 'sales', 'creative', 'research'].forEach(d => {
+    const btn = document.getElementById(`projFilterBtn-${d}`);
+    if (btn) {
+      if (d === dept) {
+        btn.className = 'px-3 py-1 rounded-lg text-xs font-bold border transition bg-teal-500/15 border-teal-500 text-teal-700 dark:text-teal-300';
+      } else {
+        btn.className = 'px-3 py-1 rounded-lg text-xs font-bold border border-[var(--border)] transition text-[var(--text-soft)] hover:border-teal-500/50';
+      }
+    }
+  });
+  renderProjectsView();
+}
+
+function onProjectsSearchInput(val) {
+  projectsSearchQuery = (val || '').toLowerCase().trim();
+  renderProjectsView();
+}
+
+async function renderProjectsView() {
+  const container = document.getElementById('projectsDirectoryGrid');
+  const countBadge = document.getElementById('projectsDirectoryCountBadge');
+  if (!container) return;
+
+  if (authToken) {
+    try {
+      const res = await apiFetch('/api/projects');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.projects)) {
+          state.projects = data.projects;
+          saveState();
+        }
+      }
+    } catch (_) {}
+  }
+
+  let projects = state.projects || [];
+  // Exclude system Helm project from standard customer directory
+  projects = projects.filter(p => p.id !== 'helm');
+
+  if (projectsDepartmentFilter !== 'all') {
+    projects = projects.filter(p => (p.department || 'creative') === projectsDepartmentFilter);
+  }
+
+  if (projectsSearchQuery) {
+    projects = projects.filter(p =>
+      (p.name && p.name.toLowerCase().includes(projectsSearchQuery)) ||
+      (p.client && p.client.toLowerCase().includes(projectsSearchQuery)) ||
+      (p.client_name && p.client_name.toLowerCase().includes(projectsSearchQuery)) ||
+      (p.goal && p.goal.toLowerCase().includes(projectsSearchQuery)) ||
+      (Array.isArray(p.deliverables) && p.deliverables.some(d => String(d).toLowerCase().includes(projectsSearchQuery))) ||
+      (Array.isArray(p.pipelines) && p.pipelines.some(pipe => String(pipe).toLowerCase().includes(projectsSearchQuery)))
+    );
+  }
+
+  if (countBadge) {
+    countBadge.textContent = `${projects.length} Projects`;
+  }
+
+  const projBadge = document.getElementById('navProjectsCountBadge');
+  if (projBadge) {
+    projBadge.textContent = (state.projects || []).filter(p => p.id !== 'helm').length;
+    projBadge.classList.remove('hidden');
+  }
+
+  if (projects.length === 0) {
+    container.innerHTML = `
+      <div class="col-span-full card-surface p-12 text-center rounded-2xl border border-dashed border-[var(--border)] space-y-3">
+        <span class="text-4xl block">📁</span>
+        <h3 class="text-sm font-extrabold">No Projects Match Your Filter</h3>
+        <p class="text-xs text-[var(--text-soft)] max-w-md mx-auto">Create a new marketing project or adjust your search filter to inspect client campaigns, deliverables, and knowledge bases.</p>
+        <button onclick="toggleNewProjectDrawer()" class="btn-primary text-xs px-4 py-2 font-bold">+ Create Marketing Project</button>
+      </div>
+    `;
+    return;
+  }
+
+  const deptColors = {
+    sales: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30',
+    creative: 'bg-purple-500/15 text-purple-700 dark:text-purple-300 border-purple-500/30',
+    research: 'bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30'
+  };
+
+  const isAdminOrManager = ['super_admin', 'owner', 'admin', 'manager'].includes(state.currentUserRole);
+
+  container.innerHTML = projects.map(p => {
+    const dept = p.department || 'creative';
+    const deptBadgeClass = deptColors[dept] || 'bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-500/30';
+    const clientName = p.client_name || p.client || 'Agency Client';
+
+    // Parse deliverables
+    let delivs = [];
+    if (Array.isArray(p.deliverables) && p.deliverables.length) {
+      delivs = p.deliverables;
+    } else if (typeof p.deliverables === 'string' && p.deliverables) {
+      try { delivs = JSON.parse(p.deliverables); } catch (_) { delivs = [p.deliverables]; }
+    } else if (p.deliverable) {
+      delivs = [p.deliverable];
+    }
+    if (!delivs.length) delivs = ['Commercial Offer & Proposal'];
+
+    // Parse pipelines
+    let pipes = [];
+    if (Array.isArray(p.pipelines) && p.pipelines.length) {
+      pipes = p.pipelines;
+    } else if (typeof p.pipelines === 'string' && p.pipelines) {
+      try { pipes = JSON.parse(p.pipelines); } catch (_) { pipes = [p.pipelines]; }
+    } else if (p.pipeline || p.type) {
+      pipes = [p.pipeline || p.type];
+    }
+    if (!pipes.length) pipes = ['offer-campaign'];
+
+    const taskCount = p.task_count !== undefined ? p.task_count : 0;
+    const deliveredCount = p.delivered !== undefined ? p.delivered : 0;
+    const kbCount = p.kb_chunks_count !== undefined ? p.kb_chunks_count : 0;
+
+    return `
+      <div class="card-surface p-5 rounded-2xl border border-[var(--border)] shadow-xs flex flex-col justify-between space-y-4 hover:border-teal-500/40 transition">
+        <div class="space-y-3">
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <div class="flex items-center gap-1.5 flex-wrap mb-1">
+                <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full border ${deptBadgeClass}">${escapeHtml(dept)}</span>
+                <span class="text-[9px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[var(--text-soft)] border border-[var(--border)]">${escapeHtml(p.status || 'Active')}</span>
+              </div>
+              <h3 class="text-sm font-extrabold tracking-tight text-[var(--text)] line-clamp-1" title="${escapeHtml(p.name)}">${escapeHtml(p.name)}</h3>
+              <div class="text-[11px] font-semibold text-[var(--text-soft)] mt-0.5">${escapeHtml(clientName)}</div>
+            </div>
+            ${isAdminOrManager ? `
+              <button onclick="deleteProject('${p.id}')" class="text-[var(--text-faint)] hover:text-red-500 text-xs p-1" title="Delete Project">🗑️</button>
+            ` : ''}
+          </div>
+
+          <p class="text-[11px] text-[var(--text-soft)] line-clamp-2 leading-relaxed">${escapeHtml(p.goal || 'Continuous marketing pipeline orchestration and deliverable generation.')}</p>
+
+          <!-- Deliverables Badges -->
+          <div>
+            <div class="text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Primary Deliverables:</div>
+            <div class="flex flex-wrap gap-1">
+              ${delivs.map(d => `<span class="text-[10px] px-2 py-0.5 rounded-md font-medium bg-[var(--surface-2)] border border-[var(--border)] text-[var(--text)]">${escapeHtml(d)}</span>`).join('')}
+            </div>
+          </div>
+
+          <!-- Pipelines Badges -->
+          <div>
+            <div class="text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Pipelines:</div>
+            <div class="flex flex-wrap gap-1">
+              ${pipes.map(pipe => `<span class="text-[10px] px-2 py-0.5 rounded-md font-bold bg-teal-500/10 text-teal-700 dark:text-teal-300 border border-teal-500/20">${escapeHtml(pipe)}</span>`).join('')}
+            </div>
+          </div>
+
+          <!-- Metrics Row -->
+          <div class="grid grid-cols-3 gap-2 py-2 border-y border-[var(--border)] text-center">
+            <div>
+              <div class="text-xs font-black text-[var(--text)]">${taskCount}</div>
+              <div class="text-[9px] text-[var(--text-soft)] uppercase font-semibold">Tasks</div>
+            </div>
+            <div>
+              <div class="text-xs font-black text-emerald-600 dark:text-emerald-400">${deliveredCount}</div>
+              <div class="text-[9px] text-[var(--text-soft)] uppercase font-semibold">Delivered</div>
+            </div>
+            <div>
+              <div class="text-xs font-black text-indigo-600 dark:text-indigo-400">${kbCount}</div>
+              <div class="text-[9px] text-[var(--text-soft)] uppercase font-semibold">KB Chunks</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center gap-2 pt-1">
+          <button onclick="selectProjectAndOpen('${p.id}', 'workbench')" class="btn-primary flex-1 text-xs py-1.5 font-bold text-center">
+            Workbench
+          </button>
+          <button onclick="selectProjectAndOpen('${p.id}', 'rag')" class="btn-outline text-xs px-2.5 py-1.5 font-bold border-teal-500/40 text-teal-600 dark:text-teal-300 hover:bg-teal-500/10" title="Open Project Knowledge Base">
+            📚 KB
+          </button>
+          <button onclick="selectProjectAndDispatchTask('${p.id}', '${dept}')" class="btn-outline text-xs px-2.5 py-1.5 font-bold" title="Dispatch New Task">
+            ⚡ Task
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function selectProjectAndOpen(projectId, targetView) {
+  selectProject(projectId);
+  if (targetView === 'rag') {
+    switchRagScope('project');
+  }
+  switchMainView(targetView);
+}
+
+function selectProjectAndDispatchTask(projectId, dept) {
+  selectProject(projectId);
+  openCreateTaskModal(dept);
+}
+
+async function deleteProject(projectId) {
+  if (!['super_admin', 'owner', 'admin', 'manager'].includes(state.currentUserRole)) {
+    return showToast('RBAC Restriction: Only Admins or Managers can delete projects.');
+  }
+  const proj = (state.projects || []).find(p => p.id === projectId);
+  const name = proj ? proj.name : 'this project';
+  if (!confirm(`Are you sure you want to delete "${name}" and all its associated tasks and knowledge files?`)) {
+    return;
+  }
+  try {
+    const res = await apiFetch(`/api/projects/${projectId}`, { method: 'DELETE' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      return showToast('Failed to delete project: ' + (data.error || `HTTP ${res.status}`));
+    }
+    state.projects = (state.projects || []).filter(p => p.id !== projectId);
+    if (state.selectedProjectId === projectId) {
+      state.selectedProjectId = state.projects[0] ? state.projects[0].id : null;
+    }
+    saveState();
+    renderProjectsView();
+    renderAll();
+    showToast(`Project "${name}" deleted.`);
+  } catch (err) {
+    showToast('Delete error: ' + err.message);
+  }
 }
 
 async function runRagSemanticSearch() {
@@ -5248,24 +5642,34 @@ let crmSelectedProjectId = '';
 
 function populateCrmProjectSelector() {
   const sel = document.getElementById('crmBulkProjectSelect');
-  if (!sel) return;
-  const currentVal = crmSelectedProjectId || sel.value || state.selectedProjectId || '';
-  const projects = Array.isArray(state.projects) ? state.projects : [];
-  sel.innerHTML = '<option value="">All Projects (Select one to import)</option>' + projects.map(p =>
+  const pipeProjSel = document.getElementById('crmPipelineProjectSelect');
+  const currentVal = crmSelectedProjectId || sel?.value || pipeProjSel?.value || state.selectedProjectId || '';
+  const projects = (Array.isArray(state.projects) ? state.projects : []).filter(p => p.id !== 'helm');
+  const optionsHtml = '<option value="">All Projects (Select one)</option>' + projects.map(p =>
     `<option value="${escapeHtml(p.id)}" ${p.id === currentVal ? 'selected' : ''}>${escapeHtml(p.name)}${p.client ? ' — ' + escapeHtml(p.client) : ''}</option>`
   ).join('');
+
+  if (sel) sel.innerHTML = optionsHtml;
+  if (pipeProjSel) pipeProjSel.innerHTML = optionsHtml;
+
   if (currentVal && projects.some(p => p.id === currentVal)) {
-    sel.value = currentVal;
+    if (sel) sel.value = currentVal;
+    if (pipeProjSel) pipeProjSel.value = currentVal;
     crmSelectedProjectId = currentVal;
-  } else if (!currentVal && projects.length === 1) {
-    sel.value = projects[0].id;
+  } else if (!currentVal && projects.length >= 1) {
+    if (sel) sel.value = projects[0].id;
+    if (pipeProjSel) pipeProjSel.value = projects[0].id;
     crmSelectedProjectId = projects[0].id;
   }
 }
 
 function onCrmProjectFilterChange() {
   const sel = document.getElementById('crmBulkProjectSelect');
-  crmSelectedProjectId = sel ? sel.value : '';
+  const pipeProjSel = document.getElementById('crmPipelineProjectSelect');
+  const activeVal = pipeProjSel?.value || sel?.value || '';
+  crmSelectedProjectId = activeVal;
+  if (sel) sel.value = activeVal;
+  if (pipeProjSel) pipeProjSel.value = activeVal;
   fetchSalesCrmData();
 }
 
@@ -6552,9 +6956,10 @@ function onModalDepartmentChange() {
 
 async function submitModalTask() {
   let projectId = document.getElementById('modalTaskProject')?.value || state.selectedProjectId;
-  const pipeline = document.getElementById('modalTaskPipeline')?.value || 'content-seo';
+  const pipeline = document.getElementById('modalTaskPipeline')?.value || 'offer-campaign';
   const title = (document.getElementById('modalTaskTitle')?.value || '').trim();
   const description = (document.getElementById('modalTaskBrief')?.value || '').trim();
+  const knowledge_notes = (document.getElementById('modalTaskKnowledge')?.value || '').trim();
   const department = document.getElementById('modalTaskDepartment')?.value || (
     state.mainView === 'research' ? 'research' : (state.mainView === 'sales' ? 'sales' : 'creative')
   );
@@ -6571,7 +6976,8 @@ async function submitModalTask() {
           client_name: 'Agency Client',
           goal: `Default project workspace for ${department} department tasks`,
           department: department,
-          type: pipeline
+          type: pipeline,
+          pipelines: [pipeline]
         })
       });
       if (pRes.ok) {
@@ -6584,6 +6990,7 @@ async function submitModalTask() {
           department: department,
           goal: `Default project workspace for ${department} department tasks`,
           pipeline,
+          pipelines: [pipeline],
           stage: 'Draft',
           progress: 0
         };
@@ -6600,7 +7007,14 @@ async function submitModalTask() {
     const createRes = await apiFetch(`/api/projects/${projectId}/tasks`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, pipeline, description, department, priority: 'high' })
+      body: JSON.stringify({
+        title,
+        pipeline,
+        description,
+        department,
+        priority: 'high',
+        knowledge_notes
+      })
     });
     const createData = await createRes.json().catch(() => ({}));
     if (!createRes.ok) {
@@ -6615,6 +7029,7 @@ async function submitModalTask() {
       pipeline,
       department: createData.department || department,
       description,
+      knowledge_notes,
       status: 'draft',
       priority: 'high',
       created_at: new Date().toISOString()
@@ -6625,6 +7040,7 @@ async function submitModalTask() {
     updateLiveNavBadges();
 
     closeTaskModal();
+    if (document.getElementById('modalTaskKnowledge')) document.getElementById('modalTaskKnowledge').value = '';
     showToast(`Launching "${title}"...`);
 
     const runRes = await apiFetch(`/api/tasks/${createData.id}/run`, {
@@ -6633,7 +7049,14 @@ async function submitModalTask() {
     });
     if (!runRes.ok) {
       const errData = await runRes.json().catch(() => ({}));
-      return showToast('Task execution failed: ' + (errData.error || `HTTP ${runRes.status}`));
+      const idx = state.tasks.findIndex(t => t.id === createData.id);
+      if (idx !== -1) {
+        state.tasks[idx].status = 'needs_attention';
+        state.tasks[idx].stage = 'plan';
+        saveState();
+        renderAll();
+      }
+      return showToast('⚠️ Agent Execution Blocked: ' + (errData.error || `HTTP ${runRes.status}`));
     }
     const runData = await runRes.json();
     if (runData.task) {

@@ -253,6 +253,7 @@ app.use(express.static(path.join(__dirname, '../public')));
 
 // Helper for Project Membership & Access
 function canAccessProject(user, projectId) {
+  if (projectId === 'helm') return true;
   if (['owner', 'super_admin', 'admin', 'manager'].includes(user.role)) return true;
   try {
     const m = db.prepare('SELECT * FROM project_members WHERE project_id=? AND user_id=?').get(projectId, user.id);
@@ -430,28 +431,75 @@ app.get('/api/projects', authMiddleware, asyncHandler(async (req, res) => {
     }
   }
 
-  projects = projects.map(p => ({
-    ...p,
-    task_count: db.prepare('SELECT COUNT(*) c FROM tasks WHERE project_id=?').get(p.id).c,
-    delivered: db.prepare("SELECT COUNT(*) c FROM tasks WHERE project_id=? AND status='delivered'").get(p.id).c
-  }));
+  projects = projects.filter(p => p.id !== 'helm').map(p => {
+    let parsedPipelines = [];
+    let parsedDeliverables = [];
+    try { parsedPipelines = JSON.parse(p.pipelines || '[]'); } catch (_) {}
+    try { parsedDeliverables = JSON.parse(p.deliverables || '[]'); } catch (_) {}
+    if (!parsedPipelines.length && p.type) parsedPipelines = [p.type];
+
+    let kbChunks = 0;
+    try {
+      kbChunks = db.prepare('SELECT COUNT(*) as c FROM rag_chunks WHERE project_id=?').get(p.id)?.c || 0;
+    } catch (_) {}
+
+    return {
+      ...p,
+      pipelines: parsedPipelines,
+      deliverables: parsedDeliverables,
+      task_count: db.prepare('SELECT COUNT(*) c FROM tasks WHERE project_id=?').get(p.id)?.c || 0,
+      delivered: db.prepare("SELECT COUNT(*) c FROM tasks WHERE project_id=? AND status='delivered'").get(p.id)?.c || 0,
+      kb_chunks_count: kbChunks
+    };
+  });
   res.json({ ok: true, projects });
 }));
 
 app.post('/api/projects', authMiddleware, requireRole('super_admin', 'admin', 'manager'), asyncHandler(async (req, res) => {
-  let { name, client_name = '', goal = '', type = 'content-seo', department = 'creative' } = req.body;
+  let {
+    name,
+    client_name = '',
+    goal = '',
+    type = 'content-seo',
+    department = 'creative',
+    pipelines = [],
+    deliverables = [],
+    knowledge_notes = ''
+  } = req.body;
   if (!name) return res.status(400).json({ error: 'name required' });
   if (department && !['research', 'sales', 'creative'].includes(department)) {
     return res.status(400).json({ error: 'Invalid department' });
   }
   department = department || 'creative';
 
+  // Normalize pipelines and deliverables arrays
+  let pipelineArr = Array.isArray(pipelines) ? pipelines : (typeof pipelines === 'string' && pipelines ? [pipelines] : []);
+  let deliverableArr = Array.isArray(deliverables) ? deliverables : (typeof deliverables === 'string' && deliverables ? [deliverables] : []);
+  if (pipelineArr.length > 0 && !type) {
+    type = pipelineArr[0];
+  } else if (!pipelineArr.length && type) {
+    pipelineArr = [type];
+  }
+
+  const pipelinesJson = JSON.stringify(pipelineArr);
+  const deliverablesJson = JSON.stringify(deliverableArr);
   const id = uuidv4();
-  db.prepare('INSERT INTO projects (id,name,client_name,goal,type,owner_id,status,department) VALUES (?,?,?,?,?,?,?,?)')
-    .run(id, name, client_name, goal, type, req.user.id, 'draft', department);
+
+  db.prepare('INSERT INTO projects (id,name,client_name,goal,type,owner_id,status,department,pipelines,deliverables,knowledge_notes) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
+    .run(id, name, client_name, goal, type, req.user.id, 'draft', department, pipelinesJson, deliverablesJson, knowledge_notes);
   db.prepare('INSERT INTO project_members (id,project_id,user_id,role_in_project) VALUES (?,?,?,?)')
     .run(uuidv4(), id, req.user.id, 'owner');
-  res.json({ ok: true, id, name, department, status: 'draft' });
+
+  // Ingest initial project knowledge into RAG if provided
+  if (knowledge_notes && knowledge_notes.trim().length > 10 && rag && typeof rag.ingestDocument === 'function') {
+    try {
+      rag.ingestDocument(id, 'Initial Project Knowledge Base', knowledge_notes.trim(), 'brand_guidelines', { scope: 'project' });
+    } catch (ingestErr) {
+      console.warn(`[POST /api/projects] Initial RAG ingest warning: ${ingestErr.message}`);
+    }
+  }
+
+  res.json({ ok: true, id, name, department, status: 'draft', pipelines: pipelineArr, deliverables: deliverableArr });
 }));
 
 app.get('/api/projects/:id', authMiddleware, asyncHandler(async (req, res) => {
@@ -474,6 +522,26 @@ app.get('/api/projects/:id', authMiddleware, asyncHandler(async (req, res) => {
   const files = db.prepare('SELECT * FROM harness_files WHERE project_id=? ORDER BY created_at DESC').all(req.params.id);
 
   res.json({ project: p, members, tasks, files });
+}));
+
+app.delete('/api/projects/:id', authMiddleware, requireRole('super_admin', 'admin', 'manager'), asyncHandler(async (req, res) => {
+  if (req.params.id === 'helm') {
+    return res.status(403).json({ error: 'Cannot delete the Helm System Knowledge Base.' });
+  }
+  if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
+  const p = db.prepare('SELECT id, name FROM projects WHERE id=?').get(req.params.id);
+  if (!p) return res.status(404).json({ error: 'Project not found' });
+
+  // Clean up associated resources in foreign-key safe order
+  db.prepare('DELETE FROM rag_chunks WHERE project_id=?').run(req.params.id);
+  db.prepare('DELETE FROM harness_files WHERE project_id=?').run(req.params.id);
+  db.prepare('DELETE FROM tasks WHERE project_id=?').run(req.params.id);
+  db.prepare('DELETE FROM leads WHERE project_id=?').run(req.params.id);
+  db.prepare('DELETE FROM project_members WHERE project_id=?').run(req.params.id);
+  db.prepare('DELETE FROM activity WHERE project_id=?').run(req.params.id);
+  db.prepare('DELETE FROM projects WHERE id=?').run(req.params.id);
+
+  res.json({ ok: true, id: req.params.id, message: `Project "${p.name}" deleted successfully.` });
 }));
 
 app.post('/api/projects/:id/members', authMiddleware, requireRole('super_admin', 'admin', 'manager'), asyncHandler(async (req, res) => {
@@ -733,14 +801,34 @@ app.post('/api/projects/:id/rag/search', authMiddleware, asyncHandler(async (req
 app.get('/api/projects/:id/knowledge', authMiddleware, asyncHandler(async (req, res) => {
   if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
   const projectId = req.params.id;
+  const scope = req.query.scope || (projectId === 'helm' ? 'helm' : (req.query.task_id ? 'task' : 'project'));
+  const taskId = req.query.task_id || null;
 
-  const summary = rag.getProjectKnowledgeSummary(projectId);
-  const files = db.prepare(`
-    SELECT id, project_id, filename, original_name, mime, size, file_category, parsed_summary, created_at
-    FROM harness_files
-    WHERE project_id = ? AND file_category != 'Lead Logo'
-    ORDER BY created_at DESC
-  `).all(projectId);
+  const summary = rag.getProjectKnowledgeSummary(projectId, { scope, taskId });
+
+  let files = [];
+  if (scope === 'helm' || projectId === 'helm') {
+    files = db.prepare(`
+      SELECT id, project_id, filename, original_name, mime, size, file_category, parsed_summary, scope, task_id, created_at
+      FROM harness_files
+      WHERE (scope = 'helm' OR project_id = 'helm') AND file_category != 'Lead Logo'
+      ORDER BY created_at DESC
+    `).all();
+  } else if (taskId) {
+    files = db.prepare(`
+      SELECT id, project_id, filename, original_name, mime, size, file_category, parsed_summary, scope, task_id, created_at
+      FROM harness_files
+      WHERE task_id = ? AND file_category != 'Lead Logo'
+      ORDER BY created_at DESC
+    `).all(taskId);
+  } else {
+    files = db.prepare(`
+      SELECT id, project_id, filename, original_name, mime, size, file_category, parsed_summary, scope, task_id, created_at
+      FROM harness_files
+      WHERE project_id = ? AND (scope = 'project' OR scope IS NULL) AND file_category != 'Lead Logo'
+      ORDER BY created_at DESC
+    `).all(projectId);
+  }
 
   const proposalRow = db.prepare(`
     SELECT
@@ -756,6 +844,8 @@ app.get('/api/projects/:id/knowledge', authMiddleware, asyncHandler(async (req, 
   res.json({
     ok: true,
     project_id: projectId,
+    scope,
+    task_id: taskId,
     summary,
     files,
     proposals_metric: {
@@ -775,6 +865,14 @@ app.post('/api/projects/:id/knowledge/upload', authMiddleware, (req, res) => {
     if (err) return res.status(400).json({ error: err.message });
     const uploadedFile = req.file || (req.files && (req.files.file?.[0] || req.files.harness?.[0] || req.files.attachment?.[0] || req.files.files?.[0]));
     if (!uploadedFile) return res.status(400).json({ error: 'No file uploaded' });
+
+    const requestedScope = req.body.scope || (req.params.id === 'helm' ? 'helm' : (req.body.task_id ? 'task' : 'project'));
+    const taskId = req.body.task_id || null;
+
+    // Helm Knowledge Base is admin-only
+    if ((requestedScope === 'helm' || req.params.id === 'helm') && !['super_admin', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Only Super Admins and Admins can modify the Helm Global Knowledge Base.' });
+    }
 
     const category = rag.normalizeCategory(req.body.category || 'market_research');
     const id = uuidv4();
@@ -808,7 +906,10 @@ app.post('/api/projects/:id/knowledge/upload', authMiddleware, (req, res) => {
     let tokensCount = 0;
     if (textContent && textContent.length > 10) {
       try {
-        const ingestRes = rag.ingestDocument(req.params.id, uploadedFile.originalname, textContent, category);
+        const ingestRes = rag.ingestDocument(req.params.id, uploadedFile.originalname, textContent, category, {
+          scope: requestedScope,
+          taskId: taskId
+        });
         chunksCount = ingestRes.chunks_created;
         tokensCount = ingestRes.total_tokens;
       } catch (ingestErr) {
@@ -825,18 +926,20 @@ app.post('/api/projects/:id/knowledge/upload', authMiddleware, (req, res) => {
     };
     const fileCategoryTitle = categoryTitleMap[category] || 'Market Research';
 
-    const parsedSummary = `Ingested into ${fileCategoryTitle} (${chunksCount} RAG chunks, ${tokensCount} tokens) • ${(uploadedFile.size / 1024).toFixed(1)} KB`;
+    const parsedSummary = `Ingested into ${fileCategoryTitle} (${chunksCount} RAG chunks, ${tokensCount} tokens, scope: ${requestedScope}) • ${(uploadedFile.size / 1024).toFixed(1)} KB`;
 
     db.prepare(`
-      INSERT INTO harness_files (id, project_id, filename, original_name, mime, size, uploaded_by, parsed_summary, file_category)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(id, req.params.id, uploadedFile.filename, uploadedFile.originalname, uploadedFile.mimetype, uploadedFile.size, req.user.id, parsedSummary, fileCategoryTitle);
+      INSERT INTO harness_files (id, project_id, filename, original_name, mime, size, uploaded_by, parsed_summary, file_category, scope, task_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, req.params.id, uploadedFile.filename, uploadedFile.originalname, uploadedFile.mimetype, uploadedFile.size, req.user.id, parsedSummary, fileCategoryTitle, requestedScope, taskId);
 
     res.json({
       ok: true,
       id,
       document_name: uploadedFile.originalname,
       category,
+      scope: requestedScope,
+      task_id: taskId,
       chunks_created: chunksCount,
       total_tokens: tokensCount
     });
@@ -846,8 +949,16 @@ app.post('/api/projects/:id/knowledge/upload', authMiddleware, (req, res) => {
 // 3. Add or update a text/markdown knowledge document directly
 app.post('/api/projects/:id/knowledge/document', authMiddleware, requireRole('super_admin', 'admin', 'manager', 'member'), asyncHandler(async (req, res) => {
   if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
-  const { title, content, category } = req.body;
+  const { title, content, category, scope: reqScope, task_id } = req.body;
   if (!title || !content) return res.status(400).json({ error: 'Title and content are required' });
+
+  const resolvedScope = reqScope || (req.params.id === 'helm' ? 'helm' : (task_id ? 'task' : 'project'));
+  const taskId = task_id || null;
+
+  // Helm Knowledge Base is admin-only
+  if ((resolvedScope === 'helm' || req.params.id === 'helm') && !['super_admin', 'admin'].includes(req.user.role)) {
+    return res.status(403).json({ error: 'Only Super Admins and Admins can modify the Helm Global Knowledge Base.' });
+  }
 
   const resolvedCategory = rag.normalizeCategory(category || 'market_research');
   const safeFilename = `${title.toLowerCase().replace(/[^a-z0-9_-]/g, '_').slice(0, 50)}_${Date.now()}.md`;
@@ -856,7 +967,10 @@ app.post('/api/projects/:id/knowledge/document', authMiddleware, requireRole('su
   fs.writeFileSync(filePath, content, 'utf8');
 
   // Ingest into RAG engine
-  const ingestRes = rag.ingestDocument(req.params.id, title, content, resolvedCategory);
+  const ingestRes = rag.ingestDocument(req.params.id, title, content, resolvedCategory, {
+    scope: resolvedScope,
+    taskId: taskId
+  });
 
   const categoryTitleMap = {
     market_research: 'Market Research',
@@ -870,8 +984,8 @@ app.post('/api/projects/:id/knowledge/document', authMiddleware, requireRole('su
   // Store in harness_files
   const id = uuidv4();
   db.prepare(`
-    INSERT INTO harness_files (id, project_id, filename, original_name, mime, size, uploaded_by, parsed_summary, file_category)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO harness_files (id, project_id, filename, original_name, mime, size, uploaded_by, parsed_summary, file_category, scope, task_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     id,
     req.params.id,
@@ -880,8 +994,10 @@ app.post('/api/projects/:id/knowledge/document', authMiddleware, requireRole('su
     'text/markdown',
     Buffer.byteLength(content, 'utf8'),
     req.user.id,
-    `Authored document in ${fileCategoryTitle} (${ingestRes.chunks_created} chunks, ${ingestRes.total_tokens} tokens)`,
-    fileCategoryTitle
+    `Authored document in ${fileCategoryTitle} (${ingestRes.chunks_created} chunks, ${ingestRes.total_tokens} tokens, scope: ${resolvedScope})`,
+    fileCategoryTitle,
+    resolvedScope,
+    taskId
   );
 
   res.json({
@@ -889,6 +1005,8 @@ app.post('/api/projects/:id/knowledge/document', authMiddleware, requireRole('su
     id,
     document_name: title,
     category: resolvedCategory,
+    scope: resolvedScope,
+    task_id: taskId,
     chunks_created: ingestRes.chunks_created,
     total_tokens: ingestRes.total_tokens
   });
@@ -897,11 +1015,16 @@ app.post('/api/projects/:id/knowledge/document', authMiddleware, requireRole('su
 // 4. Delete knowledge file and remove its RAG chunks
 app.delete('/api/projects/:id/knowledge/:fileId', authMiddleware, requireRole('super_admin', 'admin', 'manager'), asyncHandler(async (req, res) => {
   if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
-  const file = db.prepare('SELECT * FROM harness_files WHERE id = ? AND project_id = ?').get(req.params.fileId, req.params.id);
+  const file = db.prepare('SELECT * FROM harness_files WHERE id = ? AND (project_id = ? OR project_id = \'helm\')').get(req.params.fileId, req.params.id);
   if (!file) return res.status(404).json({ error: 'Knowledge file not found' });
 
+  // Helm files can only be deleted by admins
+  if ((file.scope === 'helm' || file.project_id === 'helm' || req.params.id === 'helm') && !['super_admin', 'admin'].includes(req.user.role)) {
+    return res.status(403).json({ error: 'Only Super Admins and Admins can delete Helm Global Knowledge Base files.' });
+  }
+
   // Delete chunks from rag_chunks
-  db.prepare('DELETE FROM rag_chunks WHERE project_id = ? AND (document_name = ? OR document_name = ?)').run(req.params.id, file.original_name, file.filename);
+  db.prepare('DELETE FROM rag_chunks WHERE (project_id = ? OR project_id = \'helm\') AND (document_name = ? OR document_name = ?)').run(req.params.id, file.original_name, file.filename);
 
   // Unlink file from storage
   try {
@@ -1381,7 +1504,10 @@ const PIPELINES = {
   'content-seo': { name: 'Content + SEO', squad: ['coordinator', 'browser-researcher', 'software-engineer', 'master-reporting-agent'] },
   'social-content': { name: 'Social Content', squad: ['coordinator', 'browser-researcher', 'master-reporting-agent'] },
   'ads-creative': { name: 'Ads Creative', squad: ['coordinator', 'software-engineer', 'master-reporting-agent'] },
-  'email-campaign': { name: 'Email Campaign', squad: ['coordinator', 'browser-researcher', 'master-reporting-agent'] },
+  'email-campaign': { name: 'Email Campaign', squad: ['coordinator', 'salesAgent', 'master-reporting-agent'] },
+  'offer-campaign': { name: 'Offer / Proposal Campaign', squad: ['coordinator', 'salesAgent', 'master-reporting-agent'] },
+  'proposal-campaign': { name: 'Offer / Proposal Campaign', squad: ['coordinator', 'salesAgent', 'master-reporting-agent'] },
+  'whatsapp-campaign': { name: 'WhatsApp Message Campaign', squad: ['coordinator', 'salesAgent', 'master-reporting-agent'] },
   'lead-research': { name: 'Lead Research', squad: ['coordinator', 'browser-researcher', 'master-reporting-agent'] },
   'landing-page': { name: 'Landing Page Factory', squad: ['coordinator', 'software-engineer', 'master-reporting-agent'] },
   'market-intel': { name: 'Market Intelligence', squad: ['coordinator', 'browser-researcher', 'master-reporting-agent'] },
@@ -1403,7 +1529,6 @@ app.get('/api/tasks', authMiddleware, asyncHandler(async (req, res) => {
     conditions.push("t.status = 'delivered'");
   } else if (status) {
     conditions.push('t.status = ?');
-    params.push(status);
   }
 
   // Project membership access restriction for non-admins
@@ -1440,7 +1565,7 @@ app.get('/api/tasks', authMiddleware, asyncHandler(async (req, res) => {
 function inferDepartmentFromPipeline(pipeline) {
   if (['market-intel', 'lead-research', 'content-seo'].includes(pipeline)) {
     return 'research';
-  } else if (['email-campaign', 'lead_qualification', 'deal_proposal'].includes(pipeline)) {
+  } else if (['email-campaign', 'offer-campaign', 'proposal-campaign', 'whatsapp-campaign', 'lead_qualification', 'deal_proposal'].includes(pipeline)) {
     return 'sales';
   }
   return 'creative';
@@ -1451,7 +1576,7 @@ app.post('/api/projects/:id/tasks', authMiddleware, asyncHandler(async (req, res
   if (!proj) return res.status(404).json({ error: 'Project not found' });
   if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
 
-  let { title, pipeline = 'content-seo', description = '', assignee_id = null, priority = 'medium', input = {}, department } = req.body;
+  let { title, pipeline = 'email-campaign', description = '', assignee_id = null, priority = 'medium', input = {}, department, knowledge_notes = '' } = req.body;
   if (!title) return res.status(400).json({ error: 'title required' });
   if (!PIPELINES[pipeline]) return res.status(400).json({ error: 'Unknown pipeline' });
 
@@ -1464,10 +1589,17 @@ app.post('/api/projects/:id/tasks', authMiddleware, asyncHandler(async (req, res
   }
 
   const id = uuidv4();
-  db.prepare('INSERT INTO tasks (id,project_id,title,pipeline,description,assignee_id,created_by,priority,input_json,status,department) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
-    .run(id, req.params.id, title, pipeline, description, assignee_id, req.user.id, priority, JSON.stringify(input), 'draft', department);
+  db.prepare('INSERT INTO tasks (id,project_id,title,pipeline,description,assignee_id,created_by,priority,input_json,status,department,knowledge_notes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
+    .run(id, req.params.id, title, pipeline, description, assignee_id, req.user.id, priority, JSON.stringify(input), 'draft', department, knowledge_notes);
   db.prepare('INSERT INTO activity (id,project_id,task_id,user_id,action) VALUES (?,?,?,?,?)')
     .run(uuidv4(), req.params.id, id, req.user.id, 'task_created');
+
+  // If knowledge_notes provided for task, ingest into RAG under task scope
+  if (knowledge_notes && knowledge_notes.trim().length > 10 && rag && typeof rag.ingestDocument === 'function') {
+    try {
+      rag.ingestDocument(req.params.id, `Task Brief: ${title}`, knowledge_notes.trim(), 'brief', { scope: 'task', taskId: id });
+    } catch (_) {}
+  }
 
   res.json({ ok: true, id, title, pipeline, department, status: 'draft', priority });
 }));
@@ -1480,7 +1612,7 @@ app.post('/api/tasks', authMiddleware, asyncHandler(async (req, res) => {
   if (!proj) return res.status(404).json({ error: 'Project not found' });
   if (!canAccessProject(req.user, projectId)) return res.status(403).json({ error: 'No access' });
 
-  let { title, pipeline = 'content-seo', description = '', assignee_id = null, priority = 'medium', input = {}, department } = req.body;
+  let { title, pipeline = 'email-campaign', description = '', assignee_id = null, priority = 'medium', input = {}, department, knowledge_notes = '' } = req.body;
   if (!title) return res.status(400).json({ error: 'title required' });
   if (!PIPELINES[pipeline]) return res.status(400).json({ error: 'Unknown pipeline' });
 
@@ -1493,10 +1625,17 @@ app.post('/api/tasks', authMiddleware, asyncHandler(async (req, res) => {
   }
 
   const id = uuidv4();
-  db.prepare('INSERT INTO tasks (id,project_id,title,pipeline,description,assignee_id,created_by,priority,input_json,status,department) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
-    .run(id, projectId, title, pipeline, description, assignee_id, req.user.id, priority, JSON.stringify(input), 'draft', department);
+  db.prepare('INSERT INTO tasks (id,project_id,title,pipeline,description,assignee_id,created_by,priority,input_json,status,department,knowledge_notes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
+    .run(id, projectId, title, pipeline, description, assignee_id, req.user.id, priority, JSON.stringify(input), 'draft', department, knowledge_notes);
   db.prepare('INSERT INTO activity (id,project_id,task_id,user_id,action) VALUES (?,?,?,?,?)')
     .run(uuidv4(), projectId, id, req.user.id, 'task_created');
+
+  // If knowledge_notes provided for task, ingest into RAG under task scope
+  if (knowledge_notes && knowledge_notes.trim().length > 10 && rag && typeof rag.ingestDocument === 'function') {
+    try {
+      rag.ingestDocument(projectId, `Task Brief: ${title}`, knowledge_notes.trim(), 'brief', { scope: 'task', taskId: id });
+    } catch (_) {}
+  }
 
   res.json({ ok: true, id, title, pipeline, department, status: 'draft', priority });
 }));

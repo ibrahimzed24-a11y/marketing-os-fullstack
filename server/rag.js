@@ -175,15 +175,21 @@ function parseCsvIntoSemanticText(content) {
   return records.length > 0 ? records.join('\n\n') : content;
 }
 
-function ingestDocument(projectId, documentName, content, category = 'market_research') {
+function ingestDocument(projectId, documentName, content, category = 'market_research', options = {}) {
   if (!projectId || !documentName || !content) {
     throw new Error('projectId, documentName, and content are required');
   }
 
   const resolvedCategory = normalizeCategory(category);
+  const scope = options.scope || (projectId === 'helm' ? 'helm' : (options.taskId ? 'task' : 'project'));
+  const taskId = options.taskId || null;
 
   // Remove existing chunks for this specific document to support clean idempotency
-  db.prepare('DELETE FROM rag_chunks WHERE project_id=? AND document_name=?').run(projectId, documentName);
+  if (taskId) {
+    db.prepare('DELETE FROM rag_chunks WHERE task_id=? AND document_name=?').run(taskId, documentName);
+  } else {
+    db.prepare('DELETE FROM rag_chunks WHERE project_id=? AND document_name=?').run(projectId, documentName);
+  }
 
   // If file is CSV, convert to high-relevance semantic representation
   let textToChunk = content;
@@ -193,8 +199,8 @@ function ingestDocument(projectId, documentName, content, category = 'market_res
 
   const chunks = chunkText(textToChunk);
   const insertStmt = db.prepare(`
-    INSERT INTO rag_chunks (id, project_id, document_name, chunk_index, content, token_count, keywords_json, category)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO rag_chunks (id, project_id, document_name, chunk_index, content, token_count, keywords_json, category, scope, task_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const insertTx = db.transaction(() => {
@@ -211,7 +217,9 @@ function ingestDocument(projectId, documentName, content, category = 'market_res
         chunk,
         tokens.length,
         JSON.stringify(Array.from(new Set(tokens))),
-        resolvedCategory
+        resolvedCategory,
+        scope,
+        taskId
       );
     });
     return totalTokens;
@@ -222,26 +230,65 @@ function ingestDocument(projectId, documentName, content, category = 'market_res
     ok: true,
     document_name: documentName,
     category: resolvedCategory,
+    scope,
+    task_id: taskId,
     chunks_created: chunks.length,
     total_tokens: totalTokens
   };
 }
 
-function searchChunks(projectId, query, topK = 5, category = null) {
-  if (!projectId || !query) return [];
+function searchChunks(projectId, query, topK = 5, category = null, options = {}) {
+  if (!query) return [];
 
   const filterCategory = category ? normalizeCategory(category) : null;
-  const sql = filterCategory
-    ? `SELECT id, document_name, chunk_index, content, token_count, keywords_json, category, created_at
-       FROM rag_chunks
-       WHERE project_id = ? AND category = ?`
-    : `SELECT id, document_name, chunk_index, content, token_count, keywords_json, category, created_at
-       FROM rag_chunks
-       WHERE project_id = ?`;
+  const taskId = options.taskId || null;
+  const includeHelm = options.includeHelm !== false;
 
-  const chunks = filterCategory
-    ? db.prepare(sql).all(projectId, filterCategory)
-    : db.prepare(sql).all(projectId);
+  // Hierarchical query building: Helm Global Knowledge + Project Knowledge + Task Knowledge
+  let whereClauses = [];
+  let params = [];
+
+  if (projectId && projectId !== 'helm') {
+    if (filterCategory) {
+      whereClauses.push('(project_id = ? AND category = ?)');
+      params.push(projectId, filterCategory);
+    } else {
+      whereClauses.push('project_id = ?');
+      params.push(projectId);
+    }
+  }
+
+  if (includeHelm) {
+    whereClauses.push("(scope = 'helm' OR project_id = 'helm')");
+  }
+
+  if (taskId) {
+    whereClauses.push('task_id = ?');
+    params.push(taskId);
+  }
+
+  if (whereClauses.length === 0) {
+    if (filterCategory) {
+      whereClauses.push('category = ?');
+      params.push(filterCategory);
+    } else {
+      whereClauses.push('1 = 1');
+    }
+  }
+
+  const sql = `
+    SELECT id, project_id, document_name, chunk_index, content, token_count, keywords_json, category, scope, task_id, created_at
+    FROM rag_chunks
+    WHERE ${whereClauses.join(' OR ')}
+  `;
+
+  let chunks = [];
+  try {
+    chunks = db.prepare(sql).all(...params);
+  } catch (err) {
+    console.warn(`[RAG searchChunks warning]: ${err.message}`);
+    chunks = [];
+  }
 
   if (!chunks.length) return [];
 
@@ -256,11 +303,20 @@ function searchChunks(projectId, query, topK = 5, category = null) {
       keywords = [];
     }
     const score = computeScore(queryTokens, queryLower, chunk.content, keywords);
+    const chunkScope = chunk.scope || (chunk.project_id === 'helm' ? 'helm' : (chunk.task_id ? 'task' : 'project'));
+    const tierLabel = chunkScope === 'helm'
+      ? '[Helm Global Knowledge]'
+      : (chunkScope === 'task' ? '[Task Knowledge]' : '[Project Knowledge]');
+
     return {
       id: chunk.id,
+      project_id: chunk.project_id,
       document_name: chunk.document_name,
       chunk_index: chunk.chunk_index,
       category: chunk.category || 'market_research',
+      scope: chunkScope,
+      task_id: chunk.task_id,
+      tier_label: tierLabel,
       content: chunk.content,
       token_count: chunk.token_count,
       score,
@@ -299,15 +355,34 @@ function getAllProjectChunks(projectId, category = null) {
   `).all(projectId);
 }
 
-function getProjectKnowledgeSummary(projectId) {
-  const totalChunks = getProjectChunkCount(projectId);
+function getProjectKnowledgeSummary(projectId, options = {}) {
+  const scope = options.scope || (projectId === 'helm' ? 'helm' : (options.taskId ? 'task' : 'project'));
+  const taskId = options.taskId || null;
+
+  let whereClause = 'project_id = ?';
+  let params = [projectId];
+
+  if (scope === 'helm' || projectId === 'helm') {
+    whereClause = "(scope = 'helm' OR project_id = 'helm')";
+    params = [];
+  } else if (taskId) {
+    whereClause = 'task_id = ?';
+    params = [taskId];
+  } else if (projectId) {
+    whereClause = "(project_id = ? AND (scope = 'project' OR scope IS NULL))";
+    params = [projectId];
+  }
+
+  const countRow = db.prepare(`SELECT COUNT(*) as cnt FROM rag_chunks WHERE ${whereClause}`).get(...params);
+  const totalChunks = countRow ? countRow.cnt : 0;
+
   const rows = db.prepare(`
     SELECT category, document_name, COUNT(*) as chunks, SUM(token_count) as tokens, MAX(created_at) as latest_created
     FROM rag_chunks
-    WHERE project_id = ?
+    WHERE ${whereClause}
     GROUP BY category, document_name
     ORDER BY category ASC, document_name ASC
-  `).all(projectId);
+  `).all(...params);
 
   const categories = {
     market_research: { title: 'Market Research & Audits', count: 0, documents: [] },

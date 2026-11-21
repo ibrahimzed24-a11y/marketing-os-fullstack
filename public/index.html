@@ -371,6 +371,10 @@
             <span>Sales CRM</span>
             <span id="navSalesCountBadge" class="hidden ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">0</span>
           </button>
+          <button id="navTab-projects" onclick="switchMainView('projects')" class="px-2.5 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1 text-slate-500 hover:text-slate-900 dark:hover:text-white whitespace-nowrap" title="Dedicated Projects Directory">
+            <span>Projects</span>
+            <span id="navProjectsCountBadge" class="hidden ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-teal-50 text-[#00a9a4] dark:bg-teal-950/60 dark:text-teal-300">0</span>
+          </button>
           <button id="navTab-workbench" onclick="switchMainView('workbench')" class="px-2.5 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1 text-slate-500 hover:text-slate-900 dark:hover:text-white whitespace-nowrap" title="Projects & Tasks Workbench">
             <span>Workbench</span>
             <span id="navTasksCountBadge" class="hidden ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-teal-50 text-[#00a9a4] dark:bg-teal-950/60 dark:text-teal-300">0</span>
@@ -430,51 +434,126 @@
 
   <!-- Collapsible Create Project Drawer -->
   <div class="max-w-[1600px] mx-auto px-3 sm:px-6">
-    <div id="newProjectDrawer" class="hidden card-surface p-4 mt-3">
-      <div class="flex items-center justify-between mb-3">
-        <h3 class="text-sm font-bold">Create Marketing Project</h3>
-        <button onclick="toggleNewProjectDrawer()" class="text-xs text-[var(--text-faint)]">Cancel ✕</button>
+    <div id="newProjectDrawer" class="hidden card-surface p-5 mt-3 rounded-2xl border border-[var(--border)] shadow-md space-y-4">
+      <div class="flex items-center justify-between border-b border-[var(--border)] pb-3">
+        <div>
+          <h3 class="text-sm font-extrabold flex items-center gap-2">
+            <span>✨</span> <span>Create Marketing Project</span>
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-teal-500/15 text-teal-700 dark:text-teal-300 font-bold">Multi-Pipeline &amp; Multi-Deliverable</span>
+          </h3>
+          <p class="text-[11px] text-[var(--text-soft)]">Configure campaign scope, choose one or more target pipelines and deliverables, and attach baseline project knowledge.</p>
+        </div>
+        <button onclick="toggleNewProjectDrawer()" class="text-xs font-bold text-[var(--text-faint)] hover:text-[var(--text)]">Cancel ✕</button>
       </div>
-      <div class="grid sm:grid-cols-4 gap-3">
+
+      <div class="grid sm:grid-cols-3 gap-3">
         <div>
-          <label class="block text-[11px] font-medium text-[var(--text-soft)] mb-1">Project Name</label>
-          <input id="npName" class="input-field" placeholder="e.g. Q4 Lead Generation" />
+          <label class="block text-[11px] font-bold text-[var(--text-soft)] mb-1">Project Name *</label>
+          <input id="npName" class="input-field" placeholder="e.g. Q4 Growth &amp; Account Expansion" />
         </div>
         <div>
-          <label class="block text-[11px] font-medium text-[var(--text-soft)] mb-1">Brand / Campaign Name</label>
-          <input id="npClient" class="input-field" placeholder="e.g. Internal Marketing / Growth" />
+          <label class="block text-[11px] font-bold text-[var(--text-soft)] mb-1">Brand / Account Name</label>
+          <input id="npClient" class="input-field" placeholder="e.g. Acme Enterprise / Growth Lab" />
         </div>
         <div>
-          <label class="block text-[11px] font-medium text-[var(--text-soft)] mb-1">Primary Deliverable</label>
-          <select id="npDeliverable" class="input-field">
-            <option value="Email Sequence">Dual-Branded Email Sequence</option>
-            <option value="Landing Page">Landing Page</option>
-            <option value="Lead Pack">Lead Pack</option>
-            <option value="SEO Article">SEO Article</option>
-            <option value="Ad Campaign">Ad Campaign</option>
-            <option value="Report">Market Teardown Report</option>
+          <label class="block text-[11px] font-bold text-[var(--text-soft)] mb-1">Target Department</label>
+          <select id="npDepartment" class="input-field">
+            <option value="sales">Sales &amp; CRM Operations</option>
+            <option value="creative">Creative Studio &amp; Media</option>
+            <option value="research">Market Research &amp; Intel</option>
           </select>
         </div>
+      </div>
+
+      <!-- Multi-Select Pipelines -->
+      <div>
+        <div class="flex items-center justify-between mb-1.5">
+          <label class="block text-[11px] font-bold text-[var(--text-soft)]">
+            Pipelines (Select one or multiple)
+          </label>
+          <span class="text-[10px] text-teal-600 dark:text-teal-400 font-semibold" id="npPipelinesSelectedCount">3 selected</span>
+        </div>
+        <div id="npPipelinePills" class="flex flex-wrap gap-2">
+          <button type="button" data-value="offer-campaign" onclick="toggleProjectPipelinePill(this)" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition np-pipe-pill bg-teal-500/15 border-teal-500 text-teal-700 dark:text-teal-300">
+            ✓ Offer / Proposal Campaign
+          </button>
+          <button type="button" data-value="whatsapp-campaign" onclick="toggleProjectPipelinePill(this)" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition np-pipe-pill bg-teal-500/15 border-teal-500 text-teal-700 dark:text-teal-300">
+            ✓ WhatsApp Message Campaign
+          </button>
+          <button type="button" data-value="email-campaign" onclick="toggleProjectPipelinePill(this)" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition np-pipe-pill bg-teal-500/15 border-teal-500 text-teal-700 dark:text-teal-300">
+            ✓ Email Sequence Campaign
+          </button>
+          <button type="button" data-value="landing-page" onclick="toggleProjectPipelinePill(this)" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition np-pipe-pill border-[var(--border)] text-[var(--text-soft)] hover:border-teal-500/50">
+            Landing Page Factory
+          </button>
+          <button type="button" data-value="lead-research" onclick="toggleProjectPipelinePill(this)" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition np-pipe-pill border-[var(--border)] text-[var(--text-soft)] hover:border-teal-500/50">
+            Lead Research + Outreach
+          </button>
+          <button type="button" data-value="content-seo" onclick="toggleProjectPipelinePill(this)" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition np-pipe-pill border-[var(--border)] text-[var(--text-soft)] hover:border-teal-500/50">
+            Content + SEO Factory
+          </button>
+          <button type="button" data-value="social-content" onclick="toggleProjectPipelinePill(this)" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition np-pipe-pill border-[var(--border)] text-[var(--text-soft)] hover:border-teal-500/50">
+            Social Content Calendar
+          </button>
+          <button type="button" data-value="ads-creative" onclick="toggleProjectPipelinePill(this)" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition np-pipe-pill border-[var(--border)] text-[var(--text-soft)] hover:border-teal-500/50">
+            Ads Creative + Copy
+          </button>
+        </div>
+        <select id="npPipeline" class="hidden">
+          <option value="offer-campaign" selected>Offer / Proposal Campaign</option>
+        </select>
+      </div>
+
+      <!-- Multi-Select Deliverables -->
+      <div>
+        <div class="flex items-center justify-between mb-1.5">
+          <label class="block text-[11px] font-bold text-[var(--text-soft)]">
+            Primary Deliverables (Select one or multiple)
+          </label>
+          <span class="text-[10px] text-teal-600 dark:text-teal-400 font-semibold" id="npDeliverablesSelectedCount">2 selected</span>
+        </div>
+        <div id="npDeliverablePills" class="flex flex-wrap gap-2">
+          <button type="button" data-value="Commercial Offer &amp; Proposal" onclick="toggleProjectDeliverablePill(this)" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition np-deliv-pill bg-teal-500/15 border-teal-500 text-teal-700 dark:text-teal-300">
+            ✓ Commercial Offer &amp; Proposal
+          </button>
+          <button type="button" data-value="Dual-Branded Email Sequence" onclick="toggleProjectDeliverablePill(this)" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition np-deliv-pill bg-teal-500/15 border-teal-500 text-teal-700 dark:text-teal-300">
+            ✓ Dual-Branded Email Sequence
+          </button>
+          <button type="button" data-value="WhatsApp Image Card + Audio Pitch" onclick="toggleProjectDeliverablePill(this)" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition np-deliv-pill border-[var(--border)] text-[var(--text-soft)] hover:border-teal-500/50">
+            WhatsApp Image Card + Audio Pitch
+          </button>
+          <button type="button" data-value="Landing Page Lead-Capture Funnel" onclick="toggleProjectDeliverablePill(this)" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition np-deliv-pill border-[var(--border)] text-[var(--text-soft)] hover:border-teal-500/50">
+            Landing Page Lead-Capture Funnel
+          </button>
+          <button type="button" data-value="Verified Lead Pack" onclick="toggleProjectDeliverablePill(this)" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition np-deliv-pill border-[var(--border)] text-[var(--text-soft)] hover:border-teal-500/50">
+            Verified Lead Pack
+          </button>
+          <button type="button" data-value="SEO Article &amp; Authority Pack" onclick="toggleProjectDeliverablePill(this)" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition np-deliv-pill border-[var(--border)] text-[var(--text-soft)] hover:border-teal-500/50">
+            SEO Article &amp; Authority Pack
+          </button>
+          <button type="button" data-value="Brand Vector Assets &amp; Logo Suite" onclick="toggleProjectDeliverablePill(this)" class="px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition np-deliv-pill border-[var(--border)] text-[var(--text-soft)] hover:border-teal-500/50">
+            Brand Vector Assets &amp; Logo Suite
+          </button>
+        </div>
+        <select id="npDeliverable" class="hidden">
+          <option value="Commercial Offer &amp; Proposal" selected>Commercial Offer &amp; Proposal</option>
+        </select>
+      </div>
+
+      <div class="grid sm:grid-cols-2 gap-3">
         <div>
-          <label class="block text-[11px] font-medium text-[var(--text-soft)] mb-1">Default Pipeline</label>
-          <select id="npPipeline" class="input-field">
-            <option value="email-campaign">Email Sequence Campaign</option>
-            <option value="landing-page">Landing Page Factory</option>
-            <option value="lead-research">Lead Research + Outreach</option>
-            <option value="content-seo">Content + SEO Factory</option>
-            <option value="social-content">Social Content Calendar</option>
-            <option value="ads-creative">Ads Creative + Copy</option>
-            <option value="market-intel">Market Intelligence</option>
-            <option value="brand-kit">Brand Kit + Visuals</option>
-          </select>
+          <label class="block text-[11px] font-bold text-[var(--text-soft)] mb-1">Campaign Objective &amp; Scope</label>
+          <input id="npGoal" class="input-field" placeholder="e.g. Launch multi-channel B2B outreach with verified leads and custom proposals." />
         </div>
-        <div class="sm:col-span-3">
-          <label class="block text-[11px] font-medium text-[var(--text-soft)] mb-1">Campaign Objective & Deliverable Scope</label>
-          <input id="npGoal" class="input-field" placeholder="e.g. Launch dual-branded email outreach campaign with personalized copy and booking CTA." />
+        <div>
+          <label class="block text-[11px] font-bold text-[var(--text-soft)] mb-1">Project Knowledge Base (Initial Grounding &amp; Brand Context)</label>
+          <textarea id="npKnowledgeNotes" rows="2" class="input-field text-xs" placeholder="Add brand voice, target ICP criteria, service pricing, guarantee terms, or baseline knowledge notes."></textarea>
         </div>
-        <div class="flex items-end">
-          <button onclick="createNewProject()" class="btn-primary w-full py-2 text-xs">Save Marketing Project</button>
-        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2 border-t border-[var(--border)]">
+        <button type="button" onclick="toggleNewProjectDrawer()" class="btn-outline px-4 py-2 text-xs font-bold">Cancel</button>
+        <button type="button" onclick="createNewProject()" class="btn-primary px-5 py-2 text-xs font-bold">Save Marketing Project</button>
       </div>
     </div>
   </div>
@@ -843,9 +922,10 @@
             <div class="flex items-center gap-2 mb-1">
               <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Department 02</span>
               <h1 class="text-lg font-extrabold tracking-tight">Sales & CRM Pipeline</h1>
+              <span class="text-[10px] px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-700 dark:text-teal-300 font-bold border border-teal-500/30">Multi-Project Capable</span>
             </div>
             <p class="text-xs text-[var(--text-soft)]">
-              Powered by Sales Agent (Agent 02). Converts verified research leads into qualified opportunities, prepares outreach drafts, and tracks deals.
+              Powered by Sales Agent (Agent 02). Converts verified research leads into qualified opportunities, structures commercial proposals, and launches personalized outreach.
             </p>
           </div>
           <div class="flex flex-wrap items-center gap-2">
@@ -865,6 +945,72 @@
         </div>
       </section>
 
+      <!-- Multi-Project Guided 3-Step Sequence Workflow -->
+      <section class="card-surface p-4.5 rounded-2xl border border-teal-500/30 bg-gradient-to-r from-teal-500/10 via-[var(--surface-2)] to-[var(--surface)] shadow-xs">
+        <div class="flex items-center justify-between pb-3 border-b border-[var(--border)]">
+          <div class="flex items-center gap-2">
+            <span class="text-xs font-black text-teal-600 dark:text-teal-300 uppercase tracking-wider">Multi-Project Guided Sales Workflow</span>
+            <span class="text-[10px] px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-700 dark:text-teal-300 border border-teal-500/30 font-bold">Standard 3-Step Flow</span>
+          </div>
+          <span class="text-xs text-[var(--text-soft)]">Follow the 3-step sequence below to initiate sales operations</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 pt-3.5">
+          <!-- Step 1: Choose Sales Pipeline & Target Project -->
+          <div class="p-3.5 rounded-xl bg-[var(--surface)] border border-teal-500/40 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-black text-teal-600 dark:text-teal-300">STEP 1: Choose Sales Pipeline</span>
+              <span class="w-5 h-5 rounded-full bg-teal-500/20 text-teal-600 dark:text-teal-300 text-[10px] font-black flex items-center justify-center">1</span>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Target Project</label>
+              <select id="crmPipelineProjectSelect" onchange="onCrmProjectFilterChange()" class="input-field text-xs py-1.5 px-2.5 w-full"></select>
+            </div>
+            <div>
+              <label class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Active Sales Pipeline</label>
+              <select id="crmActivePipelineSelect" class="input-field text-xs py-1.5 px-2.5 w-full">
+                <option value="offer-campaign">Offer / Proposal Campaign</option>
+                <option value="whatsapp-campaign" selected>WhatsApp Message Campaign</option>
+                <option value="email-campaign">Email Sequence Campaign</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Step 2: Set up Knowledge Base & Upload Assets -->
+          <div class="p-3.5 rounded-xl bg-[var(--surface)] border border-[var(--border)] space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-black text-[var(--text)]">STEP 2: Knowledge Base &amp; Leads</span>
+              <span class="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-black flex items-center justify-center">2</span>
+            </div>
+            <p class="text-[11px] text-[var(--text-soft)]">Attach project-level grounding notes or import verified lead accounts (.CSV / .XLSX).</p>
+            <div class="flex flex-wrap gap-2 pt-1">
+              <button onclick="switchMainView('rag')" class="btn-outline text-[11px] px-2.5 py-1.5 font-bold flex items-center gap-1 border-teal-500/40 text-teal-600 dark:text-teal-300 hover:bg-teal-500/10">
+                <span>📚</span> <span>Project Knowledge Base</span>
+              </button>
+              <button onclick="document.getElementById('crmBulkCsvFile').click()" class="btn-outline text-[11px] px-2.5 py-1.5 font-bold flex items-center gap-1">
+                <span>📥</span> <span>Import Leads</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Step 3: Synthesize, Review & Launch -->
+          <div class="p-3.5 rounded-xl bg-[var(--surface)] border border-[var(--border)] space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-black text-[var(--text)]">STEP 3: Synthesize &amp; Launch</span>
+              <span class="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-black flex items-center justify-center">3</span>
+            </div>
+            <p class="text-[11px] text-[var(--text-soft)]">AI Sales Agent generates outreach copy grounded in verified data for Gate G2 approval.</p>
+            <div class="flex flex-wrap gap-2 pt-1">
+              <button onclick="bulkGenerateWhatsAppMessages()" class="btn-primary text-[11px] px-3 py-1.5 font-bold flex items-center gap-1">
+                <span>⚡</span> <span>Synthesize Campaign</span>
+              </button>
+              <button onclick="queueCrmEmailApproval()" class="btn-outline text-[11px] px-2.5 py-1.5 font-bold flex items-center gap-1">
+                <span>📧</span> <span>Stage for Approval</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- Master SVG & Lead Logos Asset Suite Toolbar -->
       <section class="card-surface p-4.5 rounded-2xl border border-teal-500/30 bg-gradient-to-r from-teal-500/10 via-indigo-500/5 to-[var(--surface)] flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs">
         <div class="flex items-center gap-3">
@@ -876,7 +1022,7 @@
               <span class="text-xs font-black text-[var(--text)] tracking-tight">Master Lead Logos &amp; Vector Suite (<span id="salesLogosCountText">Lead Assets</span>)</span>
               <span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-teal-500/20 text-teal-700 dark:text-teal-300 border border-teal-500/30">100% Vector SVG</span>
             </div>
-            <p class="text-[11px] text-[var(--text-soft)] mt-0.5">High-resolution vector brand emblems, dental crest monograms, and verified clinic logos ready for instant campaign export.</p>
+            <p class="text-[11px] text-[var(--text-soft)] mt-0.5">High-resolution vector brand emblems, verified account monograms, and client logos ready for instant campaign export.</p>
           </div>
         </div>
         <div class="flex flex-wrap items-center gap-2 shrink-0">
@@ -960,13 +1106,13 @@
                 <span class="text-[10px] mono px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">Dual-Branded SVG + 26s Voice Note (.WAV)</span>
               </div>
               <p class="text-xs text-[var(--text-soft)] mt-1">
-                Synthesizes ready-to-send WhatsApp image message cards with custom voice notes attached. Grounded in verified Canadian dental clinic audits, Google review ratings, and turnkey clinic growth offers.
+                Synthesizes ready-to-send WhatsApp image message cards with custom voice notes attached. Grounded in verified target account audits, Google review ratings, and turnkey growth offers.
               </p>
             </div>
           </div>
           <div class="flex flex-wrap items-center gap-2 shrink-0">
             <button onclick="bulkGenerateWhatsAppMessages()" id="btnWaBulkGenerate" class="btn-outline text-xs px-3.5 py-2 font-bold flex items-center gap-1.5 border-emerald-500/40 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-500/10">
-              <span>⚡</span> <span>Bulk Synthesize Verified Clinics</span>
+              <span>⚡</span> <span>Bulk Synthesize Verified Leads</span>
             </button>
             <button onclick="stageCurrentWhatsAppApproval()" id="btnWaStageApproval" class="btn-outline text-xs px-3.5 py-2 font-bold flex items-center gap-1.5 border-indigo-500/40 text-indigo-500 hover:bg-indigo-500/10">
               <span>🛡️</span> <span>Queue for Gate G2 Approval</span>
@@ -977,23 +1123,23 @@
           </div>
         </div>
 
-        <!-- Clinic Lead Selector & Audit Gaps Context Bar -->
+        <!-- Account Lead Selector & Audit Gaps Context Bar -->
         <div class="grid grid-cols-1 md:grid-cols-12 gap-3 p-3.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)]">
           <div class="md:col-span-5">
-            <label for="waLeadSelect" class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Select Verified Dental Clinic</label>
+            <label for="waLeadSelect" class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Select Verified Lead / Account</label>
             <select id="waLeadSelect" onchange="onWhatsAppLeadChange()" class="input-field text-xs py-2 px-3 w-full font-semibold">
-              <option value="">Loading verified clinic directory...</option>
+              <option value="">Loading verified lead accounts...</option>
             </select>
           </div>
           <div class="md:col-span-3">
-            <label class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Google Reputation &amp; City</label>
+            <label class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Reputation &amp; Location</label>
             <div id="waLeadRatingBadge" class="text-xs font-bold py-1.5 px-3 rounded-lg bg-[var(--surface)] border border-[var(--border)] flex items-center justify-between">
               <span class="text-[var(--text-soft)]">No lead selected</span>
               <span class="text-[var(--text-faint)] text-[11px]">—</span>
             </div>
           </div>
           <div class="md:col-span-4">
-            <label class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Identified Intake Gap</label>
+            <label class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Identified Intake / Growth Gap</label>
             <div id="waLeadGapBadge" class="text-xs py-1.5 px-3 rounded-lg bg-[var(--surface)] border border-[var(--border)] truncate text-[var(--text-soft)]" title="No intake gap data">
               No intake gap data
             </div>
@@ -1601,6 +1747,64 @@
         </div>
         <div id="creativeProjectsTasksContainer" class="space-y-2"></div>
       </section>
+      </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- VIEW: DEDICATED PROJECTS DIRECTORY                                    -->
+    <!-- ===================================================================== -->
+    <div id="view-projects" class="hidden space-y-5">
+      <section class="card-surface p-5 rounded-2xl border border-[var(--border)] shadow-xs">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--border)] pb-4">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="px-2 py-0.5 rounded-md text-[10px] font-black bg-teal-500/15 text-teal-700 dark:text-teal-300 border border-teal-500/30 uppercase tracking-wider">Project Directory</span>
+              <h1 class="text-lg font-black tracking-tight">Marketing Projects &amp; Deliverables</h1>
+              <span id="projectsDirectoryCountBadge" class="text-xs px-2.5 py-0.5 rounded-full font-bold bg-teal-500/20 text-teal-700 dark:text-teal-300">0 Projects</span>
+            </div>
+            <p class="text-xs text-[var(--text-soft)]">
+              All active client campaigns, deliverable specifications, assigned pipelines, and partitioned knowledge bases across the organization.
+            </p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="toggleNewProjectDrawer()" class="btn-primary text-xs px-3.5 py-2 font-bold flex items-center gap-1.5 shadow-sm">
+              <span>+</span> <span>New Project</span>
+            </button>
+            <button onclick="openCreateTaskModal()" class="btn-outline text-xs px-3.5 py-2 font-bold flex items-center gap-1.5 border-teal-500/40 text-teal-700 dark:text-teal-300 hover:bg-teal-500/10">
+              <span>⚡</span> <span>Dispatch Task</span>
+            </button>
+            <button onclick="switchMainView('rag')" class="btn-outline text-xs px-3.5 py-2 font-bold flex items-center gap-1.5">
+              <span>📚</span> <span>Knowledge Base</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter & Search Toolbar -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-[11px] font-bold text-[var(--text-soft)] uppercase tracking-wider">Department:</span>
+            <button type="button" onclick="filterProjectsDirectory('all')" id="projFilterBtn-all" class="px-3 py-1 rounded-lg text-xs font-bold border transition bg-teal-500/15 border-teal-500 text-teal-700 dark:text-teal-300">
+              All Projects
+            </button>
+            <button type="button" onclick="filterProjectsDirectory('sales')" id="projFilterBtn-sales" class="px-3 py-1 rounded-lg text-xs font-bold border border-[var(--border)] transition text-[var(--text-soft)] hover:border-teal-500/50">
+              Sales CRM
+            </button>
+            <button type="button" onclick="filterProjectsDirectory('creative')" id="projFilterBtn-creative" class="px-3 py-1 rounded-lg text-xs font-bold border border-[var(--border)] transition text-[var(--text-soft)] hover:border-teal-500/50">
+              Creative Studio
+            </button>
+            <button type="button" onclick="filterProjectsDirectory('research')" id="projFilterBtn-research" class="px-3 py-1 rounded-lg text-xs font-bold border border-[var(--border)] transition text-[var(--text-soft)] hover:border-teal-500/50">
+              Browser Research
+            </button>
+          </div>
+          <div class="w-full sm:w-72">
+            <input id="projectsSearchInput" oninput="onProjectsSearchInput(this.value)" class="input-field text-xs py-1.5 px-3 w-full" placeholder="Search by name, client, or deliverable..." />
+          </div>
+        </div>
+      </section>
+
+      <!-- Projects Grid Container -->
+      <div id="projectsDirectoryGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <!-- Rendered dynamically by renderProjectsView() -->
       </div>
     </div>
 
@@ -2310,6 +2514,28 @@
           </div>
         </div>
 
+        <!-- 3-Tier Scope Switcher: Helm Global Knowledge Base, Project Knowledge Base, Task Knowledge Base -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-2 rounded-xl bg-[var(--surface-2)] border border-[var(--border)]">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-[10px] font-black uppercase text-[var(--text-soft)] px-2">Knowledge Scope:</span>
+            <button type="button" id="ragScopeBtn-helm" onclick="switchRagScope('helm')" class="px-3 py-1.5 rounded-lg text-xs font-bold border border-[var(--border)] transition flex items-center gap-1.5 text-[var(--text-soft)] hover:border-amber-500/50">
+              <span>🛡️ Helm Global Knowledge</span>
+              <span class="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 font-extrabold uppercase tracking-wider">Admin Only</span>
+            </button>
+            <button type="button" id="ragScopeBtn-project" onclick="switchRagScope('project')" class="px-3 py-1.5 rounded-lg text-xs font-bold border transition flex items-center gap-1.5 bg-teal-500/15 border-teal-500 text-teal-700 dark:text-teal-300">
+              <span>📁 Project Knowledge Base</span>
+            </button>
+            <button type="button" id="ragScopeBtn-task" onclick="switchRagScope('task')" class="px-3 py-1.5 rounded-lg text-xs font-bold border border-[var(--border)] transition flex items-center gap-1.5 text-[var(--text-soft)] hover:border-teal-500/50">
+              <span>⚡ Task Knowledge Base</span>
+            </button>
+          </div>
+          <!-- Task Selector (Visible only when Task Scope is selected) -->
+          <div id="ragTaskSelectWrapper" class="hidden flex items-center gap-2">
+            <span class="text-[10px] font-bold text-[var(--text-soft)] uppercase">Task:</span>
+            <select id="ragTaskSelect" onchange="onRagTaskSelectChange(this.value)" class="input-field text-xs py-1 px-2 font-semibold"></select>
+          </div>
+        </div>
+
         <!-- Master SVG & Lead Logos Asset Suite Toolbar -->
         <div class="card-subtle p-4.5 rounded-2xl border border-teal-500/30 bg-gradient-to-r from-teal-500/10 via-indigo-500/5 to-[var(--surface-2)] flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs">
           <div class="flex items-center gap-3">
@@ -2843,14 +3069,9 @@
           <div>
             <label class="block text-[11px] font-medium text-[var(--text-soft)] mb-1">Marketing Pipeline</label>
             <select id="modalTaskPipeline" class="input-field">
-              <option value="email-campaign">Email Sequence Campaign</option>
-              <option value="landing-page">Landing Page Factory</option>
-              <option value="lead-research">Lead-to-Deal Machine</option>
-              <option value="content-seo">Content + SEO Factory</option>
-              <option value="social-content">Social Content Calendar</option>
-              <option value="ads-creative">Ads Creative + Copy</option>
-              <option value="market-intel">Market Intelligence (/grillme)</option>
-              <option value="brand-kit">Brand Kit + Visuals</option>
+              <option value="offer-campaign" selected>Offer / Proposal Campaign</option>
+              <option value="whatsapp-campaign">WhatsApp Message Campaign</option>
+              <option value="email-campaign">Email Campaign</option>
             </select>
           </div>
           <div>
@@ -2869,6 +3090,10 @@
         <div>
           <label class="block text-[11px] font-medium text-[var(--text-soft)] mb-1">Campaign Task Brief & Deliverable Instructions</label>
           <textarea id="modalTaskBrief" rows="3" class="input-field" placeholder="Specify target audience, value proposition, campaign offer, and reference assets..."></textarea>
+        </div>
+        <div>
+          <label class="block text-[11px] font-medium text-[var(--text-soft)] mb-1">Task Knowledge Base & Grounding Context</label>
+          <textarea id="modalTaskKnowledge" rows="2" class="input-field" placeholder="Attach task-specific knowledge notes, customer persona details, pricing rules, or custom instructions to ground the agent..."></textarea>
         </div>
       </div>
       <div class="flex justify-end gap-2 pt-2">

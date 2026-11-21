@@ -183,7 +183,15 @@ async function ensureTursoSchema(db, c) {
       "ALTER TABLE lead_whatsapp_messages ADD COLUMN custom_audio_blob TEXT DEFAULT ''",
       "ALTER TABLE lead_whatsapp_messages ADD COLUMN audio_source TEXT DEFAULT 'master_human'",
       "ALTER TABLE lead_whatsapp_messages ADD COLUMN voice_ai_prompt_blocks TEXT DEFAULT ''",
-      "ALTER TABLE lead_whatsapp_messages ADD COLUMN voice_ai_audit TEXT DEFAULT ''"
+      "ALTER TABLE lead_whatsapp_messages ADD COLUMN voice_ai_audit TEXT DEFAULT ''",
+      "ALTER TABLE projects ADD COLUMN pipelines TEXT DEFAULT '[]'",
+      "ALTER TABLE projects ADD COLUMN deliverables TEXT DEFAULT '[]'",
+      "ALTER TABLE projects ADD COLUMN knowledge_notes TEXT DEFAULT ''",
+      "ALTER TABLE tasks ADD COLUMN knowledge_notes TEXT DEFAULT ''",
+      "ALTER TABLE harness_files ADD COLUMN scope TEXT DEFAULT 'project'",
+      "ALTER TABLE harness_files ADD COLUMN task_id TEXT DEFAULT NULL",
+      "ALTER TABLE rag_chunks ADD COLUMN scope TEXT DEFAULT 'project'",
+      "ALTER TABLE rag_chunks ADD COLUMN task_id TEXT DEFAULT NULL"
     ];
     for (const alterSql of columnMigrations) {
       try {

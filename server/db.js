@@ -765,6 +765,45 @@ try {
       db.prepare("ALTER TABLE lead_whatsapp_messages ADD COLUMN voice_ai_audit TEXT DEFAULT ''").run();
     }
 
+    // Multi-selection pipelines & deliverables + 3-tier Knowledge Bases (Helm, Project, Task)
+    const pragmaProjectsExt = db.prepare("PRAGMA table_info(projects)").all();
+    if (!pragmaProjectsExt.some(c => c.name === 'pipelines')) {
+      db.prepare("ALTER TABLE projects ADD COLUMN pipelines TEXT DEFAULT '[]'").run();
+    }
+    if (!pragmaProjectsExt.some(c => c.name === 'deliverables')) {
+      db.prepare("ALTER TABLE projects ADD COLUMN deliverables TEXT DEFAULT '[]'").run();
+    }
+    if (!pragmaProjectsExt.some(c => c.name === 'knowledge_notes')) {
+      db.prepare("ALTER TABLE projects ADD COLUMN knowledge_notes TEXT DEFAULT ''").run();
+    }
+
+    const pragmaTasksExt = db.prepare("PRAGMA table_info(tasks)").all();
+    if (!pragmaTasksExt.some(c => c.name === 'knowledge_notes')) {
+      db.prepare("ALTER TABLE tasks ADD COLUMN knowledge_notes TEXT DEFAULT ''").run();
+    }
+
+    if (!pragmaHarness.some(c => c.name === 'scope')) {
+      db.prepare("ALTER TABLE harness_files ADD COLUMN scope TEXT DEFAULT 'project'").run();
+    }
+    if (!pragmaHarness.some(c => c.name === 'task_id')) {
+      db.prepare("ALTER TABLE harness_files ADD COLUMN task_id TEXT DEFAULT NULL").run();
+    }
+
+    if (!pragmaRag.some(c => c.name === 'scope')) {
+      db.prepare("ALTER TABLE rag_chunks ADD COLUMN scope TEXT DEFAULT 'project'").run();
+    }
+    if (!pragmaRag.some(c => c.name === 'task_id')) {
+      db.prepare("ALTER TABLE rag_chunks ADD COLUMN task_id TEXT DEFAULT NULL").run();
+    }
+
+    // Seed Helm System Project for Global Admin-Managed Knowledge Base
+    try {
+      db.prepare(`
+        INSERT OR IGNORE INTO projects (id, name, client_name, goal, type, status, department)
+        VALUES ('helm', 'Helm System Knowledge Base', 'Helm Operations', 'Global Master Knowledge Base for all agents and pipelines (Admin Managed)', 'helm_system', 'delivered', 'coordination')
+      `).run();
+    } catch (_) {}
+
     // Verify tasks table supports 'in_progress' and 'needs_attention'
     const tableInfo = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='tasks'").get();
     if (tableInfo && tableInfo.sql && (!tableInfo.sql.includes("'in_progress'") || !tableInfo.sql.includes('needs_attention'))) {

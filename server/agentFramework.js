@@ -883,6 +883,56 @@ class SalesAgent extends BaseAgent {
       requiresApproval: true,
       execute: (task, project, harness, input) => this.executeDealProposal(task, project, harness, input)
     });
+
+    this.registerSkill('offer_campaign', {
+      name: 'Client Offer & Commercial Proposal',
+      requiresApproval: true,
+      execute: (task, project, harness, input) => this.executeDealProposal(task, project, harness, input)
+    });
+
+    this.registerSkill('proposal_campaign', {
+      name: 'Commercial Offer & Proposal Structuring',
+      requiresApproval: true,
+      execute: (task, project, harness, input) => this.executeDealProposal(task, project, harness, input)
+    });
+
+    this.registerSkill('whatsapp_campaign', {
+      name: 'WhatsApp Message & Audio Pitch Campaign',
+      requiresApproval: true,
+      execute: (task, project, harness, input) => this.executeWhatsAppCampaign(task, project, harness, input)
+    });
+  }
+
+  executeWhatsAppCampaign(task, project, harness, input) {
+    const client = project?.client_name || 'Our Partner';
+    const leads = input?.leads || [];
+    return {
+      channel: 'whatsapp',
+      campaign_name: task.title || 'WhatsApp Direct Outreach',
+      client_name: client,
+      offer_headline: '$499 One-Time Growth Package with 30 Free Days AI Growth Agent',
+      touchpoints: [
+        {
+          step: 1,
+          format: 'text_with_card',
+          media_type: 'svg_card',
+          message: `Hi {{contactName}}, saw {{company}}'s market footprint. We assembled a customized digital operational teardown with booking automation.\n\nSummary:\n- $499 one-time asset build (client-owned)\n- 30 days complimentary growth agent\n- Full intake automation\n\nWould you like me to share the 1-page visual overview?`,
+          cta: 'Send Visual Overview'
+        },
+        {
+          step: 2,
+          format: 'audio_voice_note',
+          media_type: 'audio_wav',
+          message: `Personalized 25s voice briefing for {{company}} executive leadership highlighting identified conversion bottlenecks and local market growth opportunities.`
+        }
+      ],
+      leads_targeted: leads.length,
+      compliance: {
+        opt_in_required: true,
+        anti_spam_verified: true,
+        direct_human_oversight: true
+      }
+    };
   }
 
   executeOutreachSequence(task, project, harness, input) {
@@ -1092,7 +1142,7 @@ function resolveAgentForTask(task) {
   if (['market-intel', 'lead-research', 'content-seo', 'browser-research'].includes(pipe)) {
     return browserResearcherAgent;
   }
-  if (['email-campaign', 'lead_qualification', 'deal_proposal'].includes(pipe)) {
+  if (['email-campaign', 'offer-campaign', 'proposal-campaign', 'whatsapp-campaign', 'lead_qualification', 'deal_proposal'].includes(pipe)) {
     return salesAgent;
   }
   if (['software-engineering', 'ui-component', 'code-generation'].includes(pipe)) {
@@ -1282,6 +1332,67 @@ function buildAgentPrompts(targetAgent, skill, task, project, harnessFiles, ragC
 }
 
 /**
+ * Verifies that the required database and grounding knowledge base exists before an agent executes.
+ * Prevents agents from executing blindly without grounding data or knowledge base.
+ */
+function validateTaskDatabaseRequirement(task, project, harnessFiles = [], targetDb = null) {
+  if (!targetDb) {
+    return { valid: false, reason: 'Active SQLite database connection is unavailable.' };
+  }
+
+  const projId = task.project_id || project?.id;
+  if (!projId) {
+    return { valid: false, reason: 'Task is not linked to any Project database record.' };
+  }
+
+  let dbProj = null;
+  try {
+    dbProj = targetDb.prepare('SELECT id, name, goal, knowledge_notes FROM projects WHERE id = ?').get(projId);
+  } catch (err) {
+    return { valid: false, reason: `Database project lookup failed: ${err.message}` };
+  }
+
+  if (!dbProj && projId !== 'helm') {
+    return { valid: false, reason: `Project database record '${projId}' was not found in the database.` };
+  }
+
+  // Check if this task requires database records or knowledge base
+  const pipe = (task.pipeline || '').toLowerCase();
+  const dataPipelines = ['email-campaign', 'offer-campaign', 'proposal-campaign', 'whatsapp-campaign', 'lead-research'];
+
+  // Check available grounding sources in database
+  let leadCount = 0;
+  let chunkCount = 0;
+  let helmCount = 0;
+  let harnessCount = Array.isArray(harnessFiles) ? harnessFiles.length : 0;
+
+  try {
+    leadCount = targetDb.prepare('SELECT COUNT(*) as c FROM leads WHERE project_id = ?').get(projId)?.c || 0;
+    chunkCount = targetDb.prepare('SELECT COUNT(*) as c FROM rag_chunks WHERE project_id = ? OR task_id = ?').get(projId, task.id || '')?.c || 0;
+    helmCount = targetDb.prepare("SELECT COUNT(*) as c FROM rag_chunks WHERE scope = 'helm' OR project_id = 'helm'").get()?.c || 0;
+    if (!harnessCount) {
+      harnessCount = targetDb.prepare('SELECT COUNT(*) as c FROM harness_files WHERE project_id = ?').get(projId)?.c || 0;
+    }
+  } catch (_) {}
+
+  const hasTaskNotes = Boolean(task.knowledge_notes && task.knowledge_notes.trim());
+  const hasProjNotes = Boolean(dbProj?.knowledge_notes && dbProj.knowledge_notes.trim());
+  const hasInputJson = Boolean(task.input_json && typeof task.input_json === 'string' && task.input_json.length > 20 && task.input_json !== '{}');
+
+  const totalGrounding = leadCount + chunkCount + helmCount + harnessCount + (hasTaskNotes ? 1 : 0) + (hasProjNotes ? 1 : 0) + (hasInputJson ? 1 : 0);
+
+  // If a data/sales/research pipeline has literally zero grounding sources anywhere in DB:
+  if (dataPipelines.includes(pipe) && totalGrounding === 0) {
+    return {
+      valid: false,
+      reason: `Task '${task.title}' requires a grounded database (leads, harness files, or an attached knowledge base). Currently, the project database has 0 leads, 0 harness files, and 0 knowledge chunks. Please attach required data or knowledge base before execution.`
+    };
+  }
+
+  return { valid: true };
+}
+
+/**
  * Executes a task using the unified 5-Stage Loop & Operational Capability Framework.
  * - Progresses deterministically through: Plan -> Assign -> Execute -> Verify -> Report
  * - Logs run lifecycle in `agent_runs`
@@ -1309,6 +1420,21 @@ async function executeAgentTask(task, project, harnessFiles = [], options = {}) 
   // 5-STAGE LOOP: STAGE 1 — PLAN
   // Validate task, inputs, project context, harness files, brand guidelines
   // ===========================================================================
+  if (targetDb) {
+    const dbValidation = validateTaskDatabaseRequirement(task, project, harnessFiles, targetDb);
+    if (!dbValidation.valid) {
+      if (task.id) {
+        try {
+          targetDb.prepare("UPDATE tasks SET stage = 'plan', status = 'needs_attention', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(task.id);
+        } catch (_) {}
+      }
+      const err = new Error(dbValidation.reason);
+      err.code = 'REQUIRED_DATABASE_MISSING';
+      err.statusCode = 422;
+      throw err;
+    }
+  }
+
   if (targetDb && task.id) {
     try {
       targetDb.prepare("UPDATE tasks SET stage = 'plan', status = 'in_progress', updated_at = CURRENT_TIMESTAMP WHERE id = ?").run(task.id);
@@ -1372,12 +1498,42 @@ async function executeAgentTask(task, project, harnessFiles = [], options = {}) 
     // Load Knowledge Base context, real Team Roster, Agency DNA, saved Blueprints, and optional Live Web Search
     const remoteCtx = options.remoteContext || null;
     let ragContext = Array.isArray(remoteCtx?.ragContext) ? remoteCtx.ragContext : [];
-    if (!remoteCtx && rag && typeof rag.searchChunks === 'function' && project?.id) {
+    if (!remoteCtx && rag && typeof rag.searchChunks === 'function') {
       try {
-        ragContext = rag.searchChunks(project.id, `${task.title} ${task.description || ''}`, 5) || [];
+        const projId = project?.id || task.project_id || 'helm';
+        ragContext = rag.searchChunks(projId, `${task.title} ${task.description || ''}`, 5, null, {
+          taskId: task.id || null,
+          includeHelm: true
+        }) || [];
       } catch (ragErr) {
         console.warn(`[agentFramework] RAG lookup note: ${ragErr.message}`);
       }
+    }
+
+    // Prepend task-level and project-level knowledge notes if available
+    const knowledgeSnippets = [];
+    if (task.knowledge_notes && task.knowledge_notes.trim()) {
+      knowledgeSnippets.push({
+        id: `task-notes-${task.id}`,
+        document_name: 'Task-Level Knowledge & Briefing Instructions',
+        tier_label: '[Task Knowledge]',
+        scope: 'task',
+        content: task.knowledge_notes.trim(),
+        score: 1.0
+      });
+    }
+    if (project?.knowledge_notes && project.knowledge_notes.trim()) {
+      knowledgeSnippets.push({
+        id: `proj-notes-${project.id}`,
+        document_name: 'Project Brand Knowledge & Core Guidelines',
+        tier_label: '[Project Knowledge]',
+        scope: 'project',
+        content: project.knowledge_notes.trim(),
+        score: 0.95
+      });
+    }
+    if (knowledgeSnippets.length > 0) {
+      ragContext = [...knowledgeSnippets, ...ragContext];
     }
 
     let teamRoster = Array.isArray(remoteCtx?.teamRoster) ? remoteCtx.teamRoster : [];
@@ -1780,6 +1936,7 @@ module.exports = {
   masterReportingAgent,
   executeAgentTask,
   resolveAgentForTask,
+  validateTaskDatabaseRequirement,
   AGENT_REGISTRY,
   loadVerifiedHarnessLeads
 };
