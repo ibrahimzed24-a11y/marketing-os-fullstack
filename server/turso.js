@@ -178,7 +178,9 @@ async function ensureTursoSchema(db, c) {
       'ALTER TABLE approvals ADD COLUMN executed_at DATETIME',
       'ALTER TABLE approvals ADD COLUMN execution_receipt TEXT',
       "ALTER TABLE tasks ADD COLUMN department TEXT DEFAULT 'creative'",
-      "ALTER TABLE projects ADD COLUMN department TEXT DEFAULT 'creative'"
+      "ALTER TABLE projects ADD COLUMN department TEXT DEFAULT 'creative'",
+      "ALTER TABLE lead_whatsapp_messages ADD COLUMN custom_audio_blob TEXT DEFAULT ''",
+      "ALTER TABLE lead_whatsapp_messages ADD COLUMN audio_source TEXT DEFAULT 'master_human'"
     ];
     for (const alterSql of columnMigrations) {
       try {

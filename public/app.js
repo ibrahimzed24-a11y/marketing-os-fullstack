@@ -7257,11 +7257,37 @@ function renderWhatsAppPackage(msg) {
 
   const audioEl = document.getElementById('waNativeAudio');
   if (audioEl) {
-    audioEl.src = msg.voice_note_audio_url || `/api/projects/${msg.project_id}/leads/${msg.lead_id}/whatsapp-message/audio`;
+    const ts = msg.updated_at ? new Date(msg.updated_at).getTime() : Date.now();
+    audioEl.src = (msg.voice_note_audio_url || `/api/projects/${msg.project_id}/leads/${msg.lead_id}/whatsapp-message/audio`) + `?_t=${ts}`;
     audioEl.playbackRate = waAudioCurrentSpeed;
   }
   const durEl = document.getElementById('waAudioDurationText');
   if (durEl) durEl.textContent = `0:00 / 0:${String(msg.voice_note_duration_sec || 26).padStart(2, '0')}`;
+
+  const sourceBadge = document.getElementById('waAudioActiveSourceBadge');
+  const voiceTag = document.getElementById('waAudioVoiceTag');
+  if (msg.audio_source === 'operator_recorded') {
+    if (sourceBadge) {
+      sourceBadge.textContent = '🎙️ Operator Real Voice (Recorded)';
+      sourceBadge.className = 'text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30';
+    }
+    if (voiceTag) voiceTag.textContent = '🎙️ Operator Recorded Real Voice';
+  } else if (msg.audio_source === 'uploaded') {
+    if (sourceBadge) {
+      sourceBadge.textContent = '📁 Custom Voice Memo (Uploaded)';
+      sourceBadge.className = 'text-[10px] px-2 py-0.5 rounded-full font-bold bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/30';
+    }
+    if (voiceTag) voiceTag.textContent = '🎙️ Uploaded Audio Memo (Real Voice)';
+  } else {
+    if (sourceBadge) {
+      sourceBadge.textContent = 'Studio Master: Ibrahim Zid';
+      sourceBadge.className = 'text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30';
+    }
+    if (voiceTag) voiceTag.textContent = '🎙️ Ibrahim Zid (Valioz Health · Authentic Male Voice)';
+  }
+
+  const recActions = document.getElementById('waRecordedActionsBar');
+  if (recActions) recActions.classList.add('hidden');
 
   const voiceScriptInput = document.getElementById('waVoiceScriptInput');
   if (voiceScriptInput) voiceScriptInput.value = msg.voice_note_script || '';
@@ -7330,7 +7356,7 @@ function toggleWhatsAppAudioPlayback() {
       startWaveformAnimation();
     }).catch(err => {
       console.warn('[waAudio] Autoplay blocked or error:', err.message);
-      speakCurrentScriptWithBrowserTts();
+      showToast('Click anywhere on the page to enable audio playback.');
     });
   }
 }
@@ -7346,9 +7372,6 @@ function stopWhatsAppAudio() {
   if (playIcon) playIcon.textContent = '▶';
   stopWaveformAnimation();
   resetWaveformProgress();
-  if ('speechSynthesis' in window) {
-    window.speechSynthesis.cancel();
-  }
 }
 
 function onWhatsAppAudioTimeUpdate() {
@@ -7438,40 +7461,233 @@ function cyclePlaybackSpeed() {
   if (btn) btn.textContent = `${waAudioCurrentSpeed.toFixed(1)}x`;
 }
 
-function speakCurrentScriptWithBrowserTts() {
-  if (!('speechSynthesis' in window)) {
-    showToast('Speech synthesis not supported on this browser.');
+// ─── Real Human Voice Recording & Studio Engine ──────────────────────────────
+let waMediaRecorder = null;
+let waAudioChunks = [];
+let waRecordedAudioBlob = null;
+let waRecInterval = null;
+let waRecStartTime = 0;
+let waAudioContext = null;
+let waAudioAnalyser = null;
+let waAudioAnimFrame = null;
+let waMicStream = null;
+
+async function startLiveVoiceRecording() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showToast('Microphone recording is not supported in this browser.');
     return;
   }
-  window.speechSynthesis.cancel();
 
-  const script = document.getElementById('waVoiceScriptInput')?.value || currentWhatsAppPackage?.voice_note_script || '';
-  if (!script) {
-    showToast('Voice note script is empty.');
+  try {
+    waMicStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    waAudioChunks = [];
+    waRecordedAudioBlob = null;
+
+    let options = {};
+    if (typeof MediaRecorder !== 'undefined') {
+      if (MediaRecorder.isTypeSupported('audio/webm')) options = { mimeType: 'audio/webm' };
+      else if (MediaRecorder.isTypeSupported('audio/mp4')) options = { mimeType: 'audio/mp4' };
+    }
+    waMediaRecorder = new MediaRecorder(waMicStream, options);
+
+    waMediaRecorder.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) waAudioChunks.push(e.data);
+    };
+
+    waMediaRecorder.onstop = () => {
+      const mime = waMediaRecorder?.mimeType || 'audio/webm';
+      waRecordedAudioBlob = new Blob(waAudioChunks, { type: mime });
+      const previewAudio = document.getElementById('waRecordedPreviewAudio');
+      if (previewAudio) {
+        previewAudio.src = URL.createObjectURL(waRecordedAudioBlob);
+      }
+      const recBar = document.getElementById('waRecordedActionsBar');
+      if (recBar) recBar.classList.remove('hidden');
+      showToast('✓ Real voice recorded! Preview your recording or click Save.');
+    };
+
+    waMediaRecorder.start(100);
+
+    // Audio level meter visualizer
+    try {
+      waAudioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const source = waAudioContext.createMediaStreamSource(waMicStream);
+      waAudioAnalyser = waAudioContext.createAnalyser();
+      waAudioAnalyser.fftSize = 64;
+      source.connect(waAudioAnalyser);
+      const dataArray = new Uint8Array(waAudioAnalyser.frequencyBinCount);
+
+      const updateMeter = () => {
+        if (!waMediaRecorder || waMediaRecorder.state !== 'recording') return;
+        waAudioAnalyser.getByteFrequencyData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+        const avg = sum / dataArray.length;
+        const pct = Math.min(100, Math.round((avg / 128) * 100));
+        const meterBar = document.getElementById('waRecMeterBar');
+        if (meterBar) meterBar.style.width = `${pct}%`;
+        waAudioAnimFrame = requestAnimationFrame(updateMeter);
+      };
+      updateMeter();
+    } catch (_) {}
+
+    document.getElementById('btnWaStartRecord')?.classList.add('hidden');
+    document.getElementById('btnWaStopRecord')?.classList.remove('hidden');
+    const timerEl = document.getElementById('waRecTimer');
+    if (timerEl) {
+      timerEl.classList.remove('hidden');
+      timerEl.textContent = '00:00';
+    }
+    document.getElementById('waRecMeterContainer')?.classList.remove('hidden');
+
+    waRecStartTime = Date.now();
+    waRecInterval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - waRecStartTime) / 1000);
+      const m = String(Math.floor(elapsed / 60)).padStart(2, '0');
+      const s = String(elapsed % 60).padStart(2, '0');
+      if (timerEl) timerEl.textContent = `${m}:${s}`;
+    }, 500);
+
+    showToast('🎙️ Recording live microphone... Speak your authentic message.');
+  } catch (err) {
+    console.error('[waRecorder] Mic error:', err);
+    showToast(`Microphone access error: ${err.message}`);
+  }
+}
+
+function stopLiveVoiceRecording() {
+  if (waRecInterval) {
+    clearInterval(waRecInterval);
+    waRecInterval = null;
+  }
+  if (waAudioAnimFrame) {
+    cancelAnimationFrame(waAudioAnimFrame);
+    waAudioAnimFrame = null;
+  }
+  if (waAudioContext && waAudioContext.state !== 'closed') {
+    waAudioContext.close().catch(() => {});
+    waAudioContext = null;
+  }
+  if (waMediaRecorder && waMediaRecorder.state === 'recording') {
+    waMediaRecorder.stop();
+  }
+  if (waMicStream) {
+    waMicStream.getTracks().forEach(t => t.stop());
+    waMicStream = null;
+  }
+
+  document.getElementById('btnWaStartRecord')?.classList.remove('hidden');
+  document.getElementById('btnWaStopRecord')?.classList.add('hidden');
+  document.getElementById('waRecMeterContainer')?.classList.add('hidden');
+}
+
+async function applyRecordedAudioToActiveClinic() {
+  if (!currentWhatsAppPackage) {
+    showToast('No active clinic selected.');
+    return;
+  }
+  if (!waRecordedAudioBlob) {
+    showToast('No audio recorded yet.');
     return;
   }
 
-  showToast('Playing personalized voice note preview (Browser Speech)...');
-  const utter = new SpeechSynthesisUtterance(script);
-  utter.rate = waAudioCurrentSpeed;
-  utter.pitch = 1.0;
-  utter.lang = 'en-US';
+  const projectId = state.selectedProjectId || (state.projects[0]?.id || '');
+  showToast(`Saving authentic human voice to ${currentWhatsAppPackage.clinic_name}...`);
 
-  const playIcon = document.getElementById('waAudioPlayIcon');
-  if (playIcon) playIcon.textContent = '⏸';
-  startWaveformAnimation();
-
-  utter.onend = () => {
-    if (playIcon) playIcon.textContent = '▶';
-    stopWaveformAnimation();
-    resetWaveformProgress();
+  const reader = new FileReader();
+  reader.onload = async () => {
+    try {
+      const base64Data = reader.result;
+      const res = await apiFetch(`/api/projects/${projectId}/leads/${currentWhatsAppPackage.lead_id}/whatsapp-message/record-audio`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          audio_data: base64Data,
+          audio_source: 'operator_recorded'
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.ok && data.message) {
+        currentWhatsAppPackage = data.message;
+        renderWhatsAppPackage(data.message);
+        showToast('✓ Real human voice saved and attached to clinic voice note!');
+      } else {
+        showToast(`Save failed: ${data.error || 'Server error'}`);
+      }
+    } catch (err) {
+      showToast(`Error saving audio: ${err.message}`);
+    }
   };
-  utter.onerror = () => {
-    if (playIcon) playIcon.textContent = '▶';
-    stopWaveformAnimation();
-  };
+  reader.readAsDataURL(waRecordedAudioBlob);
+}
 
-  window.speechSynthesis.speak(utter);
+async function applyRecordedAudioToAllClinics() {
+  if (!waRecordedAudioBlob) {
+    showToast('No audio recorded yet.');
+    return;
+  }
+  const projectId = state.selectedProjectId || (state.projects[0]?.id || '');
+  showToast('Applying authentic voice note across all 138 dental clinics...');
+
+  const reader = new FileReader();
+  reader.onload = async () => {
+    try {
+      const base64Data = reader.result;
+      const res = await apiFetch(`/api/projects/${projectId}/whatsapp-messages/set-master-audio`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ audio_data: base64Data })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.ok) {
+        showToast(`✓ Master real human voice applied to ${data.updatedCount || 138} clinics!`);
+        if (currentWhatsAppPackage) {
+          await loadWhatsAppLead(currentWhatsAppPackage.lead_id);
+        }
+      } else {
+        showToast(`Master update failed: ${data.error || 'Server error'}`);
+      }
+    } catch (err) {
+      showToast(`Error setting master audio: ${err.message}`);
+    }
+  };
+  reader.readAsDataURL(waRecordedAudioBlob);
+}
+
+function handleVoiceFileUpload(e) {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+
+  const previewAudio = document.getElementById('waRecordedPreviewAudio');
+  if (previewAudio) {
+    previewAudio.src = URL.createObjectURL(file);
+  }
+  waRecordedAudioBlob = file;
+  const recBar = document.getElementById('waRecordedActionsBar');
+  if (recBar) recBar.classList.remove('hidden');
+
+  showToast(`📁 Voice memo "${file.name}" loaded! Click "Save for This Clinic" or "Set as Master".`);
+  e.target.value = '';
+}
+
+async function resetToStudioMasterVoice() {
+  if (!currentWhatsAppPackage) return;
+  const projectId = state.selectedProjectId || (state.projects[0]?.id || '');
+  showToast('Restoring Studio Master (Ibrahim Zid authentic voice)...');
+
+  try {
+    const res = await apiFetch(`/api/projects/${projectId}/leads/${currentWhatsAppPackage.lead_id}/whatsapp-message/reset-audio`, {
+      method: 'POST'
+    });
+    const data = await res.json().catch(() => ({}));
+    if (data.ok && data.message) {
+      currentWhatsAppPackage = data.message;
+      renderWhatsAppPackage(data.message);
+      showToast('✓ Restored to Studio Master (Authentic Male Voice - Ibrahim Zid)!');
+    }
+  } catch (err) {
+    showToast(`Error resetting: ${err.message}`);
+  }
 }
 
 function downloadCurrentSvgCard() {
@@ -7668,11 +7884,17 @@ window.loadWhatsAppLead = loadWhatsAppLead;
 window.onWhatsAppVoiceScriptInput = onWhatsAppVoiceScriptInput;
 window.onWhatsAppMessageTextInput = onWhatsAppMessageTextInput;
 window.toggleWhatsAppAudioPlayback = toggleWhatsAppAudioPlayback;
+window.stopWhatsAppAudio = stopWhatsAppAudio;
 window.onWhatsAppAudioTimeUpdate = onWhatsAppAudioTimeUpdate;
 window.onWhatsAppAudioEnded = onWhatsAppAudioEnded;
 window.onWaveformScrub = onWaveformScrub;
 window.cyclePlaybackSpeed = cyclePlaybackSpeed;
-window.speakCurrentScriptWithBrowserTts = speakCurrentScriptWithBrowserTts;
+window.startLiveVoiceRecording = startLiveVoiceRecording;
+window.stopLiveVoiceRecording = stopLiveVoiceRecording;
+window.applyRecordedAudioToActiveClinic = applyRecordedAudioToActiveClinic;
+window.applyRecordedAudioToAllClinics = applyRecordedAudioToAllClinics;
+window.handleVoiceFileUpload = handleVoiceFileUpload;
+window.resetToStudioMasterVoice = resetToStudioMasterVoice;
 window.downloadCurrentSvgCard = downloadCurrentSvgCard;
 window.downloadCurrentPngCard = downloadCurrentPngCard;
 window.downloadCurrentVoiceNoteWav = downloadCurrentVoiceNoteWav;

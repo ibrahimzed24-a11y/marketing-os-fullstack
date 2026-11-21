@@ -1034,7 +1034,7 @@
                 <!-- Bubble 2: Attached Personalized Voice Note Player -->
                 <div class="whatsapp-bubble-out space-y-2">
                   <div class="text-[10px] font-bold text-[#128C7E] dark:text-[#25D366] uppercase tracking-wider flex items-center justify-between">
-                    <span>🎙️ Personalized Voice Note Attached</span>
+                    <span class="flex items-center gap-1"><span>🎙️</span> <span>Authentic Human Voice Note (Male)</span></span>
                     <button onclick="downloadCurrentVoiceNoteWav()" class="hover:underline text-[10px] font-bold">⬇️ Download .WAV</button>
                   </div>
 
@@ -1060,7 +1060,7 @@
                   <audio id="waNativeAudio" preload="auto" ontimeupdate="onWhatsAppAudioTimeUpdate()" onended="onWhatsAppAudioEnded()" class="hidden"></audio>
 
                   <div class="flex items-center justify-between text-[10px] text-[var(--text-soft)] pt-0.5">
-                    <span id="waAudioVoiceTag">🎙️ Ibrahim Zid (Valioz Health)</span>
+                    <span id="waAudioVoiceTag" class="text-emerald-700 dark:text-emerald-400 font-semibold">🎙️ Ibrahim Zid (Valioz Health · Authentic Male Voice)</span>
                     <span class="whatsapp-tick-read">10:42 AM ✓✓</span>
                   </div>
                 </div>
@@ -1086,7 +1086,7 @@
               <button onclick="regenerateCurrentLeadWhatsApp()" class="btn-outline text-[11px] px-2.5 py-1 flex items-center gap-1">↻ Reset to Base Knowledge</button>
             </div>
 
-            <!-- Voice Note Script Editor & Speech Synthesis -->
+            <!-- Voice Note Script Editor -->
             <div class="card-subtle p-4 rounded-xl border border-[var(--border)] space-y-2.5">
               <div class="flex items-center justify-between">
                 <label for="waVoiceScriptInput" class="text-xs font-bold flex items-center gap-1.5">
@@ -1094,15 +1094,94 @@
                 </label>
                 <div class="flex items-center gap-2">
                   <span id="waScriptWordCount" class="text-[10px] mono text-[var(--text-soft)]">68 words (~26s)</span>
-                  <button type="button" onclick="speakCurrentScriptWithBrowserTts()" id="btnWaTestTts" class="btn-outline px-2 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-300">
-                    <span>🔊</span> <span>Speak Preview</span>
+                  <button type="button" onclick="toggleWhatsAppAudioPlayback()" id="btnWaPlayPreview" class="btn-outline px-2.5 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-300 flex items-center gap-1">
+                    <span>▶</span> <span>Play Real Audio</span>
                   </button>
                 </div>
               </div>
-              <textarea id="waVoiceScriptInput" rows="5" oninput="onWhatsAppVoiceScriptInput()" class="input-field text-xs font-mono w-full leading-relaxed p-2.5"></textarea>
+              <textarea id="waVoiceScriptInput" rows="4" oninput="onWhatsAppVoiceScriptInput()" class="input-field text-xs font-mono w-full leading-relaxed p-2.5"></textarea>
               <p class="text-[11px] text-[var(--text-soft)]">
                 Includes factual Google review numbers, verified city name, identified after-hours intake gap, and the $499 turnkey asset ownership offer.
               </p>
+            </div>
+
+            <!-- Real Human Voice Studio: Live Mic Recording, Audio Uploader, & Master Preset -->
+            <div class="card-subtle p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5 space-y-3">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                  <span class="text-base">🎙️</span>
+                  <div>
+                    <div class="text-xs font-bold text-[var(--text)]">Real Human Voice Studio (Authentic Male Voice)</div>
+                    <div class="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">100% Real Human Voice • Zero AI / Robot Speech Guaranteed</div>
+                  </div>
+                </div>
+                <span id="waAudioActiveSourceBadge" class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+                  Studio Master: Ibrahim Zid
+                </span>
+              </div>
+
+              <!-- Real Voice Controls: Record Mic or Upload Audio File -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                <!-- Live Microphone Recorder -->
+                <div class="p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)] flex flex-col justify-between space-y-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-bold text-[var(--text)]">🎙️ Record Live Human Voice</span>
+                    <span id="waRecTimer" class="text-[11px] font-mono font-bold text-red-500 hidden">00:00</span>
+                  </div>
+                  <p class="text-[10px] text-[var(--text-soft)] leading-tight">
+                    Record your genuine human voice directly from your microphone.
+                  </p>
+                  <!-- Live Input Wave Meter -->
+                  <div id="waRecMeterContainer" class="hidden h-2 rounded bg-black/10 dark:bg-white/10 overflow-hidden">
+                    <div id="waRecMeterBar" class="h-full bg-red-500 transition-all duration-75" style="width: 0%;"></div>
+                  </div>
+                  <div class="flex items-center gap-2 pt-1">
+                    <button id="btnWaStartRecord" type="button" onclick="startLiveVoiceRecording()" class="btn-primary text-xs py-1.5 px-3 font-bold flex items-center justify-center gap-1.5 flex-1 bg-red-600 hover:bg-red-700 text-white shadow-xs">
+                      <span class="w-2 h-2 rounded-full bg-white animate-pulse"></span>
+                      <span>Record Mic</span>
+                    </button>
+                    <button id="btnWaStopRecord" type="button" onclick="stopLiveVoiceRecording()" class="btn-outline text-xs py-1.5 px-3 font-bold hidden flex items-center justify-center gap-1.5 flex-1 text-red-500 border-red-500/40">
+                      <span>■ Stop Recording</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Upload Voice Memo File -->
+                <div class="p-3 rounded-lg bg-[var(--surface)] border border-[var(--border)] flex flex-col justify-between space-y-2">
+                  <div class="flex items-center justify-between">
+                    <span class="text-[11px] font-bold text-[var(--text)]">📁 Upload Voice Memo</span>
+                    <span class="text-[10px] text-[var(--text-soft)] font-mono">.WAV, .MP3, .M4A</span>
+                  </div>
+                  <p class="text-[10px] text-[var(--text-soft)] leading-tight">
+                    Import an authentic audio recording or voice memo.
+                  </p>
+                  <input id="waVoiceFileInput" type="file" accept="audio/*" class="hidden" onchange="handleVoiceFileUpload(event)" />
+                  <div class="flex items-center gap-2 pt-1">
+                    <button type="button" onclick="document.getElementById('waVoiceFileInput').click()" class="btn-outline text-xs py-1.5 px-3 font-bold flex items-center justify-center gap-1.5 flex-1">
+                      <span>⬆️ Upload Audio</span>
+                    </button>
+                    <button type="button" onclick="resetToStudioMasterVoice()" title="Restore studio master male voice (Ibrahim Zid)" class="btn-outline text-xs py-1.5 px-2 font-bold text-[var(--text-soft)]">
+                      <span>↻ Master</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Action Bar when Audio is Recorded / Uploaded -->
+              <div id="waRecordedActionsBar" class="hidden p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center gap-2 text-[11px]">
+                  <span class="font-bold text-emerald-600 dark:text-emerald-400">✓ Real Voice Ready:</span>
+                  <audio id="waRecordedPreviewAudio" controls class="h-6 w-36"></audio>
+                </div>
+                <div class="flex items-center gap-1.5">
+                  <button type="button" onclick="applyRecordedAudioToActiveClinic()" class="btn-primary text-[10px] py-1 px-2.5 font-bold">
+                    Save for This Clinic
+                  </button>
+                  <button type="button" onclick="applyRecordedAudioToAllClinics()" class="btn-outline text-[10px] py-1 px-2.5 font-bold border-emerald-500/40 text-emerald-600 dark:text-emerald-400">
+                    Set as Master (138 Clinics)
+                  </button>
+                </div>
+              </div>
             </div>
 
             <!-- WhatsApp Message Markdown Copy Editor -->

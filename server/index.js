@@ -61,6 +61,9 @@ const {
   generateOrGetWhatsAppMessage,
   generateBulkWhatsAppMessages,
   generatePcmWav,
+  getMasterHumanVoiceWav,
+  saveLeadCustomAudio,
+  setMasterVoiceAudio,
   stageWhatsAppApproval,
   loadClinicIntelligence
 } = require('./whatsappEngine');
@@ -992,19 +995,84 @@ app.post('/api/projects/:id/leads/:leadId/whatsapp-message', authMiddleware, req
   res.json({ ok: true, message });
 }));
 
-// 5. Download / stream synthesized voice note WAV audio
+// 5. Download / stream authentic human voice note WAV audio
 app.get('/api/projects/:id/leads/:leadId/whatsapp-message/audio', asyncHandler(async (req, res) => {
   const message = generateOrGetWhatsAppMessage(db, req.params.id, req.params.leadId);
   const clinicSlug = String(message.clinic_name || 'dental-clinic')
     .toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40);
-  const wavBuffer = generatePcmWav(message.voice_note_duration_sec || 26);
+
+  let wavBuffer;
+  if (message.custom_audio_blob && message.custom_audio_blob.length > 50) {
+    try {
+      wavBuffer = Buffer.from(message.custom_audio_blob, 'base64');
+    } catch (_) {
+      wavBuffer = getMasterHumanVoiceWav() || generatePcmWav(message.voice_note_duration_sec || 26);
+    }
+  } else {
+    wavBuffer = getMasterHumanVoiceWav() || generatePcmWav(message.voice_note_duration_sec || 26);
+  }
+
   res.set({
     'Content-Type': 'audio/wav',
     'Content-Length': wavBuffer.length,
-    'Content-Disposition': `inline; filename="valioz-voice-note-${clinicSlug}.wav"`,
+    'Content-Disposition': `inline; filename="valioz-human-voice-${clinicSlug}.wav"`,
     'Cache-Control': 'public, max-age=3600'
   });
   res.send(wavBuffer);
+}));
+
+// 5b. Record or upload custom authentic human voice note for a specific clinic
+app.post('/api/projects/:id/leads/:leadId/whatsapp-message/record-audio', authMiddleware, requireRole('super_admin', 'admin', 'manager'), upload.single('audio_file'), asyncHandler(async (req, res) => {
+  if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
+
+  let audioBuffer;
+  let source = req.body.audio_source || 'operator_recorded';
+  let duration = req.body.duration ? parseInt(req.body.duration, 10) : null;
+
+  if (req.file && req.file.path) {
+    audioBuffer = fs.readFileSync(req.file.path);
+    source = 'uploaded';
+  } else if (req.body.audio_data) {
+    const raw = String(req.body.audio_data).replace(/^data:audio\/[a-zA-Z0-9.-]+;base64,/, '');
+    audioBuffer = Buffer.from(raw, 'base64');
+  } else {
+    return res.status(400).json({ error: 'No audio data or file provided' });
+  }
+
+  const updated = saveLeadCustomAudio(db, req.params.id, req.params.leadId, audioBuffer, source, duration);
+  res.json({ ok: true, message: updated });
+}));
+
+// 5c. Set recorded or uploaded real human voice note as master for all 138 clinics in the project
+app.post('/api/projects/:id/whatsapp-messages/set-master-audio', authMiddleware, requireRole('super_admin', 'admin', 'manager'), upload.single('audio_file'), asyncHandler(async (req, res) => {
+  if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
+
+  let audioBuffer;
+  if (req.file && req.file.path) {
+    audioBuffer = fs.readFileSync(req.file.path);
+  } else if (req.body.audio_data) {
+    const raw = String(req.body.audio_data).replace(/^data:audio\/[a-zA-Z0-9.-]+;base64,/, '');
+    audioBuffer = Buffer.from(raw, 'base64');
+  } else {
+    return res.status(400).json({ error: 'No audio data or file provided' });
+  }
+
+  const result = setMasterVoiceAudio(db, req.params.id, audioBuffer);
+  res.json(result);
+}));
+
+// 5d. Reset clinic voice note to studio master human male voice
+app.post('/api/projects/:id/leads/:leadId/whatsapp-message/reset-audio', authMiddleware, requireRole('super_admin', 'admin', 'manager'), asyncHandler(async (req, res) => {
+  if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
+  db.prepare(`
+    UPDATE lead_whatsapp_messages
+    SET custom_audio_blob = '',
+        audio_source = 'master_human',
+        updated_at = CURRENT_TIMESTAMP
+    WHERE project_id = ? AND lead_id = ?
+  `).run(req.params.id, req.params.leadId);
+  const updated = generateOrGetWhatsAppMessage(db, req.params.id, req.params.leadId);
+  res.json({ ok: true, message: updated });
 }));
 
 // 6. Download / stream SVG card image

@@ -676,6 +676,8 @@ try {
     voice_note_script TEXT,
     voice_note_duration_sec INTEGER DEFAULT 25,
     voice_note_audio_url TEXT,
+    custom_audio_blob TEXT,
+    audio_source TEXT DEFAULT 'master_human',
     whatsapp_text TEXT,
     wa_link TEXT,
     status TEXT DEFAULT 'ready' CHECK(status IN ('ready','staged','approved','sent')),
@@ -739,6 +741,14 @@ try {
       try {
         db.prepare("CREATE INDEX IF NOT EXISTS idx_rag_chunks_category ON rag_chunks(project_id, category)").run();
       } catch (_) {}
+    }
+
+    const pragmaWa = db.prepare("PRAGMA table_info(lead_whatsapp_messages)").all();
+    if (!pragmaWa.some(c => c.name === 'custom_audio_blob')) {
+      db.prepare("ALTER TABLE lead_whatsapp_messages ADD COLUMN custom_audio_blob TEXT DEFAULT ''").run();
+    }
+    if (!pragmaWa.some(c => c.name === 'audio_source')) {
+      db.prepare("ALTER TABLE lead_whatsapp_messages ADD COLUMN audio_source TEXT DEFAULT 'master_human'").run();
     }
 
     // Verify tasks table supports 'in_progress' and 'needs_attention'
