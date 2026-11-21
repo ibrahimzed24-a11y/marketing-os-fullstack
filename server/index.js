@@ -1498,6 +1498,174 @@ app.post('/api/seo/execute', authMiddleware, asyncHandler(async (req, res) => {
 }));
 
 // =============================================================================
+// DEEP MARKET RESEARCH & 5-TOOL ENGINE (Google Console, Keyword Planner, Tag Manager, SEO, GEO)
+// =============================================================================
+app.get('/api/market-research', authMiddleware, asyncHandler(async (req, res) => {
+  const { project_id } = req.query;
+  let query = 'SELECT mr.*, p.name as project_name FROM market_research_reports mr LEFT JOIN projects p ON p.id = mr.project_id';
+  const params = [];
+  if (project_id) {
+    if (!canAccessProject(req.user, project_id)) return res.status(403).json({ error: 'No access to project' });
+    query += ' WHERE mr.project_id = ?';
+    params.push(project_id);
+  }
+  query += ' ORDER BY mr.created_at DESC LIMIT 50';
+  const reports = db.prepare(query).all(...params);
+  res.json({ ok: true, reports });
+}));
+
+app.get('/api/market-research/:id', authMiddleware, asyncHandler(async (req, res) => {
+  const report = db.prepare('SELECT mr.*, p.name as project_name FROM market_research_reports mr LEFT JOIN projects p ON p.id = mr.project_id WHERE mr.id = ?').get(req.params.id);
+  if (!report) return res.status(404).json({ error: 'Market research report not found' });
+  if (report.project_id && !canAccessProject(req.user, report.project_id)) {
+    return res.status(403).json({ error: 'No access to project' });
+  }
+  res.json({ ok: true, report });
+}));
+
+app.post('/api/market-research', authMiddleware, asyncHandler(async (req, res) => {
+  let {
+    project_id,
+    business_idea,
+    target_geo = 'Global',
+    competitors = [],
+    target_audience = '',
+    tools_assigned = ['google_search_console', 'keyword_planner', 'tag_manager', 'seo_engine', 'geo_matrix']
+  } = req.body;
+
+  if (!business_idea || !business_idea.trim()) {
+    return res.status(400).json({ error: 'business_idea is required for market research' });
+  }
+
+  // Auto-resolve project if not provided
+  let proj = null;
+  if (project_id) {
+    proj = db.prepare('SELECT * FROM projects WHERE id=?').get(project_id);
+    if (!proj) return res.status(404).json({ error: 'Project not found' });
+    if (!canAccessProject(req.user, project_id)) return res.status(403).json({ error: 'No access' });
+  } else {
+    // Pick first accessible project or auto-provision a Research Workspace
+    proj = db.prepare("SELECT * FROM projects WHERE department='research' OR type='market_intel' ORDER BY created_at DESC LIMIT 1").get();
+    if (!proj) {
+      proj = db.prepare("SELECT * FROM projects WHERE id != 'helm' ORDER BY created_at DESC LIMIT 1").get();
+    }
+    if (!proj) {
+      const newProjId = uuidv4();
+      db.prepare(`
+        INSERT INTO projects (id, name, client_name, goal, department, type, pipelines, deliverables, owner_id)
+        VALUES (?, ?, ?, ?, 'research', 'market_intel', ?, ?, ?)
+      `).run(
+        newProjId,
+        'Market Intelligence Workspace',
+        'Agency Client',
+        'Autonomous Forensic Market Research & Competitive Intelligence',
+        JSON.stringify(['deep-market-research', 'market-intel', 'content-seo']),
+        JSON.stringify(['market_report', 'seo_matrix']),
+        req.user.id
+      );
+      proj = db.prepare('SELECT * FROM projects WHERE id=?').get(newProjId);
+    }
+    project_id = proj.id;
+  }
+
+  // Create an explicit Task in the Research Department
+  const taskId = uuidv4();
+  const taskTitle = `Deep Market Research: ${business_idea.trim()}`;
+  const inputData = {
+    business_idea: business_idea.trim(),
+    target_geo: target_geo.trim(),
+    competitors: Array.isArray(competitors) ? competitors : (typeof competitors === 'string' ? competitors.split(',').map(s=>s.trim()).filter(Boolean) : []),
+    target_audience: target_audience.trim(),
+    tools_assigned: tools_assigned
+  };
+
+  db.prepare(`
+    INSERT INTO tasks (id, project_id, title, pipeline, description, assignee_id, created_by, priority, input_json, status, department)
+    VALUES (?, ?, ?, 'deep-market-research', ?, ?, ?, 'high', ?, 'draft', 'research')
+  `).run(
+    taskId,
+    project_id,
+    taskTitle,
+    `Full 5-Tool Market Research on "${business_idea.trim()}" in ${target_geo.trim()}`,
+    req.user.id,
+    req.user.id,
+    JSON.stringify(inputData)
+  );
+
+  const task = db.prepare('SELECT * FROM tasks WHERE id=?').get(taskId);
+  const harness = db.prepare('SELECT * FROM harness_files WHERE project_id=?').all(project_id);
+
+  // Execute through Unified 5-Stage Agent Framework
+  const execResult = await executeAgentTask(task, proj, harness, {
+    skipLiveLLM: process.env.SKIP_LIVE_LLM === 'true' || process.env.FAST_TEST_MODE === 'true'
+  });
+
+  const outputJson = execResult.outputJson || {};
+  const reportMd = execResult.reportMd || '';
+  const reportId = uuidv4();
+
+  db.transaction(() => {
+    // 1. Update Task
+    db.prepare("UPDATE tasks SET status='in_review', output_json=?, report_md=?, updated_at=CURRENT_TIMESTAMP WHERE id=?")
+      .run(JSON.stringify(outputJson), reportMd, taskId);
+
+    // 2. Persist to market_research_reports
+    db.prepare(`
+      INSERT INTO market_research_reports (
+        id, project_id, task_id, business_idea, target_industry, target_geo,
+        competitor_urls, target_audience, tools_assigned, opportunity_score,
+        executive_summary, market_sizing_json, competitor_analysis_json,
+        opportunities_matrix_json, gsc_data_json, keyword_planner_data_json,
+        tag_manager_data_json, seo_audit_json, geo_matrix_json, roadmap_json,
+        full_report_md, output_json, created_by
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      reportId,
+      project_id,
+      taskId,
+      business_idea.trim(),
+      outputJson.market?.industry || 'Commercial Sector',
+      target_geo.trim(),
+      JSON.stringify(inputData.competitors || []),
+      inputData.target_audience || '',
+      JSON.stringify(tools_assigned),
+      outputJson.opportunity_score || 90,
+      outputJson.summary || '',
+      JSON.stringify(outputJson.market_sizing || {}),
+      JSON.stringify(outputJson.competitor_analysis || []),
+      JSON.stringify(outputJson.opportunities_matrix || []),
+      JSON.stringify(outputJson.google_search_console || {}),
+      JSON.stringify(outputJson.google_keyword_planner || {}),
+      JSON.stringify(outputJson.google_tag_manager || {}),
+      JSON.stringify(outputJson.seo_competitor_audit || {}),
+      JSON.stringify(outputJson.geo_search_matrix || {}),
+      JSON.stringify(outputJson.roadmap || {}),
+      reportMd,
+      JSON.stringify(outputJson),
+      req.user.name || req.user.email
+    );
+
+    // 3. Insert into standard reports table
+    db.prepare('INSERT INTO reports (id, task_id, project_id, title, content_md, verdict, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .run(uuidv4(), taskId, project_id, `Market Research Report - ${business_idea.trim()}`, reportMd, 'pending', execResult.agent.name);
+
+    // 4. Record Activity
+    db.prepare('INSERT INTO activity (id, project_id, task_id, user_id, action, meta) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(uuidv4(), project_id, taskId, req.user.id, 'market_research_executed', JSON.stringify({ business_idea, tools_assigned }));
+  })();
+
+  const savedReport = db.prepare('SELECT * FROM market_research_reports WHERE id=?').get(reportId);
+  res.json({
+    ok: true,
+    report: savedReport,
+    task_id: taskId,
+    output: outputJson,
+    report_md: reportMd,
+    message: `Market research for "${business_idea.trim()}" successfully executed and grounded across all 5 assigned tools.`
+  });
+}));
+
+// =============================================================================
 // TASKS, PIPELINES & DUAL-ENGINE RUNNER (Modules 01 - 10)
 // =============================================================================
 const PIPELINES = {
@@ -1511,6 +1679,7 @@ const PIPELINES = {
   'lead-research': { name: 'Lead Research', squad: ['coordinator', 'browser-researcher', 'master-reporting-agent'] },
   'landing-page': { name: 'Landing Page Factory', squad: ['coordinator', 'software-engineer', 'master-reporting-agent'] },
   'market-intel': { name: 'Market Intelligence', squad: ['coordinator', 'browser-researcher', 'master-reporting-agent'] },
+  'deep-market-research': { name: 'Deep Market Research (GSC + Keyword Planner + GTM + SEO + GEO)', squad: ['coordinator', 'browser-researcher', 'master-reporting-agent'] },
   'brand-kit': { name: 'Brand Kit', squad: ['coordinator', 'software-engineer', 'master-reporting-agent'] },
 };
 
@@ -1563,7 +1732,7 @@ app.get('/api/tasks', authMiddleware, asyncHandler(async (req, res) => {
 }));
 
 function inferDepartmentFromPipeline(pipeline) {
-  if (['market-intel', 'lead-research', 'content-seo'].includes(pipeline)) {
+  if (['market-intel', 'lead-research', 'content-seo', 'deep-market-research', 'browser-research'].includes(pipeline)) {
     return 'research';
   } else if (['email-campaign', 'offer-campaign', 'proposal-campaign', 'whatsapp-campaign', 'lead_qualification', 'deal_proposal'].includes(pipeline)) {
     return 'sales';

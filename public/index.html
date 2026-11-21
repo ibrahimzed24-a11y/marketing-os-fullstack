@@ -988,96 +988,232 @@
     <!-- ===================================================================== -->
     <div id="view-browser-research" class="hidden space-y-5">
       <div id="view-research" class="space-y-5">
-      <section class="card-surface p-5 rounded-2xl border border-[var(--border)]">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div>
-            <div class="flex items-center gap-2 mb-1">
-              <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30">Department 01</span>
-              <h1 class="text-lg font-extrabold tracking-tight">Browser Research &amp; Market Intelligence</h1>
+
+        <!-- Department 01 Header: Trust & Authority -->
+        <section class="card-surface p-5 rounded-2xl border border-[var(--border)] shadow-xs">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div>
+              <div class="flex items-center gap-2 mb-1">
+                <span class="px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider bg-sky-500/15 text-sky-700 dark:text-sky-300 border border-sky-500/30">Department 01</span>
+                <h1 class="text-lg font-extrabold tracking-tight">Browser Research &amp; Market Intelligence</h1>
+                <span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-teal-500/15 text-teal-700 dark:text-teal-300 border border-teal-500/30">5-Tool Engine Active</span>
+              </div>
+              <p class="text-xs text-[var(--text-soft)]">
+                Powered by Browser Research Agent (<code class="font-mono text-[11px]">browser-researcher</code>). Autonomous forensics, competitor teardowns, search volume demand, tracking audits, and local geo rankings.
+              </p>
             </div>
-            <p class="text-xs text-[var(--text-soft)]">
-              Powered by Browser Research Agent (browser-researcher). Collects and analyzes market data, competitors, verified leads, and SEO/GEO search matrices. Grounded in /uploads harness data.
-            </p>
+            <div class="flex flex-wrap items-center gap-2">
+              <button onclick="handoffResearchToSales()" class="btn-outline text-xs px-3 py-1.5 font-bold flex items-center gap-1.5 text-sky-600 dark:text-sky-300 border-sky-500/30 hover:bg-sky-500/10 transition">
+                <span>📥</span> <span>Handoff Leads to Sales CRM</span>
+              </button>
+              <button onclick="openCreateTaskModal('research')" class="btn-outline text-xs px-3 py-1.5 font-bold flex items-center gap-1.5">
+                <span>+</span> <span>New Custom Task</span>
+              </button>
+              <button onclick="fetchSalesCrmData()" class="btn-outline text-xs px-2.5 py-1.5 font-bold" title="Refresh research leads and data">↻</button>
+            </div>
           </div>
-          <div class="flex items-center gap-2">
-            <button onclick="handoffResearchToSales()" class="btn-outline text-xs px-3 py-1.5 font-bold flex items-center gap-1.5 text-blue-400 border-blue-500/30 hover:bg-blue-500/10 transition">
-              <span>📥</span> <span>Handoff Leads to Sales CRM</span>
+        </section>
+
+        <!-- Always Assigned Research Tools Bar (5/5 Engine Tools) -->
+        <section class="card-surface p-4 rounded-2xl border border-teal-500/30 bg-gradient-to-r from-teal-500/10 via-[var(--surface)] to-sky-500/10 shadow-xs space-y-3">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--border)] pb-2.5">
+            <div class="flex items-center gap-2">
+              <span class="w-6 h-6 rounded-lg bg-teal-500/20 text-teal-600 dark:text-teal-300 text-xs font-black flex items-center justify-center">⚙️</span>
+              <div>
+                <h2 class="text-xs font-black uppercase tracking-wider text-teal-700 dark:text-teal-300">Always Assigned Research Tools (5/5 Active in Engine)</h2>
+                <p class="text-[11px] text-[var(--text-soft)]">These tools are permanently assigned and executed by the research engine for every business idea analysis.</p>
+              </div>
+            </div>
+            <span class="text-[10px] px-2.5 py-1 rounded-full font-bold bg-teal-500/20 text-teal-700 dark:text-teal-300 border border-teal-500/40">✓ All 5 Tools Locked &amp; Assigned</span>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 pt-1">
+            <!-- Tool 1: Google Search Console -->
+            <div class="p-3 rounded-xl bg-[var(--surface)] border border-[var(--border)] hover:border-teal-500/40 transition space-y-1">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5"><span>📊</span> Search Console</span>
+                <span class="text-[9px] font-black text-teal-600 dark:text-teal-400 bg-teal-500/15 px-1.5 py-0.5 rounded">GSC ACTIVE</span>
+              </div>
+              <p class="text-[10px] text-[var(--text-soft)]">Query impressions, CTR benchmarks, SERP positions &amp; Page 2 leap opportunities.</p>
+            </div>
+
+            <!-- Tool 2: Google Keyword Planner -->
+            <div class="p-3 rounded-xl bg-[var(--surface)] border border-[var(--border)] hover:border-teal-500/40 transition space-y-1">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5"><span>🔍</span> Keyword Planner</span>
+                <span class="text-[9px] font-black text-teal-600 dark:text-teal-400 bg-teal-500/15 px-1.5 py-0.5 rounded">GKP ACTIVE</span>
+              </div>
+              <p class="text-[10px] text-[var(--text-soft)]">Exact monthly search demand, YoY growth trends, and High/Low Top-of-Page CPC bids.</p>
+            </div>
+
+            <!-- Tool 3: Google Tag Manager -->
+            <div class="p-3 rounded-xl bg-[var(--surface)] border border-[var(--border)] hover:border-teal-500/40 transition space-y-1">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5"><span>🏷️</span> Tag Manager</span>
+                <span class="text-[9px] font-black text-teal-600 dark:text-teal-400 bg-teal-500/15 px-1.5 py-0.5 rounded">GTM ACTIVE</span>
+              </div>
+              <p class="text-[10px] text-[var(--text-soft)]">Conversion event architecture, tracking tag audits, pixel health &amp; funnel leak points.</p>
+            </div>
+
+            <!-- Tool 4: SEO Competitor Engine -->
+            <div class="p-3 rounded-xl bg-[var(--surface)] border border-[var(--border)] hover:border-teal-500/40 transition space-y-1">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5"><span>🌐</span> SEO Engine</span>
+                <span class="text-[9px] font-black text-teal-600 dark:text-teal-400 bg-teal-500/15 px-1.5 py-0.5 rounded">SEO ACTIVE</span>
+              </div>
+              <p class="text-[10px] text-[var(--text-soft)]">SERP competitor dominance, domain authority comparisons, and KGR &lt; 0.25 fast wins.</p>
+            </div>
+
+            <!-- Tool 5: GEO Search Matrix -->
+            <div class="p-3 rounded-xl bg-[var(--surface)] border border-[var(--border)] hover:border-teal-500/40 transition space-y-1">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5"><span>📍</span> GEO Matrix</span>
+                <span class="text-[9px] font-black text-teal-600 dark:text-teal-400 bg-teal-500/15 px-1.5 py-0.5 rounded">GEO ACTIVE</span>
+              </div>
+              <p class="text-[10px] text-[var(--text-soft)]">Metro and regional search demand index, Google Maps local 3-pack competition density.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Deep Market Research on Any Business Idea (Generator Card) -->
+        <section id="deepResearchGeneratorCard" class="card-surface p-5 rounded-3xl border border-[var(--border)] shadow-sm space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--border)] pb-3">
+            <div>
+              <div class="flex items-center gap-2">
+                <span class="w-7 h-7 rounded-lg bg-sky-500/20 text-sky-600 dark:text-sky-300 font-black text-sm flex items-center justify-center">🎯</span>
+                <h2 class="text-sm font-extrabold tracking-tight">Deep Market Research on Any Business Idea</h2>
+              </div>
+              <p class="text-xs text-[var(--text-soft)] mt-0.5">
+                Input any concept or market idea to generate a comprehensive forensic report grounded across Google Search Console, Keyword Planner, Tag Manager, SEO, and GEO matrices.
+              </p>
+            </div>
+            <div class="flex items-center gap-1.5 text-xs text-[var(--text-soft)]">
+              <span>Quick Presets:</span>
+              <button onclick="quickFillResearchPreset('healthcare')" class="px-2 py-1 rounded-md text-[10px] font-bold bg-[var(--surface-2)] border border-[var(--border)] hover:border-teal-500/40">Dental Healthcare</button>
+              <button onclick="quickFillResearchPreset('b2b_saas')" class="px-2 py-1 rounded-md text-[10px] font-bold bg-[var(--surface-2)] border border-[var(--border)] hover:border-teal-500/40">B2B Cold Outreach</button>
+              <button onclick="quickFillResearchPreset('local_service')" class="px-2 py-1 rounded-md text-[10px] font-bold bg-[var(--surface-2)] border border-[var(--border)] hover:border-teal-500/40">Mobile Detailing</button>
+              <button onclick="quickFillResearchPreset('ecommerce')" class="px-2 py-1 rounded-md text-[10px] font-bold bg-[var(--surface-2)] border border-[var(--border)] hover:border-teal-500/40">Specialty Coffee</button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Business Idea / Concept Input -->
+            <div class="space-y-1.5 md:col-span-2">
+              <label for="mrBusinessIdeaInput" class="block text-xs font-bold text-slate-800 dark:text-slate-200">
+                Business Idea, Product Concept, or Market Niche <span class="text-rose-500">*</span>
+              </label>
+              <textarea id="mrBusinessIdeaInput" rows="2" placeholder="e.g. AI-powered patient intake and after-hours emergency triage platform for private clinics" class="input-field w-full text-xs p-3 leading-relaxed"></textarea>
+            </div>
+
+            <!-- Target Geography (GEO) -->
+            <div class="space-y-1.5">
+              <label for="mrTargetGeoSelect" class="block text-xs font-bold text-slate-800 dark:text-slate-200">
+                Target Geography &amp; Local Market (GEO)
+              </label>
+              <select id="mrTargetGeoSelect" class="input-field w-full text-xs py-2 px-3">
+                <option value="Canada (Ontario, British Columbia, Alberta)" selected>Canada (Ontario, British Columbia, Alberta)</option>
+                <option value="United States (National - NY, CA, FL, TX)">United States (National - NY, CA, FL, TX)</option>
+                <option value="United Kingdom (London & Metros)">United Kingdom (London & Metros)</option>
+                <option value="United Arab Emirates (Dubai & Abu Dhabi)">United Arab Emirates (Dubai & Abu Dhabi)</option>
+                <option value="European Union (Germany, France, Netherlands)">European Union (Germany, France, Netherlands)</option>
+                <option value="Global / Multi-Region">Global / Multi-Region</option>
+              </select>
+            </div>
+
+            <!-- Target Audience / ICP -->
+            <div class="space-y-1.5">
+              <label for="mrTargetAudienceInput" class="block text-xs font-bold text-slate-800 dark:text-slate-200">
+                Target Audience / Ideal Customer Profile (ICP)
+              </label>
+              <input id="mrTargetAudienceInput" type="text" placeholder="e.g. Independent clinic owners, practice managers, B2B founders" class="input-field w-full text-xs py-2 px-3" />
+            </div>
+
+            <!-- Known Competitors / Benchmark Sites -->
+            <div class="space-y-1.5 md:col-span-2">
+              <label for="mrCompetitorsInput" class="block text-xs font-bold text-slate-800 dark:text-slate-200">
+                Known Competitors or Benchmark URLs (Optional, comma-separated)
+              </label>
+              <input id="mrCompetitorsInput" type="text" placeholder="e.g. legacyagencies.com, genericbuilder.com, point-solution.io" class="input-field w-full text-xs py-2 px-3" />
+            </div>
+          </div>
+
+          <!-- Mandatory Assigned Tools Confirmation -->
+          <div class="p-3.5 rounded-2xl bg-[var(--surface-2)] border border-[var(--border)] flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div class="flex items-center gap-2">
+              <span class="text-emerald-500 font-bold">✓</span>
+              <span class="font-bold text-slate-900 dark:text-slate-100">Permanently Assigned Tools:</span>
+              <div class="flex flex-wrap items-center gap-1.5">
+                <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-teal-500/15 text-teal-700 dark:text-teal-300 border border-teal-500/30">Google Search Console</span>
+                <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-teal-500/15 text-teal-700 dark:text-teal-300 border border-teal-500/30">Keyword Planner</span>
+                <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-teal-500/15 text-teal-700 dark:text-teal-300 border border-teal-500/30">Tag Manager</span>
+                <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-teal-500/15 text-teal-700 dark:text-teal-300 border border-teal-500/30">SEO Engine</span>
+                <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-teal-500/15 text-teal-700 dark:text-teal-300 border border-teal-500/30">GEO Matrix</span>
+              </div>
+            </div>
+            <button id="btnLaunchMarketResearch" onclick="launchDeepMarketResearch()" class="btn-primary text-xs px-5 py-2 font-extrabold flex items-center gap-2 bg-teal-600 hover:bg-teal-500 shadow-sm cursor-pointer">
+              <span>▶</span> <span>Launch Deep Market Research</span>
             </button>
-            <button onclick="openCreateTaskModal('research')" class="btn-primary text-xs px-3.5 py-1.5 font-bold flex items-center gap-1.5">
+          </div>
+        </section>
+
+        <!-- Deep Market Research Report Output Viewer -->
+        <section id="deepResearchReportContainer" class="hidden card-surface p-6 rounded-3xl border border-teal-500/30 bg-[var(--surface)] shadow-md space-y-6">
+          <!-- Dynamic report content injected via renderDeepResearchReport() -->
+        </section>
+
+        <!-- Saved Market Research Reports History -->
+        <section id="savedMarketReportsSection" class="card-surface p-5 rounded-2xl border border-[var(--border)] space-y-3">
+          <div class="flex items-center justify-between border-b border-[var(--border)] pb-2.5">
+            <div>
+              <h2 class="text-sm font-extrabold tracking-tight">Saved Market Research Reports</h2>
+              <p class="text-[11px] text-[var(--text-soft)]">Previously executed 5-tool deep market reports with full competitor and opportunity data.</p>
+            </div>
+            <button onclick="fetchSavedMarketReports()" class="btn-outline text-[11px] px-2.5 py-1">↻ Refresh Reports</button>
+          </div>
+          <div id="savedMarketReportsContainer" class="space-y-2 text-xs">
+            <div class="p-4 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] text-center text-[var(--text-soft)]">
+              No previous market research reports saved yet. Enter an idea above and click "Launch Deep Market Research".
+            </div>
+          </div>
+        </section>
+
+        <!-- Live Discovered Leads Panel -->
+        <section class="card-surface p-5 rounded-2xl border border-[var(--border)] space-y-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <h2 class="text-sm font-extrabold">Discovered Leads &amp; Market Contacts</h2>
+              <p class="text-[11px] text-[var(--text-soft)]">Real database records persisted by Research Agent (Agent 01) ready for Sales CRM promotion.</p>
+            </div>
+            <button onclick="fetchSalesCrmData()" class="btn-outline text-[11px] px-2.5 py-1">↻ Refresh</button>
+          </div>
+          <div id="researchLeadsContainer" class="space-y-2 text-xs text-[var(--text-soft)]">
+            <div class="p-3.5 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] space-y-2 skeleton-pulse">
+              <div class="flex items-center justify-between">
+                <div class="h-3.5 bg-slate-200 dark:bg-slate-700 rounded-md w-1/3"></div>
+                <div class="h-4 bg-slate-200 dark:bg-slate-800 rounded-full w-16"></div>
+              </div>
+              <div class="h-2.5 bg-slate-200 dark:bg-slate-800 rounded-md w-2/3"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Research Department Scoped Projects & Tasks -->
+        <section id="researchProjectsTasksSection" class="card-surface p-5 rounded-2xl border border-[var(--border)] space-y-4">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <div class="flex items-center gap-2">
+                <h2 class="text-sm font-extrabold">Research Projects &amp; Tasks</h2>
+                <span id="researchTasksCountBadge" class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-blue-500/15 text-blue-500 border border-blue-500/30">0</span>
+              </div>
+              <p class="text-[11px] text-[var(--text-soft)] mt-0.5">Tasks scoped strictly to the Research Department, synced bi-directionally with the Workbench.</p>
+            </div>
+            <button onclick="openCreateTaskModal('research')" class="btn-primary text-xs px-3.5 py-1.5 font-bold flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500">
               <span>+</span> <span>New Research Task</span>
             </button>
           </div>
-        </div>
-      </section>
+          <div id="researchProjectsTasksContainer" class="space-y-2"></div>
+        </section>
 
-      <!-- Research Skills & Deliverables Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div class="card-surface p-4 rounded-xl border border-[var(--border)]">
-          <div class="text-xs font-bold mb-1 flex items-center gap-1.5"><span>📊</span> Market Analysis</div>
-          <p class="text-[11px] text-[var(--text-soft)]">Industry size, CAGR, buyer personas, market sizing briefs.</p>
-        </div>
-        <div class="card-surface p-4 rounded-xl border border-[var(--border)]">
-          <div class="text-xs font-bold mb-1 flex items-center gap-1.5"><span>🎯</span> Competitor Audit</div>
-          <p class="text-[11px] text-[var(--text-soft)]">Direct & indirect competitor positioning, pricing, traffic sources.</p>
-        </div>
-        <div class="card-surface p-4 rounded-xl border border-[var(--border)]">
-          <div class="text-xs font-bold mb-1 flex items-center gap-1.5"><span>🔍</span> Lead Discovery</div>
-          <p class="text-[11px] text-[var(--text-soft)]">Discovers verified company and decision-maker contact lists.</p>
-        </div>
-        <div class="card-surface p-4 rounded-xl border border-[var(--border)]">
-          <div class="text-xs font-bold mb-1 flex items-center gap-1.5"><span>🌐</span> SEO & GEO Research</div>
-          <p class="text-[11px] text-[var(--text-soft)]">Search intent, low-difficulty fast wins, and AI entity rankings.</p>
-        </div>
-      </div>
-
-      <!-- Live Discovered Leads Panel -->
-      <section class="card-surface p-5 rounded-2xl border border-[var(--border)] space-y-3">
-        <div class="flex items-center justify-between">
-          <div>
-            <h2 class="text-sm font-extrabold">Discovered Leads & Market Contacts</h2>
-            <p class="text-[11px] text-[var(--text-soft)]">Real database records persisted by Research Agent (Agent 01) ready for Sales CRM promotion.</p>
-          </div>
-          <button onclick="fetchSalesCrmData()" class="btn-outline text-[11px] px-2.5 py-1">↻ Refresh</button>
-        </div>
-        <div id="researchLeadsContainer" class="space-y-2 text-xs text-[var(--text-soft)]">
-          <!-- Research leads skeleton loader -->
-          <div class="p-3.5 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] space-y-2 skeleton-pulse">
-            <div class="flex items-center justify-between">
-              <div class="h-3.5 bg-slate-200 dark:bg-slate-700 rounded-md w-1/3"></div>
-              <div class="h-4 bg-slate-200 dark:bg-slate-800 rounded-full w-16"></div>
-            </div>
-            <div class="h-2.5 bg-slate-200 dark:bg-slate-800 rounded-md w-2/3"></div>
-            <div class="flex gap-2 pt-1">
-              <div class="h-4 bg-slate-200 dark:bg-slate-800 rounded w-14"></div>
-              <div class="h-4 bg-slate-200 dark:bg-slate-800 rounded w-20"></div>
-            </div>
-          </div>
-          <div class="p-3.5 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] space-y-2 skeleton-pulse">
-            <div class="flex items-center justify-between">
-              <div class="h-3.5 bg-slate-200 dark:bg-slate-700 rounded-md w-1/4"></div>
-              <div class="h-4 bg-slate-200 dark:bg-slate-800 rounded-full w-16"></div>
-            </div>
-            <div class="h-2.5 bg-slate-200 dark:bg-slate-800 rounded-md w-1/2"></div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Research Department Scoped Projects & Tasks -->
-      <section id="researchProjectsTasksSection" class="card-surface p-5 rounded-2xl border border-[var(--border)] space-y-4">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div>
-            <div class="flex items-center gap-2">
-              <h2 class="text-sm font-extrabold">Research Projects &amp; Tasks</h2>
-              <span id="researchTasksCountBadge" class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-blue-500/15 text-blue-500 border border-blue-500/30">0</span>
-            </div>
-            <p class="text-[11px] text-[var(--text-soft)] mt-0.5">Tasks scoped strictly to the Research Department, synced bi-directionally with the Workbench.</p>
-          </div>
-          <button onclick="openCreateTaskModal('research')" class="btn-primary text-xs px-3.5 py-1.5 font-bold flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500">
-            <span>+</span> <span>New Research Task</span>
-          </button>
-        </div>
-        <div id="researchProjectsTasksContainer" class="space-y-2"></div>
-      </section>
       </div>
     </div>
 

@@ -691,6 +691,37 @@ try {
   );
   CREATE INDEX IF NOT EXISTS idx_wa_project ON lead_whatsapp_messages(project_id);
   CREATE INDEX IF NOT EXISTS idx_wa_lead ON lead_whatsapp_messages(lead_id);
+
+  -- 38. Deep Market Research Reports (Google Console, Keyword Planner, Tag Manager, SEO, GEO)
+  CREATE TABLE IF NOT EXISTS market_research_reports (
+    id TEXT PRIMARY KEY,
+    project_id TEXT,
+    task_id TEXT,
+    business_idea TEXT NOT NULL,
+    target_industry TEXT,
+    target_geo TEXT DEFAULT 'Global',
+    competitor_urls TEXT DEFAULT '[]',
+    target_audience TEXT DEFAULT '',
+    tools_assigned TEXT DEFAULT '["google_search_console","keyword_planner","tag_manager","seo_engine","geo_matrix"]',
+    opportunity_score INTEGER DEFAULT 85,
+    executive_summary TEXT,
+    market_sizing_json TEXT DEFAULT '{}',
+    competitor_analysis_json TEXT DEFAULT '[]',
+    opportunities_matrix_json TEXT DEFAULT '[]',
+    gsc_data_json TEXT DEFAULT '{}',
+    keyword_planner_data_json TEXT DEFAULT '{}',
+    tag_manager_data_json TEXT DEFAULT '{}',
+    seo_audit_json TEXT DEFAULT '{}',
+    geo_matrix_json TEXT DEFAULT '{}',
+    roadmap_json TEXT DEFAULT '{}',
+    full_report_md TEXT,
+    output_json TEXT DEFAULT '{}',
+    created_by TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+  );
+  CREATE INDEX IF NOT EXISTS idx_mr_project ON market_research_reports(project_id);
+  CREATE INDEX IF NOT EXISTS idx_mr_task ON market_research_reports(task_id);
   `);
 
   // Safe runtime migrations for customizable guidelines and multi-format files
@@ -764,6 +795,40 @@ try {
     if (!pragmaWa.some(c => c.name === 'voice_ai_audit')) {
       db.prepare("ALTER TABLE lead_whatsapp_messages ADD COLUMN voice_ai_audit TEXT DEFAULT ''").run();
     }
+
+    try {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS market_research_reports (
+          id TEXT PRIMARY KEY,
+          project_id TEXT,
+          task_id TEXT,
+          business_idea TEXT NOT NULL,
+          target_industry TEXT,
+          target_geo TEXT DEFAULT 'Global',
+          competitor_urls TEXT DEFAULT '[]',
+          target_audience TEXT DEFAULT '',
+          tools_assigned TEXT DEFAULT '["google_search_console","keyword_planner","tag_manager","seo_engine","geo_matrix"]',
+          opportunity_score INTEGER DEFAULT 85,
+          executive_summary TEXT,
+          market_sizing_json TEXT DEFAULT '{}',
+          competitor_analysis_json TEXT DEFAULT '[]',
+          opportunities_matrix_json TEXT DEFAULT '[]',
+          gsc_data_json TEXT DEFAULT '{}',
+          keyword_planner_data_json TEXT DEFAULT '{}',
+          tag_manager_data_json TEXT DEFAULT '{}',
+          seo_audit_json TEXT DEFAULT '{}',
+          geo_matrix_json TEXT DEFAULT '{}',
+          roadmap_json TEXT DEFAULT '{}',
+          full_report_md TEXT,
+          output_json TEXT DEFAULT '{}',
+          created_by TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY(project_id) REFERENCES projects(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_mr_project ON market_research_reports(project_id);
+        CREATE INDEX IF NOT EXISTS idx_mr_task ON market_research_reports(task_id);
+      `);
+    } catch (_) {}
 
     // Multi-selection pipelines & deliverables + 3-tier Knowledge Bases (Helm, Project, Task)
     const pragmaProjectsExt = db.prepare("PRAGMA table_info(projects)").all();
