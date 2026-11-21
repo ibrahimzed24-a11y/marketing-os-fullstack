@@ -534,6 +534,77 @@ let activeBlueprintAgentSlug = 'coordinator';
 let activeBlueprintTab = 'AGENT';
 let execIntervalId = null;
 
+// ADHD Simple Focus Mode Engine
+let isAdhdFocusMode = true;
+
+function initAdhdFocusMode() {
+  const saved = localStorage.getItem('marketing_os_adhd_focus');
+  if (saved === null) {
+    isAdhdFocusMode = true;
+    localStorage.setItem('marketing_os_adhd_focus', 'true');
+  } else {
+    isAdhdFocusMode = saved === 'true';
+  }
+  applyAdhdFocusModeUI();
+}
+
+function toggleAdhdFocusMode() {
+  isAdhdFocusMode = !isAdhdFocusMode;
+  localStorage.setItem('marketing_os_adhd_focus', isAdhdFocusMode ? 'true' : 'false');
+  applyAdhdFocusModeUI();
+  if (isAdhdFocusMode) {
+    showToast('🧘 Simple Focus Mode enabled — reduced clutter and clean navigation.');
+  } else {
+    showToast('⚡ Full Operations Mode enabled — showing all department tabs.');
+  }
+  renderAll();
+}
+
+function applyAdhdFocusModeUI() {
+  const btn = document.getElementById('adhdFocusToggleBtn');
+  const label = document.getElementById('adhdFocusToggleLabel');
+  if (isAdhdFocusMode) {
+    document.body.classList.add('adhd-focus-mode');
+    if (btn) {
+      btn.className = 'px-3 py-1.5 rounded-full text-xs font-bold inline-flex items-center gap-1.5 transition border border-teal-500/50 text-teal-800 dark:text-teal-200 bg-teal-500/20 shadow-xs cursor-pointer';
+    }
+    if (label) label.textContent = 'Simple Mode: ON';
+  } else {
+    document.body.classList.remove('adhd-focus-mode');
+    if (btn) {
+      btn.className = 'btn-outline px-3 py-1.5 rounded-full text-xs font-medium inline-flex items-center gap-1.5 transition border border-[var(--border)] text-[var(--text-soft)] hover:border-teal-500 shadow-xs cursor-pointer';
+    }
+    if (label) label.textContent = 'Simple Mode: OFF';
+  }
+}
+
+function quickFillPrompt(type) {
+  const cmdInput = document.getElementById('wbCommandInput');
+  if (!cmdInput) return;
+  const proj = getSelectedProject();
+  const clientName = proj?.name || proj?.client || 'Target Client';
+
+  const prompts = {
+    offer: `/assign Structure commercial turnaround offer and pricing contract for ${clientName} grounded in harness files.`,
+    whatsapp: `/assign Generate personalized WhatsApp audio pitch script and dual-branded card for ${clientName} leads.`,
+    email: `/assign Craft 3-touch personalized cold email outreach sequence with booking CTA for ${clientName}.`,
+    landing: `/assign Build high-converting responsive B2B landing page with instant intake booking form for ${clientName}.`,
+    audit: `/assign Perform comprehensive quality audit and executive scorecard verification for ${clientName} deliverables.`
+  };
+
+  cmdInput.value = prompts[type] || prompts.offer;
+  cmdInput.focus();
+  if (typeof showToast === 'function') {
+    showToast(`⚡ Loaded ${type} prompt template! Click Launch Campaign Task.`);
+  }
+}
+
+window.isAdhdFocusMode = isAdhdFocusMode;
+window.initAdhdFocusMode = initAdhdFocusMode;
+window.toggleAdhdFocusMode = toggleAdhdFocusMode;
+window.applyAdhdFocusModeUI = applyAdhdFocusModeUI;
+window.quickFillPrompt = quickFillPrompt;
+
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -2194,6 +2265,17 @@ function renderHeaderAndRoleBanner() {
     }
   });
 
+  // ADHD Focus Mode Navigation Filtering
+  const specializedGroup = document.getElementById('navGroupSpecialized');
+  const moreContainer = document.getElementById('navMoreDropdownContainer');
+  if (isAdhdFocusMode) {
+    if (specializedGroup) specializedGroup.style.display = 'none';
+    if (moreContainer) moreContainer.style.display = 'inline-block';
+  } else {
+    if (specializedGroup) specializedGroup.style.display = 'inline-flex';
+    if (moreContainer) moreContainer.style.display = 'none';
+  }
+
   updateLiveNavBadges();
 
   // Role-gated header controls
@@ -2472,6 +2554,10 @@ function renderWorkbenchCenterAndRight() {
     if (projGoal) projGoal.textContent = 'helm is clean and ready. Click "+ New Project" above to create a workspace and begin running tasks.';
     if (squadLabel) squadLabel.textContent = 'Squad: Standby';
     if (stageBadge) stageBadge.textContent = 'Clean Slate • Ready';
+    const focusTitle = document.getElementById('adhdFocusHelperTitle');
+    const focusSub = document.getElementById('adhdFocusHelperSub');
+    if (focusTitle) focusTitle.textContent = 'Step 1: Choose or Create a Project to Begin';
+    if (focusSub) focusSub.textContent = 'Click "+ New Project" above to create a project with multiple pipelines and knowledge base.';
 
     const pipeGrid = document.getElementById('wbPipelineSelector');
     if (pipeGrid) {
@@ -2505,6 +2591,10 @@ function renderWorkbenchCenterAndRight() {
   document.getElementById('wbProjectTitle').textContent = proj.name;
   document.getElementById('wbProjectGoal').textContent = proj.goal;
   document.getElementById('activeSquadLabel').textContent = 'Squad: ' + pipe.squadNames.join(', ');
+  const focusTitle = document.getElementById('adhdFocusHelperTitle');
+  const focusSub = document.getElementById('adhdFocusHelperSub');
+  if (focusTitle) focusTitle.textContent = `Active Focus: ${proj.name || proj.client} › ${pipe.name}`;
+  if (focusSub) focusSub.textContent = 'Click a Quick Fill chip below to populate the prompt, then click Launch Campaign Task.';
 
   const isClient = state.currentUserRole === 'client';
   const isMember = state.currentUserRole === 'member';
@@ -7780,6 +7870,7 @@ function renderAll() {
 }
 
 window.addEventListener('DOMContentLoaded', async function() {
+  initAdhdFocusMode();
   setupKeyboardNavigation();
   const authed = await initAuthSession();
   if (authed) {
@@ -7813,6 +7904,9 @@ window.addEventListener('DOMContentLoaded', async function() {
 // Window global bindings for inline onclicks & test harnesses
 window.switchMainView = switchMainView;
 window.updateLiveNavBadges = updateLiveNavBadges;
+window.toggleAdhdFocusMode = toggleAdhdFocusMode;
+window.initAdhdFocusMode = initAdhdFocusMode;
+window.quickFillPrompt = quickFillPrompt;
 window.showErrorBanner = showErrorBanner;
 window.showToast = showToast;
 window.hideToast = hideToast;
