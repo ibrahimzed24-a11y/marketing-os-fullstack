@@ -564,19 +564,93 @@ function applyAdhdFocusModeUI() {
   const btn = document.getElementById('adhdFocusToggleBtn');
   const label = document.getElementById('adhdFocusToggleLabel');
   if (isAdhdFocusMode) {
-    document.body.classList.add('adhd-focus-mode');
+    document.body.classList.add('zero-distractions', 'adhd-focus-mode');
     if (btn) {
       btn.className = 'px-3 py-1.5 rounded-full text-xs font-bold inline-flex items-center gap-1.5 transition border border-teal-500/50 text-teal-800 dark:text-teal-200 bg-teal-500/20 shadow-xs cursor-pointer';
     }
-    if (label) label.textContent = 'Simple Mode: ON';
+    if (label) label.textContent = 'Zen Mode: ON';
   } else {
-    document.body.classList.remove('adhd-focus-mode');
+    document.body.classList.remove('zero-distractions', 'adhd-focus-mode');
     if (btn) {
       btn.className = 'btn-outline px-3 py-1.5 rounded-full text-xs font-medium inline-flex items-center gap-1.5 transition border border-[var(--border)] text-[var(--text-soft)] hover:border-teal-500 shadow-xs cursor-pointer';
     }
-    if (label) label.textContent = 'Simple Mode: OFF';
+    if (label) label.textContent = 'Zen Mode: OFF';
   }
 }
+
+function selectZenPipeline(pipelineId) {
+  selectPipeline(pipelineId);
+  document.querySelectorAll('.zen-pipe-btn').forEach(btn => {
+    btn.classList.remove('bg-teal-500/15', 'border-teal-500', 'text-teal-700', 'dark:text-teal-300');
+    btn.classList.add('border-[var(--border)]', 'text-[var(--text-soft)]');
+  });
+  const idMap = {
+    'offer-campaign': 'zenBtn-offer',
+    'whatsapp-campaign': 'zenBtn-wa',
+    'email-campaign': 'zenBtn-email',
+    'landing-page': 'zenBtn-lp'
+  };
+  const activeBtn = document.getElementById(idMap[pipelineId]);
+  if (activeBtn) {
+    activeBtn.classList.remove('border-[var(--border)]', 'text-[var(--text-soft)]');
+    activeBtn.classList.add('bg-teal-500/15', 'border-teal-500', 'text-teal-700', 'dark:text-teal-300');
+  }
+
+  const proj = getSelectedProject();
+  const cName = proj?.name || proj?.client || 'Target Client';
+  const zenInput = document.getElementById('zenBriefInput');
+  if (zenInput) {
+    if (pipelineId === 'offer-campaign') {
+      zenInput.value = `Turnaround offer & pricing structure for ${cName} grounded in harness files`;
+    } else if (pipelineId === 'whatsapp-campaign') {
+      zenInput.value = `Personalized WhatsApp audio pitch script and outreach card for ${cName}`;
+    } else if (pipelineId === 'email-campaign') {
+      zenInput.value = `3-touch personalized cold email outreach sequence with CTA for ${cName}`;
+    } else if (pipelineId === 'landing-page') {
+      zenInput.value = `High-converting responsive landing page with instant intake booking form for ${cName}`;
+    }
+  }
+}
+
+function executeZenTask() {
+  const zenInput = document.getElementById('zenBriefInput');
+  const brief = zenInput?.value?.trim();
+  const cmdInput = document.getElementById('wbCommandInput');
+  if (cmdInput && brief) {
+    cmdInput.value = '/assign ' + brief.replace(/^\/assign\s*/i, '');
+  }
+  executePipelineCommand();
+}
+
+function onZenProjectChange(projId) {
+  selectProject(projId);
+  renderAll();
+  const proj = getSelectedProject();
+  const cName = proj?.name || proj?.client || 'Target Client';
+  const zenInput = document.getElementById('zenBriefInput');
+  if (zenInput) {
+    zenInput.value = `Turnaround offer & pricing structure for ${cName} grounded in harness files`;
+  }
+}
+
+function renderZenProjectSelector() {
+  const sel = document.getElementById('zenProjectSelect');
+  if (!sel) return;
+  const validProjects = Array.isArray(state.projects) ? state.projects.filter(p => p.id !== 'helm') : [];
+  if (validProjects.length === 0) {
+    sel.innerHTML = '<option value="">No Active Projects (Click "+ Create New Project" above)</option>';
+    return;
+  }
+  sel.innerHTML = validProjects.map(p => {
+    const isSel = p.id === state.selectedProjectId;
+    return `<option value="${p.id}" ${isSel ? 'selected' : ''}>📁 ${p.name || p.client_name || 'Project'} (${p.client_name || p.client || 'Client'})</option>`;
+  }).join('');
+}
+
+window.selectZenPipeline = selectZenPipeline;
+window.executeZenTask = executeZenTask;
+window.onZenProjectChange = onZenProjectChange;
+window.renderZenProjectSelector = renderZenProjectSelector;
 
 function quickFillPrompt(type) {
   const cmdInput = document.getElementById('wbCommandInput');
@@ -7845,6 +7919,7 @@ function renderAll() {
   renderApprovalsView();
   renderStageRibbonAndProjects();
   renderWorkbenchCenterAndRight();
+  renderZenProjectSelector();
   renderRoleSpecificDashboard();
   renderPipelinesCatalogView();
   renderTeamView();

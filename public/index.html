@@ -297,10 +297,92 @@
       border-radius: 10px;
       font-size: 13px;
     }
-    /* 6. Active Focus Highlighting */
-    body.adhd-focus-mode .adhd-active-focus {
-      border: 2px solid #00a9a4 !important;
-      box-shadow: 0 0 0 4px rgba(0, 169, 164, 0.12) !important;
+    /* ========================================================================= */
+    /* ZERO DISTRACTIONS / SEVERE ADHD ZEN MODE                                  */
+    /* Completely removes peripheral clutter, sidebars, badges, and noise        */
+    /* ========================================================================= */
+    body.zero-distractions {
+      --bg: #fcfdfe;
+      --bg-soft: #f6f8fb;
+      --border: #e2e8f0;
+      --border-strong: #cbd5e1;
+      font-size: 15.5px;
+      line-height: 1.65;
+    }
+    html.dark body.zero-distractions {
+      --bg: #0a131c;
+      --bg-soft: #101c28;
+      --surface: #142332;
+      --border: #1d3348;
+    }
+
+    /* 1. Stop all visual jitter, flashing dots, and pulse animations */
+    body.zero-distractions .animate-pulse,
+    body.zero-distractions .skeleton-pulse {
+      animation: none !important;
+      opacity: 1 !important;
+    }
+
+    /* 2. Hide peripheral noise, non-essential buttons, and telemetry logs */
+    body.zero-distractions #authHeaderControls > button:not(#adhdFocusToggleBtn):not(#headerNewProjectBtn):not(#themeToggleBtn),
+    body.zero-distractions #authHeaderControls > div#userProfileBadge,
+    body.zero-distractions #sectionTasteBadge,
+    body.zero-distractions #cleanSlateBtn,
+    body.zero-distractions #navWorkflowBreadcrumb,
+    body.zero-distractions [id$="CountBadge"],
+    body.zero-distractions #stageFilterIndicator,
+    body.zero-distractions #view-workbench section:has(#stageRibbonGrid),
+    body.zero-distractions #view-workbench aside,
+    body.zero-distractions #wbExecBox,
+    body.zero-distractions #wbGuidelinesBtn,
+    body.zero-distractions #wbPipelineSelector,
+    body.zero-distractions div:has(> #wbAssigneeSelect),
+    body.zero-distractions #view-sales section:has(#salesLogosCountText),
+    body.zero-distractions #view-sales .grid-cols-5 {
+      display: none !important;
+    }
+
+    /* 3. Center the active workstation like a calm canvas */
+    body.zero-distractions #view-workbench > div.flex.flex-col.lg\:flex-row {
+      max-width: 860px !important;
+      margin: 0 auto !important;
+      width: 100% !important;
+    }
+    body.zero-distractions section.flex-1.min-w-0 {
+      width: 100% !important;
+      max-width: 860px !important;
+      margin: 0 auto !important;
+    }
+    body.zero-distractions #view-sales,
+    body.zero-distractions #view-projects {
+      max-width: 960px !important;
+      margin: 0 auto !important;
+    }
+
+    /* 4. Soft, soothing card shadows and serene borders */
+    body.zero-distractions .card-surface {
+      border-radius: 24px !important;
+      border: 1px solid var(--border) !important;
+      box-shadow: 0 4px 20px -2px rgba(18, 47, 71, 0.04) !important;
+      padding: 1.75rem !important;
+    }
+
+    /* 5. Clean, large typography & inputs */
+    body.zero-distractions .input-field {
+      padding: 12px 16px !important;
+      font-size: 14.5px !important;
+      border-radius: 12px !important;
+    }
+    body.zero-distractions .btn-primary {
+      padding: 10px 20px !important;
+      font-size: 14px !important;
+      border-radius: 12px !important;
+      font-weight: 700 !important;
+    }
+
+    /* When NOT in zero-distractions, hide zenFocusWorkstation */
+    body:not(.zero-distractions) #zenFocusWorkstation {
+      display: none !important;
     }
   </style>
 </head>
@@ -1899,6 +1981,62 @@
     <!-- VIEW 1: FACTORY WORKBENCH (PROJECTS & TASKS)                          -->
     <!-- ===================================================================== -->
     <div id="view-workbench" class="hidden space-y-5">
+
+      <!-- ZERO-DISTRACTIONS ZEN WORKSTATION (For Severe ADHD) -->
+      <section id="zenFocusWorkstation" class="card-surface p-6 rounded-3xl border border-teal-500/30 bg-[var(--surface)] shadow-md space-y-5">
+        <div class="flex items-center justify-between border-b border-[var(--border)] pb-3">
+          <div class="flex items-center gap-2.5">
+            <span class="w-7 h-7 rounded-lg bg-teal-500/20 text-teal-600 dark:text-teal-300 font-black text-sm flex items-center justify-center">🎯</span>
+            <span class="text-sm font-extrabold tracking-tight">Zero-Distractions Zen Focus Workstation</span>
+          </div>
+          <span class="text-xs text-teal-600 dark:text-teal-400 font-bold">1 Action at a Time</span>
+        </div>
+
+        <!-- 1. Select Active Project -->
+        <div>
+          <div class="flex items-center justify-between mb-2">
+            <label class="block text-xs font-bold uppercase tracking-wider text-[var(--text-soft)]">1. Active Project</label>
+            <button type="button" onclick="toggleNewProjectDrawer()" class="text-xs text-teal-600 dark:text-teal-400 font-bold hover:underline">+ Create New Project</button>
+          </div>
+          <select id="zenProjectSelect" onchange="onZenProjectChange(this.value)" class="input-field text-sm font-bold py-2.5 px-3.5 rounded-xl w-full">
+            <option value="">Loading active projects...</option>
+          </select>
+        </div>
+
+        <!-- 2. What do you want to create? -->
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-[var(--text-soft)] mb-2">2. What do you want to create?</label>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+            <button type="button" onclick="selectZenPipeline('offer-campaign')" id="zenBtn-offer" class="zen-pipe-btn p-3.5 rounded-2xl border text-center transition flex flex-col items-center gap-1.5 bg-teal-500/15 border-teal-500 text-teal-700 dark:text-teal-300">
+              <span class="text-2xl">📝</span>
+              <span class="text-xs font-bold">Turnaround Offer</span>
+            </button>
+            <button type="button" onclick="selectZenPipeline('whatsapp-campaign')" id="zenBtn-wa" class="zen-pipe-btn p-3.5 rounded-2xl border text-center transition flex flex-col items-center gap-1.5 border-[var(--border)] text-[var(--text-soft)] hover:border-teal-500">
+              <span class="text-2xl">💬</span>
+              <span class="text-xs font-bold">WhatsApp Pitch</span>
+            </button>
+            <button type="button" onclick="selectZenPipeline('email-campaign')" id="zenBtn-email" class="zen-pipe-btn p-3.5 rounded-2xl border text-center transition flex flex-col items-center gap-1.5 border-[var(--border)] text-[var(--text-soft)] hover:border-teal-500">
+              <span class="text-2xl">📧</span>
+              <span class="text-xs font-bold">Email Outreach</span>
+            </button>
+            <button type="button" onclick="selectZenPipeline('landing-page')" id="zenBtn-lp" class="zen-pipe-btn p-3.5 rounded-2xl border text-center transition flex flex-col items-center gap-1.5 border-[var(--border)] text-[var(--text-soft)] hover:border-teal-500">
+              <span class="text-2xl">🚀</span>
+              <span class="text-xs font-bold">Landing Page</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 3. Goal & Launch -->
+        <div>
+          <label class="block text-xs font-bold uppercase tracking-wider text-[var(--text-soft)] mb-2">3. Goal &amp; Launch</label>
+          <div class="flex flex-col sm:flex-row gap-2.5 items-stretch">
+            <input id="zenBriefInput" type="text" placeholder="Turnaround offer &amp; pricing structure grounded in harness files" class="input-field text-xs py-2.5 px-3.5 flex-1 rounded-xl" />
+            <button type="button" onclick="executeZenTask()" class="btn-primary px-5 py-2.5 text-xs font-bold rounded-xl shadow-md flex items-center justify-center gap-2 shrink-0">
+              <span>▶</span> <span>Generate Deliverable</span>
+            </button>
+          </div>
+        </div>
+      </section>
 
       <!-- ADHD Simplified Task Flow Focus Helper Card -->
       <section id="adhdWorkbenchFocusHelper" class="card-surface p-4 border border-teal-500/30 bg-gradient-to-r from-teal-500/10 via-[var(--surface)] to-indigo-500/10 shadow-xs">
