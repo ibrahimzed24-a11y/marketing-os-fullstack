@@ -210,7 +210,7 @@ class BrowserResearcherAgent extends BaseAgent {
   }
 
   executeMarketIntel(task, project, harness, input) {
-    const client = project?.client_name || 'Valioz Health';
+    const client = project?.client_name || project?.name || 'Active Project';
     const goal = project?.goal || 'Drive market positioning';
     const harnessCount = harness?.length || 0;
     const outputJson = {
@@ -268,7 +268,7 @@ class BrowserResearcherAgent extends BaseAgent {
   }
 
   executeLeadResearch(task, project, harness, input) {
-    const client = project?.client_name || 'Valioz Health';
+    const client = project?.client_name || project?.name || 'Active Project';
     const harnessCount = harness?.length || 0;
     const verifiedLeads = loadVerifiedHarnessLeads();
     const leads = verifiedLeads.slice(0, 6);
@@ -404,7 +404,7 @@ class SoftwareEngineerAgent extends BaseAgent {
   }
 
   executeLandingPage(task, project, harness, input) {
-    const client = project?.client_name || input.clinic || input.clinic_name || 'Valioz Health';
+    const client = project?.client_name || project?.name || input.clinic || input.clinic_name || 'Active Project';
     const goal = project?.goal || 'Drive high-converting patient acquisition';
     const harnessCount = harness?.length || 0;
     const phone = input.phone || '(604) 325-1711';
@@ -556,7 +556,7 @@ class CreativeDirectorAgent extends BaseAgent {
   }
 
   executeBrandKit(task, project, harness, input) {
-    const client = project?.client_name || 'Valioz Health';
+    const client = project?.client_name || project?.name || 'Active Project';
     const harnessCount = harness?.length || 0;
     const outputJson = {
       title: task.title || `${client} Brand System Guidelines`,
@@ -641,7 +641,7 @@ ${posts.map(p => `- **Day ${p.day} (${p.platform} - ${p.theme}):** "${p.hook}"`)
   }
 
   executeAdsCreative(task, project, harness, input) {
-    const client = project?.client_name || 'Valioz Health';
+    const client = project?.client_name || project?.name || 'Active Project';
     const harnessCount = harness?.length || 0;
     const ads = {
       headlines: [
@@ -725,7 +725,7 @@ class CoordinatorAgent extends BaseAgent {
   }
 
   executeCoordinationPlan(task, project, harness, input) {
-    const client = project?.client_name || 'Valioz Health';
+    const client = project?.client_name || project?.name || 'Active Project';
     const harnessCount = harness?.length || 0;
     const plan = {
       stages: [
@@ -808,7 +808,7 @@ class MasterReportingAgent extends BaseAgent {
   }
 
   executeExecutiveReport(task, project, harness, input) {
-    const client = project?.client_name || 'Valioz Health';
+    const client = project?.client_name || project?.name || 'Active Project';
     const harnessCount = harness?.length || 0;
     const outputJson = {
       title: task.title || `${client} Executive Audit Synthesis`,

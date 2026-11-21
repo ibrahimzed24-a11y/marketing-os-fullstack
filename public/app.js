@@ -866,7 +866,9 @@ async function initAuthSession() {
 
 function getSelectedProject() {
   if (!state.projects || state.projects.length === 0) return null;
-  return state.projects.find(p => p.id === state.selectedProjectId) || state.projects[0] || null;
+  const filtered = state.projects.filter(p => p.id !== 'helm');
+  if (filtered.length === 0) return null;
+  return filtered.find(p => p.id === state.selectedProjectId) || filtered[0] || null;
 }
 
 // --- Live Backend Sync ---
@@ -1209,25 +1211,36 @@ function switchMainView(view) {
   // Dynamic Context Breadcrumbs Update
   const bProj = document.getElementById('navBreadcrumbProjectName');
   const bStep = document.getElementById('navBreadcrumbNextStep');
+  const dotEl = document.getElementById('navBreadcrumbPulseDot') || document.querySelector('#navWorkflowBreadcrumb .w-2.h-2');
   const activeProj = getSelectedProject();
-  if (bProj) bProj.textContent = activeProj?.name || activeProj?.client || 'Active Project';
+  if (bProj) {
+    bProj.textContent = activeProj ? (activeProj.name || activeProj.client || 'Active Project') : 'None Active';
+  }
+  if (dotEl) {
+    dotEl.className = activeProj ? 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse' : 'w-2 h-2 rounded-full bg-slate-400';
+  }
   if (bStep) {
-    const stageTitles = {
-      'workflow-coordination': 'Coordination',
-      coordination: 'Coordination',
-      'browser-research': 'Research Intel',
-      research: 'Research Intel',
-      'software-engineering': 'Landing Page Engineering',
-      engineering: 'Landing Page Engineering',
-      'creative-media': 'Brand Media',
-      creative: 'Creative Studio',
-      'executive-reporting': 'Executive Verification',
-      reporting: 'Executive Verification',
-      workbench: 'Task Execution',
-      sales: 'Sales CRM',
-      approvals: 'Governance'
-    };
-    bStep.textContent = stageTitles[view] || activeProj?.stage || 'Active Sprints';
+    if (!activeProj) {
+      bStep.textContent = '+ Create Project';
+    } else {
+      const stageTitles = {
+        'workflow-coordination': 'Coordination',
+        coordination: 'Coordination',
+        'browser-research': 'Research Intel',
+        research: 'Research Intel',
+        'software-engineering': 'Landing Page Engineering',
+        engineering: 'Landing Page Engineering',
+        'creative-media': 'Brand Media',
+        creative: 'Creative Studio',
+        'executive-reporting': 'Executive Verification',
+        reporting: 'Executive Verification',
+        workbench: 'Task Execution',
+        sales: 'Sales CRM',
+        approvals: 'Governance',
+        projects: 'All Projects'
+      };
+      bStep.textContent = stageTitles[view] || activeProj?.stage || 'Active Sprints';
+    }
   }
 
   if (view === 'overview' && !isClient) {
@@ -1329,7 +1342,7 @@ function selectPipeline(pipelineId) {
     proj.squad = PIPELINE_CATALOG[pipelineId].squad.slice();
     const cmdInput = document.getElementById('wbCommandInput');
     if (cmdInput) {
-      cmdInput.value = PIPELINE_CATALOG[pipelineId].defaultCmd.replace('Valioz Health', proj.client);
+      cmdInput.value = PIPELINE_CATALOG[pipelineId].defaultCmd.replace(/Valioz Health/gi, proj.client || 'Client');
     }
   }
   saveState();

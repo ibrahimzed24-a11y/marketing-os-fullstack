@@ -391,16 +391,16 @@
 
       <!-- Context-Aware Workflow Breadcrumb Pill & Clean-Slate Utility -->
       <div class="flex items-center gap-2 shrink-0">
-        <div id="navWorkflowBreadcrumb" class="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 text-xs text-slate-700 dark:text-slate-300 font-medium shadow-xs" title="Current Active Marketing Project & Next Pipeline Stage">
+        <div id="navWorkflowBreadcrumb" onclick="handleBreadcrumbClick()" class="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/80 text-xs text-slate-700 dark:text-slate-300 font-medium shadow-xs cursor-pointer hover:border-teal-500/50 transition" title="Current Active Marketing Project & Next Pipeline Stage">
           <span class="inline-flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span id="navBreadcrumbPulseDot" class="w-2 h-2 rounded-full bg-slate-400"></span>
             <span class="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider">Project:</span>
-            <span id="navBreadcrumbProjectName" class="font-bold text-slate-900 dark:text-slate-100 max-w-[130px] truncate">Active Project</span>
+            <span id="navBreadcrumbProjectName" class="font-bold text-slate-900 dark:text-slate-100 max-w-[130px] truncate">None Active</span>
           </span>
           <span class="text-slate-300 dark:text-slate-600 font-light">›</span>
           <span class="inline-flex items-center gap-1">
             <span class="text-[10px] uppercase font-bold text-[#00a9a4] dark:text-teal-400 tracking-wider">Next Step:</span>
-            <span id="navBreadcrumbNextStep" class="font-semibold text-[#00a9a4] dark:text-teal-300 max-w-[140px] truncate">Workflow Stage</span>
+            <span id="navBreadcrumbNextStep" class="font-semibold text-[#00a9a4] dark:text-teal-300 max-w-[140px] truncate">+ Create Project</span>
           </span>
         </div>
 
@@ -3843,31 +3843,58 @@ agent = Agent(config)</pre>
       try {
         const projNameEl = document.getElementById('navBreadcrumbProjectName');
         const nextStepEl = document.getElementById('navBreadcrumbNextStep');
+        const dotEl = document.getElementById('navBreadcrumbPulseDot') || document.querySelector('#navWorkflowBreadcrumb .w-2.h-2');
         if (!projNameEl || !nextStepEl) return;
 
-        if (typeof state !== 'undefined' && Array.isArray(state.projects) && state.projects.length > 0) {
-          const activeProj = state.projects.find(p => p.id === state.selectedProjectId) || state.projects[0];
-          if (activeProj) {
-            projNameEl.textContent = activeProj.name || 'Valioz Health';
-            const pipelineSteps = {
-              'lead-research': 'Sales CRM Handoff',
-              'email-campaign': 'Outreach Approval',
-              'landing-page': 'Design QA',
-              'content-seo': 'Editorial Review',
-              'social-content': 'Content Calendar',
-              'ads-creative': 'Ad Creative Review',
-              'market-intel': 'Intelligence Brief',
-              'brand-kit': 'Brand Asset Export'
-            };
-            const pKey = activeProj.pipeline || 'email-campaign';
-            nextStepEl.textContent = pipelineSteps[pKey] || 'Review & Deliver';
+        const projects = (typeof state !== 'undefined' && Array.isArray(state.projects))
+          ? state.projects.filter(p => p.id !== 'helm')
+          : [];
+
+        if (projects.length > 0) {
+          const activeProj = projects.find(p => p.id === state.selectedProjectId) || projects[0];
+          projNameEl.textContent = activeProj.name || activeProj.client_name || activeProj.client || 'Active Project';
+          if (dotEl) {
+            dotEl.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
           }
+          const pipelineSteps = {
+            'lead-research': 'Sales CRM Handoff',
+            'email-campaign': 'Outreach Approval',
+            'offer-campaign': 'Offer Structuring',
+            'whatsapp-campaign': 'WhatsApp Audio Pitch',
+            'landing-page': 'Design QA',
+            'content-seo': 'Editorial Review',
+            'social-content': 'Content Calendar',
+            'ads-creative': 'Ad Creative Review',
+            'market-intel': 'Intelligence Brief',
+            'brand-kit': 'Brand Asset Export'
+          };
+          const pKey = activeProj.pipeline || (Array.isArray(activeProj.pipelines) ? activeProj.pipelines[0] : 'email-campaign');
+          nextStepEl.textContent = pipelineSteps[pKey] || 'Review & Deliver';
         } else {
-          projNameEl.textContent = 'Valioz Health';
-          nextStepEl.textContent = 'Lead Research';
+          projNameEl.textContent = 'None Active';
+          nextStepEl.textContent = '+ Create Project';
+          if (dotEl) {
+            dotEl.className = 'w-2 h-2 rounded-full bg-slate-400';
+          }
         }
       } catch (_) {}
     }
+
+    function handleBreadcrumbClick() {
+      const projects = (typeof state !== 'undefined' && Array.isArray(state.projects))
+        ? state.projects.filter(p => p.id !== 'helm')
+        : [];
+      if (projects.length === 0) {
+        if (typeof toggleNewProjectDrawer === 'function') {
+          toggleNewProjectDrawer();
+        }
+      } else {
+        if (typeof switchMainView === 'function') {
+          switchMainView('projects');
+        }
+      }
+    }
+    window.handleBreadcrumbClick = handleBreadcrumbClick;
 
     window.downloadMasterSvg = downloadMasterSvg;
     window.downloadAllSvgsZip = downloadAllSvgsZip;
