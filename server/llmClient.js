@@ -18,7 +18,7 @@
 
 const { decryptSecret } = require('./cryptoVault');
 
-const CLOUD_PROVIDERS = new Set(['openai', 'anthropic', 'gemini']);
+const CLOUD_PROVIDERS = new Set(['openai', 'anthropic', 'gemini', 'openrouter']);
 const RETRYABLE_HTTP_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
 
 const DEFAULT_OLLAMA_BASE_URL = (process.env.OLLAMA_BASE_URL || 'http://127.0.0.1:11434').trim().replace(/\/+$/, '');
@@ -58,6 +58,17 @@ function getProviderRow(db, providerName) {
     } catch (err) {
       console.error(`[llmClient] Failed to decrypt api_key for '${providerName}': ${err.message}`);
       apiKey = null;
+    }
+  }
+  if (!apiKey) {
+    if (providerName === 'openrouter' && process.env.OPENROUTER_API_KEY) {
+      apiKey = process.env.OPENROUTER_API_KEY.trim();
+    } else if (providerName === 'gemini' && (process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY)) {
+      apiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY).trim();
+    } else if (providerName === 'openai' && process.env.OPENAI_API_KEY) {
+      apiKey = process.env.OPENAI_API_KEY.trim();
+    } else if (providerName === 'anthropic' && process.env.ANTHROPIC_API_KEY) {
+      apiKey = process.env.ANTHROPIC_API_KEY.trim();
     }
   }
 
@@ -496,6 +507,10 @@ const PROVIDER_ADAPTERS = {
       const url = `${cfg.base_url}/chat/completions`;
       const headers = { 'Content-Type': 'application/json', ...(cfg.extra_headers || {}) };
       if (cfg.api_key) headers['Authorization'] = `Bearer ${cfg.api_key}`;
+      if (cfg.provider === 'openrouter') {
+        headers['HTTP-Referer'] = process.env.APP_URL || 'https://marketing-os-fullstack.vercel.app';
+        headers['X-Title'] = 'Marketing OS';
+      }
       const body = {
         model: opts.model || cfg.model || 'gpt-4o-mini',
         temperature: opts.temperature !== undefined ? opts.temperature : cfg.temperature,
@@ -522,6 +537,7 @@ const PROVIDER_ADAPTERS = {
 PROVIDER_ADAPTERS.openai = PROVIDER_ADAPTERS.openaiCompatible;
 PROVIDER_ADAPTERS.lmstudio = PROVIDER_ADAPTERS.openaiCompatible;
 PROVIDER_ADAPTERS.vllm = PROVIDER_ADAPTERS.openaiCompatible;
+PROVIDER_ADAPTERS.openrouter = PROVIDER_ADAPTERS.openaiCompatible;
 
 function getAdapter(providerName) {
   return PROVIDER_ADAPTERS[providerName] || PROVIDER_ADAPTERS.openaiCompatible;

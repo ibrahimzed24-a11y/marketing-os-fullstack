@@ -15,7 +15,10 @@ const { seedLogins } = require('./seedLogins');
     ['Super Admin','admin@marketingos.local','Admin123!','super_admin','Leadership'],
     ['Sara Manager','manager@marketingos.local','Manager123!','manager','Growth'],
     ['Omar Member','member@marketingos.local','Member123!','member','Content'],
-    ['Test Client (RBAC Gate)','client@marketingos.local','Client123!','client','Client']
+    ['Test Client (RBAC Gate)','client@marketingos.local','Client123!','client','Client'],
+    ['Sales Lead','sales@marketingos.local','Admin123!','manager','Sales'],
+    ['Creative Specialist','creative@marketingos.local','Admin123!','member','Creative'],
+    ['Clinic Client','client@clinic.local','Client123!','client','Client']
   ];
   const ids={};
   for(const [name,email,pass,role,dept] of users){

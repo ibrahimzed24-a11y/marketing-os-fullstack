@@ -2746,7 +2746,7 @@ app.post('/api/admin/llm-config', authMiddleware, requireRole('super_admin', 'ad
       WHERE provider = ?
     `).run(
       item.display_name || null,
-      item.base_url ? item.base_url.trim() : null,
+      (item.base_url || item.baseUrl) ? (item.base_url || item.baseUrl).trim() : null,
       finalApiKey,
       item.default_model ? item.default_model.trim() : null,
       availableModels,
@@ -2813,10 +2813,9 @@ const testPingHandler = asyncHandler(async (req, res) => {
 
   const saved = db.prepare('SELECT * FROM admin_llm_configs WHERE provider = ?').get(provider);
 
-  // Determine base_url
-  const baseUrl = req.body.base_url && req.body.base_url.trim()
-    ? req.body.base_url.trim()
-    : (saved ? saved.base_url : PROVIDER_METADATA[provider].default_base_url);
+  // Determine base_url (supports snake_case and camelCase)
+  const rawBase = (req.body.base_url || req.body.baseUrl || '').trim();
+  const baseUrl = rawBase || (saved ? saved.base_url : PROVIDER_METADATA[provider].default_base_url);
 
   // Determine api_key: use provided if unmasked; otherwise fall back to saved key (decrypted)
   let apiKey = null;

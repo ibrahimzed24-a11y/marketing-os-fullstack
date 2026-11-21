@@ -15,7 +15,7 @@
 
 const { v4: uuidv4 } = require('uuid');
 
-const SUPPORTED_PROVIDERS = ['ollama', 'lmstudio', 'vllm', 'openai', 'anthropic', 'gemini'];
+const SUPPORTED_PROVIDERS = ['ollama', 'lmstudio', 'vllm', 'openai', 'anthropic', 'gemini', 'openrouter'];
 
 const PROVIDER_METADATA = {
   ollama: {
@@ -64,6 +64,21 @@ const PROVIDER_METADATA = {
     default_base_url: 'https://generativelanguage.googleapis.com/v1beta',
     default_model: 'gemini-1.5-flash',
     default_models: ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-2.0-flash-exp'],
+    requires_key: true
+  },
+  openrouter: {
+    display_name: 'OpenRouter (Multi-Model Gateway)',
+    provider_type: 'cloud',
+    default_base_url: 'https://openrouter.ai/api/v1',
+    default_model: 'anthropic/claude-3.5-sonnet',
+    default_models: [
+      'anthropic/claude-3.5-sonnet',
+      'meta-llama/llama-3.3-70b-instruct:free',
+      'google/gemini-2.0-flash-exp:free',
+      'deepseek/deepseek-r1:free',
+      'qwen/qwen-2.5-coder-32b-instruct:free',
+      'openai/gpt-4o'
+    ],
     requires_key: true
   }
 };
@@ -177,6 +192,13 @@ async function pingProvider({ provider, baseUrl, apiKey, timeoutMs = 6000 }) {
         pingUrl = `${normBase}/models?key=${encodeURIComponent(apiKey.trim())}`;
         break;
       }
+      case 'openrouter': {
+        pingUrl = `${normBase}/models`;
+        reqHeaders['Authorization'] = `Bearer ${apiKey.trim()}`;
+        reqHeaders['HTTP-Referer'] = 'https://marketing-os-fullstack.vercel.app';
+        reqHeaders['X-Title'] = 'Marketing OS';
+        break;
+      }
       default:
         throw new Error(`Unsupported provider: ${provider}`);
     }
@@ -197,8 +219,8 @@ async function pingProvider({ provider, baseUrl, apiKey, timeoutMs = 6000 }) {
         const json = await res.json();
         if (provider === 'ollama' && Array.isArray(json.models)) {
           detectedModels = json.models.map(m => m.name);
-        } else if ((provider === 'openai' || provider === 'lmstudio' || provider === 'vllm') && Array.isArray(json.data)) {
-          detectedModels = json.data.slice(0, 10).map(m => m.id);
+        } else if ((provider === 'openai' || provider === 'lmstudio' || provider === 'vllm' || provider === 'openrouter') && Array.isArray(json.data)) {
+          detectedModels = json.data.slice(0, 15).map(m => m.id);
         } else if (provider === 'anthropic' && Array.isArray(json.data)) {
           detectedModels = json.data.slice(0, 10).map(m => m.id);
         } else if (provider === 'gemini' && Array.isArray(json.models)) {
@@ -263,7 +285,7 @@ function initLLMDatabase(db) {
     -- 22. Admin Local LLM / Cloud API Configuration
     CREATE TABLE IF NOT EXISTS admin_llm_configs (
       id TEXT PRIMARY KEY,
-      provider TEXT UNIQUE NOT NULL CHECK(provider IN ('ollama', 'lmstudio', 'vllm', 'openai', 'anthropic', 'gemini')),
+      provider TEXT UNIQUE NOT NULL CHECK(provider IN ('ollama', 'lmstudio', 'vllm', 'openai', 'anthropic', 'gemini', 'openrouter')),
       display_name TEXT NOT NULL,
       provider_type TEXT NOT NULL CHECK(provider_type IN ('local', 'cloud')),
       base_url TEXT NOT NULL,
@@ -287,8 +309,8 @@ function initLLMDatabase(db) {
     -- 23. Admin LLM Routing Rules
     CREATE TABLE IF NOT EXISTS admin_llm_routing (
       id TEXT PRIMARY KEY,
-      primary_provider TEXT NOT NULL DEFAULT 'ollama',
-      fallback_provider TEXT DEFAULT 'lmstudio',
+      primary_provider TEXT NOT NULL DEFAULT 'gemini',
+      fallback_provider TEXT DEFAULT 'openrouter',
       auto_fallback INTEGER DEFAULT 1,
       routing_strategy TEXT DEFAULT 'primary_with_fallback' CHECK(routing_strategy IN ('primary_only', 'primary_with_fallback', 'round_robin', 'least_latency')),
       pipeline_overrides TEXT DEFAULT '{}',

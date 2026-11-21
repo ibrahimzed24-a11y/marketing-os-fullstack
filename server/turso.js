@@ -299,7 +299,11 @@ async function hydrateFromTurso(db) {
 
           db.prepare(`DELETE FROM ${tableName}`).run();
           if (rows.length > 0) {
-            const cols = Object.keys(rows[0]);
+            const localCols = new Set(
+              db.prepare(`PRAGMA table_info('${tableName}')`).all().map((c) => c.name)
+            );
+            const cols = Object.keys(rows[0]).filter((col) => localCols.has(col));
+            if (cols.length === 0) continue;
             const placeholders = cols.map(() => '?').join(', ');
             const insertStmt = db.prepare(
               `INSERT OR REPLACE INTO ${tableName} (${cols.join(', ')}) VALUES (${placeholders})`

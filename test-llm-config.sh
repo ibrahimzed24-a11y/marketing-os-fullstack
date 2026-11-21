@@ -59,18 +59,18 @@ if [ "$MEMBER_CODE" -ne 403 ]; then
 fi
 
 echo ""
-echo "=== 4. GET /api/admin/llm-config (Verify all 6 providers seeded & masked) ==="
+echo "=== 4. GET /api/admin/llm-config (Verify all 7 providers seeded & masked) ==="
 GET_RES=$(curl -s -H "Authorization: Bearer $ADMIN_TOKEN" "$BASE_URL/api/admin/llm-config")
 TOTAL=$(echo "$GET_RES" | node -e "let d=JSON.parse(require('fs').readFileSync(0)); console.log(d.total);")
 PROVIDERS=$(echo "$GET_RES" | node -e "let d=JSON.parse(require('fs').readFileSync(0)); console.log(d.configs.map(c => c.provider).sort().join(','));")
-echo "Total Providers: $TOTAL (Expected: 6)"
+echo "Total Providers: $TOTAL (Expected: 7)"
 echo "Configured Providers: $PROVIDERS"
-if [ "$TOTAL" -ne 6 ]; then
-  echo "FAILED: Expected 6 providers, got $TOTAL"
+if [ "$TOTAL" -ne 7 ]; then
+  echo "FAILED: Expected 7 providers, got $TOTAL"
   exit 1
 fi
 
-EXPECTED_PROVIDERS="anthropic,gemini,lmstudio,ollama,openai,vllm"
+EXPECTED_PROVIDERS="anthropic,gemini,lmstudio,ollama,openai,openrouter,vllm"
 if [ "$PROVIDERS" != "$EXPECTED_PROVIDERS" ]; then
   echo "FAILED: Providers list mismatch. Got '$PROVIDERS', expected '$EXPECTED_PROVIDERS'"
   exit 1

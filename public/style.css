@@ -517,3 +517,37 @@ h1, h2, h3, h4 {
   color: #00a9a4;
   font-weight: 600;
 }
+
+/* =====================================================================
+   SOFTWARE ENGINEERING & RESPONSIVE MULTI-DEVICE SANDBOX STYLES
+   ===================================================================== */
+#sePreviewContainer {
+  background: radial-gradient(circle at 50% 50%, var(--surface-2) 0%, var(--surface-1) 100%);
+  min-height: 720px;
+}
+
+#seIframeWrapper {
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              max-width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+}
+
+.dark #seIframeWrapper {
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+}
+
+#seTasteChecklist input[type="checkbox"] {
+  accent-color: #00a9a4;
+  cursor: pointer;
+}
+
+#seTasteChecklist label:hover {
+  background-color: var(--surface-2);
+}
+
+#erReportViewer {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  tab-size: 2;
+}
+

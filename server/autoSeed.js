@@ -32,7 +32,10 @@ function autoSeedIfEmpty(db) {
       ['Super Admin', 'admin@marketingos.local', hash('Admin123!'), 'super_admin', 'Leadership'],
       ['Sara Manager', 'manager@marketingos.local', hash('Manager123!'), 'manager', 'Growth'],
       ['Omar Member', 'member@marketingos.local', hash('Member123!'), 'member', 'Content'],
-      ['Test Client (RBAC Gate)', 'client@marketingos.local', hash('Client123!'), 'client', 'Client']
+      ['Test Client (RBAC Gate)', 'client@marketingos.local', hash('Client123!'), 'client', 'Client'],
+      ['Sales Lead', 'sales@marketingos.local', hash('Admin123!'), 'manager', 'Sales'],
+      ['Creative Specialist', 'creative@marketingos.local', hash('Admin123!'), 'member', 'Creative'],
+      ['Clinic Client', 'client@clinic.local', hash('Client123!'), 'client', 'Client']
     ];
 
     for (const [name, email, passHash, role, dept] of users) {

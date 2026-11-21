@@ -77,6 +77,8 @@ try {
     pipeline TEXT NOT NULL,
     description TEXT,
     status TEXT DEFAULT 'draft' CHECK(status IN ('draft','queued','running','in_progress','in_review','needs_fix','needs_attention','delivered')),
+    stage TEXT DEFAULT 'plan' CHECK(stage IN ('plan','assign','execute','verify','report')),
+    capability TEXT DEFAULT 'creative' CHECK(capability IN ('research','engineering','creative','coordination','reporting')),
     assignee_id TEXT,
     created_by TEXT,
     priority TEXT DEFAULT 'medium' CHECK(priority IN ('low','medium','high','urgent')),
@@ -343,7 +345,7 @@ try {
   -- 22. Admin Local LLM / Cloud API Configuration
   CREATE TABLE IF NOT EXISTS admin_llm_configs (
     id TEXT PRIMARY KEY,
-    provider TEXT UNIQUE NOT NULL CHECK(provider IN ('ollama', 'lmstudio', 'vllm', 'openai', 'anthropic', 'gemini')),
+    provider TEXT UNIQUE NOT NULL CHECK(provider IN ('ollama', 'lmstudio', 'vllm', 'openai', 'anthropic', 'gemini', 'openrouter')),
     display_name TEXT NOT NULL,
     provider_type TEXT NOT NULL CHECK(provider_type IN ('local', 'cloud')),
     base_url TEXT NOT NULL,
@@ -521,7 +523,7 @@ try {
     id TEXT PRIMARY KEY,
     task_id TEXT,
     project_id TEXT,
-    department TEXT NOT NULL CHECK(department IN ('research','sales','creative')),
+    department TEXT NOT NULL CHECK(department IN ('research','sales','creative','engineering','coordination','reporting','leadership','ops')),
     agent_name TEXT NOT NULL,
     action_type TEXT NOT NULL,
     title TEXT NOT NULL,
@@ -548,7 +550,7 @@ try {
     project_id TEXT,
     agent_id TEXT NOT NULL,
     agent_name TEXT NOT NULL,
-    department TEXT NOT NULL CHECK(department IN ('research','sales','creative')),
+    department TEXT NOT NULL CHECK(department IN ('research','sales','creative','engineering','coordination','reporting','leadership','ops')),
     skill_slug TEXT NOT NULL,
     provider TEXT,
     model TEXT,
@@ -714,6 +716,12 @@ try {
     if (!pragmaTasks.some(c => c.name === 'department')) {
       db.prepare("ALTER TABLE tasks ADD COLUMN department TEXT DEFAULT 'creative'").run();
     }
+    if (!pragmaTasks.some(c => c.name === 'stage')) {
+      db.prepare("ALTER TABLE tasks ADD COLUMN stage TEXT DEFAULT 'plan'").run();
+    }
+    if (!pragmaTasks.some(c => c.name === 'capability')) {
+      db.prepare("ALTER TABLE tasks ADD COLUMN capability TEXT DEFAULT 'creative'").run();
+    }
 
     // Phase 4 Governance Migration: separate approval_status from execution_status
     const pragmaApprovals = db.prepare("PRAGMA table_info(approvals)").all();
@@ -750,6 +758,12 @@ try {
     if (!pragmaWa.some(c => c.name === 'audio_source')) {
       db.prepare("ALTER TABLE lead_whatsapp_messages ADD COLUMN audio_source TEXT DEFAULT 'master_human'").run();
     }
+    if (!pragmaWa.some(c => c.name === 'voice_ai_prompt_blocks')) {
+      db.prepare("ALTER TABLE lead_whatsapp_messages ADD COLUMN voice_ai_prompt_blocks TEXT DEFAULT ''").run();
+    }
+    if (!pragmaWa.some(c => c.name === 'voice_ai_audit')) {
+      db.prepare("ALTER TABLE lead_whatsapp_messages ADD COLUMN voice_ai_audit TEXT DEFAULT ''").run();
+    }
 
     // Verify tasks table supports 'in_progress' and 'needs_attention'
     const tableInfo = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='tasks'").get();
@@ -771,9 +785,67 @@ try {
       db.pragma('foreign_keys = ON');
     }
 
+    // Verify admin_llm_configs table supports 'openrouter'
+    const llmConfigsInfo = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='admin_llm_configs'").get();
+    if (llmConfigsInfo && llmConfigsInfo.sql && !llmConfigsInfo.sql.includes("'openrouter'")) {
+      db.pragma('foreign_keys = OFF');
+      db.transaction(() => {
+        let newSql = llmConfigsInfo.sql.replace(
+          "CHECK(provider IN ('ollama', 'lmstudio', 'vllm', 'openai', 'anthropic', 'gemini'))",
+          "CHECK(provider IN ('ollama', 'lmstudio', 'vllm', 'openai', 'anthropic', 'gemini', 'openrouter'))"
+        );
+        db.prepare("CREATE TABLE admin_llm_configs_migrated " + newSql.slice(newSql.indexOf('('))).run();
+        db.prepare("INSERT INTO admin_llm_configs_migrated SELECT * FROM admin_llm_configs").run();
+        db.prepare("DROP TABLE admin_llm_configs").run();
+        db.prepare("ALTER TABLE admin_llm_configs_migrated RENAME TO admin_llm_configs").run();
+        db.prepare("CREATE INDEX IF NOT EXISTS idx_llm_configs_provider ON admin_llm_configs(provider)").run();
+        db.prepare("CREATE INDEX IF NOT EXISTS idx_llm_configs_active ON admin_llm_configs(is_active)").run();
+        db.prepare("CREATE INDEX IF NOT EXISTS idx_llm_configs_default ON admin_llm_configs(is_default)").run();
+      })();
+      db.pragma('foreign_keys = ON');
+    }
+
+    // Check if approvals or agent_runs has old 3-department CHECK constraint
+    const approvalsTable = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='approvals'").get();
+    if (approvalsTable && approvalsTable.sql && !approvalsTable.sql.includes('engineering')) {
+      db.pragma('foreign_keys = OFF');
+      (() => {
+        const newSql = approvalsTable.sql.replace(
+          "CHECK(department IN ('research','sales','creative'))",
+          "CHECK(department IN ('research','sales','creative','engineering','coordination','reporting','leadership','ops'))"
+        );
+        db.prepare("CREATE TABLE approvals_migrated " + newSql.slice(newSql.indexOf('('))).run();
+        db.prepare("INSERT INTO approvals_migrated SELECT * FROM approvals").run();
+        db.prepare("DROP TABLE approvals").run();
+        db.prepare("ALTER TABLE approvals_migrated RENAME TO approvals").run();
+        db.prepare("CREATE INDEX IF NOT EXISTS idx_approvals_status ON approvals(status, department)").run();
+      })();
+      db.pragma('foreign_keys = ON');
+    }
+
+    const agentRunsTable = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='agent_runs'").get();
+    if (agentRunsTable && agentRunsTable.sql && !agentRunsTable.sql.includes('engineering')) {
+      db.pragma('foreign_keys = OFF');
+      (() => {
+        const newSql = agentRunsTable.sql.replace(
+          "CHECK(department IN ('research','sales','creative'))",
+          "CHECK(department IN ('research','sales','creative','engineering','coordination','reporting','leadership','ops'))"
+        );
+        db.prepare("CREATE TABLE agent_runs_migrated " + newSql.slice(newSql.indexOf('('))).run();
+        db.prepare("INSERT INTO agent_runs_migrated SELECT * FROM agent_runs").run();
+        db.prepare("DROP TABLE agent_runs").run();
+        db.prepare("ALTER TABLE agent_runs_migrated RENAME TO agent_runs").run();
+        db.prepare("CREATE INDEX IF NOT EXISTS idx_agent_runs_task ON agent_runs(task_id, created_at DESC)").run();
+        db.prepare("CREATE INDEX IF NOT EXISTS idx_agent_runs_agent ON agent_runs(agent_id, status, created_at DESC)").run();
+      })();
+      db.pragma('foreign_keys = ON');
+    }
+
     // Add index for department task queries
     try {
       db.prepare("CREATE INDEX IF NOT EXISTS idx_tasks_dept ON tasks(department, project_id)").run();
+      db.prepare("CREATE INDEX IF NOT EXISTS idx_tasks_stage ON tasks(stage)").run();
+      db.prepare("CREATE INDEX IF NOT EXISTS idx_tasks_capability ON tasks(capability)").run();
     } catch (_) {}
 
     // Initialize Admin LLM configurations and routing rules
@@ -783,6 +855,34 @@ try {
     // Auto-seed initial users and sample project if database is freshly created
     const { autoSeedIfEmpty } = require('./autoSeed');
     autoSeedIfEmpty(db);
+
+    // Ensure Milestone 1 & test operational accounts exist and are seeded in development/test
+    try {
+      const isProd = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';
+      if (!isProd) {
+        const bcrypt = require('bcryptjs');
+        const { v4: uuidv4 } = require('uuid');
+        const hash = (p) => bcrypt.hashSync(p, 10);
+        const checkUser = db.prepare('SELECT id FROM users WHERE email = ?');
+        const insertUser = db.prepare(
+          'INSERT INTO users (id, name, email, password_hash, role, department) VALUES (?, ?, ?, ?, ?, ?)'
+        );
+        const defaultUsers = [
+          ['Super Admin', 'admin@marketingos.local', hash('Admin123!'), 'super_admin', 'Leadership'],
+          ['Sara Manager', 'manager@marketingos.local', hash('Manager123!'), 'manager', 'Growth'],
+          ['Omar Member', 'member@marketingos.local', hash('Member123!'), 'member', 'Content'],
+          ['Test Client (RBAC Gate)', 'client@marketingos.local', hash('Client123!'), 'client', 'Client'],
+          ['Sales Lead', 'sales@marketingos.local', hash('Admin123!'), 'manager', 'Sales'],
+          ['Creative Specialist', 'creative@marketingos.local', hash('Admin123!'), 'member', 'Creative'],
+          ['Clinic Client', 'client@clinic.local', hash('Client123!'), 'client', 'Client']
+        ];
+        for (const [name, email, passHash, role, dept] of defaultUsers) {
+          if (!checkUser.get(email)) {
+            insertUser.run(uuidv4(), name, email, passHash, role, dept);
+          }
+        }
+      }
+    } catch (_) {}
   } catch (migErr) {
     console.warn(`[WARN] Migration check note: ${migErr.message}`);
   }

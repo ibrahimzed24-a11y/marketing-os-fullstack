@@ -302,85 +302,85 @@
     </div>
 
     <!-- Smart Multi-Tier Categorized Navigation Bar -->
+    <!-- Smart Multi-Tier Categorized Navigation Bar -->
     <div class="max-w-[1600px] mx-auto px-3 sm:px-6 pb-2.5 flex flex-col md:flex-row md:items-center justify-between gap-2.5 overflow-x-auto no-scrollbar">
       <!-- Grouped View Navigation Container -->
       <nav id="primaryNavPillContainer" class="bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/90 rounded-2xl md:rounded-full p-1.5 inline-flex items-center gap-1 shrink-0 max-w-full overflow-x-auto no-scrollbar shadow-xs" aria-label="Main Productivity Navigation">
         
-        <!-- Domain 1: Command & Core -->
+        <!-- Tier 1: 5 Core Operational Capabilities -->
         <div class="inline-flex items-center gap-1 pr-1.5 border-r border-slate-200 dark:border-slate-700/80">
-          <button id="navTab-overview" onclick="switchMainView('overview')" class="px-3 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 whitespace-nowrap" title="Central Command Center & Stats">
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
-            <span>Overview</span>
+          <!-- a) Workflow Coordination -->
+          <button id="navTab-coordination" onclick="switchMainView('workflow-coordination')" class="px-3.5 py-1.5 rounded-full text-xs font-semibold transition inline-flex items-center gap-1.5 whitespace-nowrap" title="Workflow Coordination & 5-Stage DAG Engine">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><path d="m9 14 2 2 4-4"/></svg>
+            <span>Coordination</span>
           </button>
-          <button id="navTab-workbench" onclick="switchMainView('workbench')" class="px-3 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 whitespace-nowrap" title="Projects & Tasks Workbench">
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M9 12h6"/><path d="M9 16h6"/></svg>
-            <span>Workbench</span>
-            <span id="navTasksCountBadge" class="hidden ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-teal-50 text-[#00a9a4] dark:bg-teal-950/60 dark:text-teal-300">0</span>
+          
+          <!-- b) Browser Research -->
+          <button id="navTab-research" onclick="switchMainView('browser-research')" class="px-3.5 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 whitespace-nowrap" title="Browser Research & Market Intel">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <span>Research</span>
           </button>
+
+          <!-- c) Software Engineering -->
+          <button id="navTab-engineering" onclick="switchMainView('software-engineering')" class="px-3.5 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 whitespace-nowrap" title="Software Engineering & Landing Pages">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            <span>Engineering</span>
+          </button>
+
+          <!-- d) Creative Studio -->
+          <button id="navTab-creative" onclick="switchMainView('creative-media')" class="px-3.5 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 whitespace-nowrap" title="Creative Studio & Brand Media">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.563-2.512 5.563-5.563C22 6.5 17.5 2 12 2z"/></svg>
+            <span>Creative</span>
+          </button>
+
+          <!-- e) Executive Reporting -->
+          <button id="navTab-reporting" onclick="switchMainView('executive-reporting')" class="px-3.5 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 whitespace-nowrap" title="Executive Reporting & Quality Audits">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            <span>Reporting</span>
+          </button>
+        </div>
+
+        <!-- Tier 2: Operations & System Utilities -->
+        <div class="inline-flex items-center gap-1 px-1.5 border-r border-slate-200 dark:border-slate-700/80">
           <button id="navTab-approvals" onclick="switchMainView('approvals')" class="px-3 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 whitespace-nowrap" title="Human-in-the-Loop Governance & Approvals">
             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
             <span>Approvals</span>
             <span id="navApprovalsCountBadge" class="hidden ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500 text-black">0</span>
           </button>
-          <button id="navTab-roleDash" onclick="switchMainView('roleDash')" class="px-3 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 whitespace-nowrap" title="Executive Role Dashboard">
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            <span>Role Dash</span>
-          </button>
-        </div>
-
-        <!-- Domain 2: Growth Operations -->
-        <div class="inline-flex items-center gap-1 px-1.5 border-r border-slate-200 dark:border-slate-700/80">
-          <button id="navTab-research" onclick="switchMainView('research')" class="px-3 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 whitespace-nowrap" title="Market Intel & Competitor Research">
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-            <span>Research</span>
-          </button>
-          <button id="navTab-sales" onclick="switchMainView('sales')" class="px-3 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 whitespace-nowrap" title="Sales CRM & Lead Pipeline">
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
-            <span>Sales CRM</span>
-            <span id="navSalesCountBadge" class="hidden ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">0</span>
-          </button>
-          <button id="navTab-creative" onclick="switchMainView('creative')" class="px-3 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 whitespace-nowrap" title="Creative Studio & Asset Generator">
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.563-2.512 5.563-5.563C22 6.5 17.5 2 12 2z"/></svg>
-            <span>Creative</span>
-          </button>
-          <button id="navTab-seo" onclick="switchMainView('seo')" class="px-3 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 whitespace-nowrap" title="SEO & GEO Architecture">
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-            <span>SEO & GEO</span>
-          </button>
-        </div>
-
-        <!-- Domain 3: Intelligence & Automation -->
-        <div class="inline-flex items-center gap-1 px-1.5 border-r border-slate-200 dark:border-slate-700/80">
           <button id="navTab-rag" onclick="switchMainView('rag')" class="px-3 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 whitespace-nowrap" title="Knowledge Base & Vector Search">
             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
             <span>Knowledge (RAG)</span>
             <span id="navRagCountBadge" class="hidden ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-teal-50 text-[#00a9a4] dark:bg-teal-950/60 dark:text-teal-300">0</span>
           </button>
-          <button id="navTab-pipelines" onclick="switchMainView('pipelines')" class="px-3 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 whitespace-nowrap" title="Autonomous Pipelines Catalog">
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-            <span>Pipelines</span>
-          </button>
-          <button id="navTab-agents" onclick="switchMainView('agents')" class="px-3 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 whitespace-nowrap" title="AI Workforce Registry (32 Agents)">
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4"/><line x1="8" y1="16" x2="8.01" y2="16"/><line x1="16" y1="16" x2="16.01" y2="16"/></svg>
-            <span>Agents</span>
-          </button>
-        </div>
-
-        <!-- Domain 4: Platform & System -->
-        <div class="inline-flex items-center gap-1 pl-1.5">
           <button id="navTab-team" onclick="switchMainView('team')" class="px-3 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 whitespace-nowrap" title="Team Access & Role Permissions">
             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             <span>Team</span>
-          </button>
-          <button id="navTab-logins" onclick="switchMainView('logins')" class="px-3 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 whitespace-nowrap" title="Saved Logins & Client Profiles">
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
-            <span>Logins</span>
-            <span id="navLoginsCountBadge" class="hidden ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-slate-200 text-slate-800">0</span>
           </button>
           <button id="navTab-adminSettings" onclick="switchMainView('adminSettings')" class="px-3 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 whitespace-nowrap" title="Platform & AI Engine Settings">
             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
             <span>Settings</span>
           </button>
+        </div>
+
+        <!-- Tier 3: Extended Compatibility (Overview, Sales CRM, Workbench, etc.) -->
+        <div class="inline-flex items-center gap-1 pl-1.5">
+          <button id="navTab-overview" onclick="switchMainView('overview')" class="px-2.5 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1 text-slate-500 hover:text-slate-900 dark:hover:text-white whitespace-nowrap" title="Central Command Center & Stats">
+            <span>Overview</span>
+          </button>
+          <button id="navTab-sales" onclick="switchMainView('sales')" class="px-2.5 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1 text-slate-500 hover:text-slate-900 dark:hover:text-white whitespace-nowrap" title="Sales CRM & Lead Pipeline">
+            <span>Sales CRM</span>
+            <span id="navSalesCountBadge" class="hidden ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">0</span>
+          </button>
+          <button id="navTab-workbench" onclick="switchMainView('workbench')" class="px-2.5 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1 text-slate-500 hover:text-slate-900 dark:hover:text-white whitespace-nowrap" title="Projects & Tasks Workbench">
+            <span>Workbench</span>
+            <span id="navTasksCountBadge" class="hidden ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-teal-50 text-[#00a9a4] dark:bg-teal-950/60 dark:text-teal-300">0</span>
+          </button>
+          <!-- Additional utilities: logins, agents, pipelines, seo, roleDash -->
+          <button id="navTab-roleDash" onclick="switchMainView('roleDash')" class="hidden" title="Role Dash">Role Dash</button>
+          <button id="navTab-pipelines" onclick="switchMainView('pipelines')" class="hidden" title="Pipelines">Pipelines</button>
+          <button id="navTab-agents" onclick="switchMainView('agents')" class="hidden" title="Agents">Agents</button>
+          <button id="navTab-logins" onclick="switchMainView('logins')" class="hidden" title="Logins"><span id="navLoginsCountBadge">0</span></button>
+          <button id="navTab-seo" onclick="switchMainView('seo')" class="hidden" title="SEO">SEO</button>
         </div>
 
       </nav>
@@ -391,12 +391,12 @@
           <span class="inline-flex items-center gap-1.5">
             <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
             <span class="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider">Project:</span>
-            <span id="navBreadcrumbProjectName" class="font-bold text-slate-900 dark:text-slate-100 max-w-[130px] truncate">Valioz Health</span>
+            <span id="navBreadcrumbProjectName" class="font-bold text-slate-900 dark:text-slate-100 max-w-[130px] truncate">Active Project</span>
           </span>
           <span class="text-slate-300 dark:text-slate-600 font-light">›</span>
           <span class="inline-flex items-center gap-1">
             <span class="text-[10px] uppercase font-bold text-[#00a9a4] dark:text-teal-400 tracking-wider">Next Step:</span>
-            <span id="navBreadcrumbNextStep" class="font-semibold text-[#00a9a4] dark:text-teal-300 max-w-[140px] truncate">Brand Synthesis</span>
+            <span id="navBreadcrumbNextStep" class="font-semibold text-[#00a9a4] dark:text-teal-300 max-w-[140px] truncate">Workflow Stage</span>
           </span>
         </div>
 
@@ -736,26 +736,27 @@
     </div>
 
     <!-- ===================================================================== -->
-    <!-- VIEW: RESEARCH DEPARTMENT                                             -->
+    <!-- VIEW: BROWSER RESEARCH (BROWSER-RESEARCHER)                           -->
     <!-- ===================================================================== -->
-    <div id="view-research" class="hidden space-y-5">
+    <div id="view-browser-research" class="hidden space-y-5">
+      <div id="view-research" class="space-y-5">
       <section class="card-surface p-5 rounded-2xl border border-[var(--border)]">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
             <div class="flex items-center gap-2 mb-1">
               <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30">Department 01</span>
-              <h1 class="text-lg font-extrabold tracking-tight">Research & Market Intelligence</h1>
+              <h1 class="text-lg font-extrabold tracking-tight">Browser Research &amp; Market Intelligence</h1>
             </div>
             <p class="text-xs text-[var(--text-soft)]">
-              Powered by Research Agent (Agent 01). Collects and analyzes market data, competitors, verified leads, and SEO/GEO search matrices.
+              Powered by Browser Research Agent (browser-researcher). Collects and analyzes market data, competitors, verified leads, and SEO/GEO search matrices. Grounded in /uploads harness data.
             </p>
           </div>
           <div class="flex items-center gap-2">
             <button onclick="handoffResearchToSales()" class="btn-outline text-xs px-3 py-1.5 font-bold flex items-center gap-1.5 text-blue-400 border-blue-500/30 hover:bg-blue-500/10 transition">
               <span>📥</span> <span>Handoff Leads to Sales CRM</span>
             </button>
-            <button onclick="switchMainView('workbench')" class="btn-primary text-xs px-3.5 py-1.5 font-bold flex items-center gap-1.5">
-              <span>+</span> <span>New Research Brief</span>
+            <button onclick="openCreateTaskModal('research')" class="btn-primary text-xs px-3.5 py-1.5 font-bold flex items-center gap-1.5">
+              <span>+</span> <span>New Research Task</span>
             </button>
           </div>
         </div>
@@ -829,6 +830,7 @@
         </div>
         <div id="researchProjectsTasksContainer" class="space-y-2"></div>
       </section>
+      </div>
     </div>
 
     <!-- ===================================================================== -->
@@ -863,7 +865,7 @@
         </div>
       </section>
 
-      <!-- Master SVG & Lead Logos Asset Suite Toolbar (138 Leads & Clinics) -->
+      <!-- Master SVG & Lead Logos Asset Suite Toolbar -->
       <section class="card-surface p-4.5 rounded-2xl border border-teal-500/30 bg-gradient-to-r from-teal-500/10 via-indigo-500/5 to-[var(--surface)] flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 rounded-2xl bg-teal-500/15 border border-teal-500/30 text-teal-600 dark:text-teal-300 flex items-center justify-center text-xl shrink-0 shadow-xs">
@@ -871,7 +873,7 @@
           </div>
           <div>
             <div class="flex items-center gap-2">
-              <span class="text-xs font-black text-[var(--text)] tracking-tight">Master Lead Logos &amp; Vector Suite (138 Clinics)</span>
+              <span class="text-xs font-black text-[var(--text)] tracking-tight">Master Lead Logos &amp; Vector Suite (<span id="salesLogosCountText">Lead Assets</span>)</span>
               <span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-teal-500/20 text-teal-700 dark:text-teal-300 border border-teal-500/30">100% Vector SVG</span>
             </div>
             <p class="text-[11px] text-[var(--text-soft)] mt-0.5">High-resolution vector brand emblems, dental crest monograms, and verified clinic logos ready for instant campaign export.</p>
@@ -879,7 +881,7 @@
         </div>
         <div class="flex flex-wrap items-center gap-2 shrink-0">
           <button onclick="downloadMasterSvg()" id="btnDownloadMasterSvgSales" class="btn-primary text-xs px-3.5 py-2 font-bold flex items-center gap-1.5 shadow-sm bg-teal-600 hover:bg-teal-500">
-            <span>⬇️</span> <span>Download Master SVG (138 Logos)</span>
+            <span>⬇️</span> <span id="salesDownloadMasterSvgLabel">Download Master SVG</span>
           </button>
           <button onclick="downloadAllSvgsZip()" id="btnDownloadZipSales" class="btn-outline text-xs px-3.5 py-2 font-bold flex items-center gap-1.5 border-teal-500/40 text-teal-700 dark:text-teal-300 hover:bg-teal-500/10">
             <span>📦</span> <span>Download All SVGs (.ZIP)</span>
@@ -958,13 +960,13 @@
                 <span class="text-[10px] mono px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">Dual-Branded SVG + 26s Voice Note (.WAV)</span>
               </div>
               <p class="text-xs text-[var(--text-soft)] mt-1">
-                Synthesizes ready-to-send WhatsApp image message cards with custom voice notes attached. Grounded in 138 verified Canadian dental clinic audits, Google review ratings, and the $499 turnkey clinic growth offer.
+                Synthesizes ready-to-send WhatsApp image message cards with custom voice notes attached. Grounded in verified Canadian dental clinic audits, Google review ratings, and turnkey clinic growth offers.
               </p>
             </div>
           </div>
           <div class="flex flex-wrap items-center gap-2 shrink-0">
             <button onclick="bulkGenerateWhatsAppMessages()" id="btnWaBulkGenerate" class="btn-outline text-xs px-3.5 py-2 font-bold flex items-center gap-1.5 border-emerald-500/40 text-emerald-600 dark:text-emerald-300 hover:bg-emerald-500/10">
-              <span>⚡</span> <span>Bulk Synthesize All 138 Clinics</span>
+              <span>⚡</span> <span>Bulk Synthesize Verified Clinics</span>
             </button>
             <button onclick="stageCurrentWhatsAppApproval()" id="btnWaStageApproval" class="btn-outline text-xs px-3.5 py-2 font-bold flex items-center gap-1.5 border-indigo-500/40 text-indigo-500 hover:bg-indigo-500/10">
               <span>🛡️</span> <span>Queue for Gate G2 Approval</span>
@@ -978,7 +980,7 @@
         <!-- Clinic Lead Selector & Audit Gaps Context Bar -->
         <div class="grid grid-cols-1 md:grid-cols-12 gap-3 p-3.5 rounded-xl bg-[var(--surface-2)] border border-[var(--border)]">
           <div class="md:col-span-5">
-            <label for="waLeadSelect" class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Select Verified Dental Clinic (138 Leads)</label>
+            <label for="waLeadSelect" class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Select Verified Dental Clinic</label>
             <select id="waLeadSelect" onchange="onWhatsAppLeadChange()" class="input-field text-xs py-2 px-3 w-full font-semibold">
               <option value="">Loading verified clinic directory...</option>
             </select>
@@ -986,14 +988,14 @@
           <div class="md:col-span-3">
             <label class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Google Reputation &amp; City</label>
             <div id="waLeadRatingBadge" class="text-xs font-bold py-1.5 px-3 rounded-lg bg-[var(--surface)] border border-[var(--border)] flex items-center justify-between">
-              <span class="text-amber-500">4.9 ★ (320 Reviews)</span>
-              <span class="text-[var(--text-soft)] text-[11px]">Vancouver, BC</span>
+              <span class="text-[var(--text-soft)]">No lead selected</span>
+              <span class="text-[var(--text-faint)] text-[11px]">—</span>
             </div>
           </div>
           <div class="md:col-span-4">
             <label class="block text-[10px] font-bold uppercase text-[var(--text-soft)] mb-1">Identified Intake Gap</label>
-            <div id="waLeadGapBadge" class="text-xs py-1.5 px-3 rounded-lg bg-[var(--surface)] border border-[var(--border)] truncate text-[var(--text-soft)]" title="No after-hours patient intake engine detected">
-              No 24/7 after-hours patient triage active
+            <div id="waLeadGapBadge" class="text-xs py-1.5 px-3 rounded-lg bg-[var(--surface)] border border-[var(--border)] truncate text-[var(--text-soft)]" title="No intake gap data">
+              No intake gap data
             </div>
           </div>
         </div>
@@ -1016,8 +1018,8 @@
                     🦷
                   </div>
                   <div class="min-w-0">
-                    <div id="waChatHeaderName" class="font-bold text-xs truncate">Fraserview Dentist</div>
-                    <div id="waChatHeaderPhone" class="text-[10px] text-white/80 truncate">+1 (604) 325-1711 · Online</div>
+                    <div id="waChatHeaderName" class="font-bold text-xs truncate">Select a Lead</div>
+                    <div id="waChatHeaderPhone" class="text-[10px] text-white/80 truncate">Verified Practice · Online</div>
                   </div>
                 </div>
                 <div class="flex items-center gap-3 text-sm">
@@ -1044,7 +1046,7 @@
                     <!-- Rendered SVG Injected Here -->
                   </div>
                   <div class="flex items-center justify-between text-[10px] text-[var(--text-soft)] pt-1">
-                    <span>Valioz Health × Practice Synthesis</span>
+                    <span id="waCoBrandLabel">Brand × Practice Synthesis</span>
                     <span class="whatsapp-tick-read">10:42 AM ✓✓</span>
                   </div>
                 </div>
@@ -1078,7 +1080,7 @@
                   <audio id="waNativeAudio" preload="auto" ontimeupdate="onWhatsAppAudioTimeUpdate()" onended="onWhatsAppAudioEnded()" class="hidden"></audio>
 
                   <div class="flex items-center justify-between text-[10px] text-[var(--text-soft)] pt-0.5">
-                    <span id="waAudioVoiceTag" class="text-emerald-700 dark:text-emerald-400 font-semibold">🎙️ Ibrahim Zid (Valioz Health · Authentic Male Voice)</span>
+                    <span id="waAudioVoiceTag" class="text-emerald-700 dark:text-emerald-400 font-semibold">🎙️ Studio Master Audio · Authentic Voice</span>
                     <span class="whatsapp-tick-read">10:42 AM ✓✓</span>
                   </div>
                 </div>
@@ -1119,11 +1121,11 @@
               </div>
               <textarea id="waVoiceScriptInput" rows="4" oninput="onWhatsAppVoiceScriptInput()" class="input-field text-xs font-mono w-full leading-relaxed p-2.5"></textarea>
               <p class="text-[11px] text-[var(--text-soft)]">
-                Includes factual Google review numbers, verified city name, identified after-hours intake gap, and the $499 turnkey asset ownership offer.
+                Includes factual Google review numbers, verified city name, identified intake gap, and turnkey asset ownership offer.
               </p>
             </div>
 
-            <!-- Voice AI 4-Block Prompt & Quality Audit Inspector (mahimailabs/voice-ai-skills) -->
+            <!-- Voice AI 4-Block Prompt & Quality Audit Inspector -->
             <div class="card-subtle p-4 rounded-xl border border-indigo-500/30 bg-indigo-500/5 space-y-3">
               <div class="flex flex-wrap items-center justify-between gap-2">
                 <div class="flex items-center gap-2">
@@ -1132,11 +1134,11 @@
                     <div class="text-xs font-bold text-[var(--text)] flex items-center gap-2">
                       <span>Voice AI 4-Block Prompt Inspector</span>
                       <span id="waVoiceAuditBadge" class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
-                        100% Passed · Mahimai Labs Standard
+                        Quality Audit: Verified
                       </span>
                     </div>
                     <div class="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium">
-                      mahimailabs/voice-ai-skills &bull; voice-prompting &bull; voice-telephony
+                      voice-prompting &bull; voice-telephony &bull; anti-slop
                     </div>
                   </div>
                 </div>
@@ -1179,7 +1181,7 @@
                   <span class="text-base">🎙️</span>
                   <div>
                     <div class="text-xs font-bold text-[var(--text)]">Real Human Voice Studio (Authentic Male Voice)</div>
-                    <div class="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">100% Real Human Voice • Zero AI / Robot Speech Guaranteed</div>
+                    <div class="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">Operator Voice Studio • Authentic Audio Notes</div>
                   </div>
                 </div>
                 <span id="waAudioActiveSourceBadge" class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
@@ -1245,7 +1247,7 @@
                     Save for This Clinic
                   </button>
                   <button type="button" onclick="applyRecordedAudioToAllClinics()" class="btn-outline text-[10px] py-1 px-2.5 font-bold border-emerald-500/40 text-emerald-600 dark:text-emerald-400">
-                    Set as Master (138 Clinics)
+                    Set as Master Voice
                   </button>
                 </div>
               </div>
@@ -1523,22 +1525,23 @@
     </div>
 
     <!-- ===================================================================== -->
-    <!-- VIEW: CREATIVE STUDIO (CREATIVE DIRECTOR)                             -->
+    <!-- VIEW: CREATIVE STUDIO (CREATIVE-DIRECTOR-AGENT)                       -->
     <!-- ===================================================================== -->
-    <div id="view-creative" class="hidden space-y-5">
+    <div id="view-creative-media" class="hidden space-y-5">
+      <div id="view-creative" class="space-y-5">
       <section class="card-surface p-5 rounded-2xl border border-[var(--border)]">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
           <div>
             <div class="flex items-center gap-2 mb-1">
               <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-purple-500/20 text-purple-400 border border-purple-500/30">Department 03</span>
-              <h1 class="text-lg font-extrabold tracking-tight">Creative Studio & Delivery</h1>
+              <h1 class="text-lg font-extrabold tracking-tight">Creative Studio &amp; Brand Media</h1>
             </div>
             <p class="text-xs text-[var(--text-soft)]">
-              Operated by Creative Director Agent (Agent 03). Orchestrates marketing production across 7 service categories, decomposes briefs into tasks, and aligns with brand guidelines.
+              Operated by Creative Director Agent (creativeDirectorAgent). Orchestrates marketing production across 7 service categories, decomposes briefs into tasks, and aligns with brand guidelines (#00a9a4 clinical teal).
             </p>
           </div>
-          <button onclick="switchMainView('workbench')" class="btn-primary text-xs px-3.5 py-1.5 font-bold flex items-center gap-1.5">
-            <span>+</span> <span>New Client Deliverable</span>
+          <button onclick="openCreateTaskModal('creative')" class="btn-primary text-xs px-3.5 py-1.5 font-bold flex items-center gap-1.5">
+            <span>+</span> <span>New Creative Task</span>
           </button>
         </div>
       </section>
@@ -1598,6 +1601,7 @@
         </div>
         <div id="creativeProjectsTasksContainer" class="space-y-2"></div>
       </section>
+      </div>
     </div>
 
     <!-- ===================================================================== -->
@@ -1776,22 +1780,22 @@
                 <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
                 Quality & Verification Verdict
               </h3>
-              <span id="reportVerdictBadge" class="text-[10px] px-2.5 py-0.5 rounded-full font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">Ready to Deliver</span>
+              <span id="reportVerdictBadge" class="text-[10px] px-2.5 py-0.5 rounded-full font-semibold bg-slate-500/15 text-slate-600 dark:text-slate-400 border border-slate-500/30">Awaiting Execution</span>
             </div>
             <p id="reportProjectSub" class="text-[11px] text-[var(--text-faint)] mt-1">Audited for marketing quality & compliance</p>
 
             <div class="mt-3 space-y-1.5 text-xs">
               <div class="flex justify-between items-center card-subtle px-3 py-2">
                 <span class="text-[var(--text-soft)]">Aligned with brand assets?</span>
-                <span id="repCheckGrounded" class="font-semibold text-emerald-600 dark:text-emerald-400">Verified Grounding</span>
+                <span id="repCheckGrounded" class="font-semibold text-slate-500">Awaiting audit</span>
               </div>
               <div class="flex justify-between items-center card-subtle px-3 py-2">
                 <span class="text-[var(--text-soft)]">Usable by team?</span>
-                <span id="repCheckUsable" class="font-semibold">Yes • Production-ready</span>
+                <span id="repCheckUsable" class="font-semibold text-slate-500">Awaiting audit</span>
               </div>
               <div class="flex justify-between items-center card-subtle px-3 py-2">
                 <span class="text-[var(--text-soft)]">Production Ready?</span>
-                <span id="repCheckSellable" class="font-semibold">Yes • Clear CTA & ROI</span>
+                <span id="repCheckSellable" class="font-semibold text-slate-500">Awaiting audit</span>
               </div>
             </div>
 
@@ -1833,6 +1837,321 @@
           </div>
         </aside>
       </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- VIEW: WORKFLOW COORDINATION (COORDINATOR AGENT)                       -->
+    <!-- ===================================================================== -->
+    <div id="view-workflow-coordination" class="hidden space-y-5">
+      <!-- Header Banner -->
+      <section class="card-surface p-5 rounded-2xl border border-[var(--border)]">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-teal-500/20 text-[#00a9a4] dark:text-teal-400 border border-teal-500/30">Capability 01</span>
+              <h1 class="text-lg font-extrabold tracking-tight">Workflow Coordination &amp; DAG Execution Engine</h1>
+            </div>
+            <p class="text-xs text-[var(--text-soft)]">
+              Powered by Coordinator Agent (coordinator). Directs the 5-Stage loop (Plan &rarr; Assign &rarr; Execute &rarr; Verify &rarr; Report), synchronizes autonomous pipelines, and enforces deliverable contracts.
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="openCreateTaskModal('coordination')" class="btn-primary text-xs px-3.5 py-1.5 font-bold flex items-center gap-1.5 bg-[#00a9a4] hover:bg-teal-600">
+              <span>+</span> <span>New Coordination Task</span>
+            </button>
+            <button onclick="switchMainView('workbench')" class="btn-outline text-xs px-3 py-1.5 font-bold flex items-center gap-1.5">
+              <span>🛠️</span> <span>Workbench View</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5-Stage Loop Lifecycle Visualization -->
+      <section class="card-surface p-5 rounded-2xl border border-[var(--border)] space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-xs font-bold uppercase tracking-wider text-[var(--text-soft)]">5-Stage Loop Governance Architecture</h2>
+          <span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/15 text-emerald-600 border border-emerald-500/30">Contract: JSON Deliverable + Admin Report</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-5 gap-3">
+          <div class="card-subtle p-3 rounded-xl border border-[var(--border)] space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-teal-600 dark:text-teal-400">1. Plan</span>
+              <span class="text-[10px] mono text-[var(--text-faint)]">Stage 01</span>
+            </div>
+            <p class="text-[11px] text-[var(--text-soft)]">Ingests briefs &amp; /uploads harness data to produce structured execution plan.</p>
+          </div>
+          <div class="card-subtle p-3 rounded-xl border border-[var(--border)] space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-indigo-600 dark:text-indigo-400">2. Assign</span>
+              <span class="text-[10px] mono text-[var(--text-faint)]">Stage 02</span>
+            </div>
+            <p class="text-[11px] text-[var(--text-soft)]">Routes subtasks to specialized agents (Research, Engineering, Creative, Reporting).</p>
+          </div>
+          <div class="card-subtle p-3 rounded-xl border border-[var(--border)] space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-amber-600 dark:text-amber-400">3. Execute</span>
+              <span class="text-[10px] mono text-[var(--text-faint)]">Stage 03</span>
+            </div>
+            <p class="text-[11px] text-[var(--text-soft)]">Runs agent pipelines under anti-slop rules, grounded in verified facts.</p>
+          </div>
+          <div class="card-subtle p-3 rounded-xl border border-[var(--border)] space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-purple-600 dark:text-purple-400">4. Verify</span>
+              <span class="text-[10px] mono text-[var(--text-faint)]">Stage 04</span>
+            </div>
+            <p class="text-[11px] text-[var(--text-soft)]">Evaluates groundedness, usability, and client delivery readiness.</p>
+          </div>
+          <div class="card-subtle p-3 rounded-xl border border-[var(--border)] space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-emerald-600 dark:text-emerald-400">5. Report</span>
+              <span class="text-[10px] mono text-[var(--text-faint)]">Stage 05</span>
+            </div>
+            <p class="text-[11px] text-[var(--text-soft)]">Emits structured JSON deliverable + formatted Admin Report markdown.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Scoped Projects & Tasks for Coordination -->
+      <section id="coordinationProjectsTasksSection" class="card-surface p-5 rounded-2xl border border-[var(--border)] space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-sm font-extrabold">Workflow Coordination Tasks</h2>
+              <span id="coordinationTasksCountBadge" class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-teal-500/15 text-[#00a9a4] border border-teal-500/30">0</span>
+            </div>
+            <p class="text-[11px] text-[var(--text-soft)] mt-0.5">Tasks directing campaign workflows, DAG dependencies, and stage transitions.</p>
+          </div>
+          <button onclick="openCreateTaskModal('coordination')" class="btn-primary text-xs px-3.5 py-1.5 font-bold flex items-center gap-1.5 bg-[#00a9a4] hover:bg-teal-600">
+            <span>+</span> <span>New Coordination Task</span>
+          </button>
+        </div>
+        <div id="coordinationProjectsTasksContainer" class="space-y-2"></div>
+      </section>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- VIEW: SOFTWARE ENGINEERING & LANDING PAGES (SOFTWARE-ENGINEER)        -->
+    <!-- ===================================================================== -->
+    <div id="view-software-engineering" class="hidden space-y-5">
+      <!-- Header Banner -->
+      <section class="card-surface p-5 rounded-2xl border border-[var(--border)]">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-500/20 text-indigo-500 border border-indigo-500/30">Capability 02</span>
+              <h1 class="text-lg font-extrabold tracking-tight">Software Engineering &amp; Landing Pages</h1>
+            </div>
+            <p class="text-xs text-[var(--text-soft)]">
+              Powered by Software Engineer Agent (software-engineer). Generates high-converting, accessible, mobile-first HTML/Tailwind landing pages and campaign assets. Anti-slop craft, zero purple gradients, 100% responsive.
+            </p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button id="seBtnGenerate" onclick="seGenerateLandingPage()" class="btn-primary text-xs px-3.5 py-1.5 font-bold flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500">
+              <span>⚡</span> <span>Generate Landing Page</span>
+            </button>
+            <button onclick="openCreateTaskModal('engineering')" class="btn-outline text-xs px-3 py-1.5 font-bold flex items-center gap-1.5">
+              <span>+</span> <span>New Engineering Task</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Multi-Device Preview Controls Bar -->
+      <section class="card-surface p-3.5 rounded-2xl border border-[var(--border)] flex flex-wrap items-center justify-between gap-3 shadow-xs">
+        <!-- Device Responsive Mode Switcher -->
+        <div class="flex items-center gap-1.5 bg-[var(--bg-soft)] p-1 rounded-xl border border-[var(--border)]">
+          <button id="seBtnMobile" onclick="setSePreviewDevice('mobile')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 text-[var(--text-soft)] hover:text-[var(--text)]" title="Mobile Phone Viewport (375px)">
+            <span>📱</span> <span>Mobile (375px)</span>
+          </button>
+          <button id="seBtnTablet" onclick="setSePreviewDevice('tablet')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 text-[var(--text-soft)] hover:text-[var(--text)]" title="Tablet Viewport (768px)">
+            <span>💻</span> <span>Tablet (768px)</span>
+          </button>
+          <button id="seBtnDesktop" onclick="setSePreviewDevice('desktop')" class="px-3 py-1.5 rounded-lg text-xs font-semibold transition flex items-center gap-1.5 bg-indigo-600 text-white shadow-xs" title="Desktop Viewport (1280px / 100%)">
+            <span>🖥️</span> <span>Desktop (1280px)</span>
+          </button>
+        </div>
+
+        <!-- Dimension & Live Synchronized Indicators -->
+        <div class="flex items-center gap-2">
+          <span id="seDeviceDimensionBadge" class="text-[10px] mono px-2.5 py-1 rounded-md bg-[var(--surface-2)] border border-[var(--border)] font-bold text-[var(--text-soft)]">
+            1280px × 800px (Desktop)
+          </span>
+          <span id="seCodeStatusBadge" class="text-[10px] px-2.5 py-1 rounded-md font-semibold bg-emerald-500/15 text-emerald-600 border border-emerald-500/30 flex items-center gap-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>Live Synchronized</span>
+          </span>
+        </div>
+
+        <!-- Source Actions -->
+        <div class="flex items-center gap-2">
+          <button id="seBtnRefreshPreview" onclick="seRefreshPreview()" class="btn-outline text-xs px-2.5 py-1.5 font-medium flex items-center gap-1" title="Reload Preview Sandbox">
+            <span>↻</span> <span>Refresh Preview</span>
+          </button>
+          <button id="seBtnCopyCode" onclick="seCopyCode()" class="btn-outline text-xs px-2.5 py-1.5 font-medium flex items-center gap-1" title="Copy Source Code">
+            <span>📋</span> <span>Copy Code</span>
+          </button>
+          <button id="seBtnDownloadHtml" onclick="seDownloadHtml()" class="btn-outline text-xs px-2.5 py-1.5 font-medium flex items-center gap-1" title="Export HTML File">
+            <span>⬇️</span> <span>Export HTML</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- 2-Column Split Workspace: Source & Taste Checklist (Left) vs Multi-Device Preview Sandbox (Right) -->
+      <div class="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
+        
+        <!-- LEFT COLUMN: Code Viewer/Editor & Design-Taste Checklist -->
+        <div class="xl:col-span-5 space-y-4">
+          <!-- Code Viewer / Editor Card -->
+          <div class="card-surface p-4 rounded-2xl border border-[var(--border)] space-y-2.5">
+            <div class="flex items-center justify-between">
+              <label for="seCodeEditor" class="text-xs font-bold flex items-center gap-1.5">
+                <span>📄</span> <span>Landing Page Source (HTML &amp; Tailwind CSS)</span>
+              </label>
+              <span class="text-[10px] mono text-[var(--text-faint)]">Editable in real-time</span>
+            </div>
+            <textarea id="seCodeEditor" spellcheck="false" class="w-full h-80 font-mono text-[11px] leading-relaxed p-3 rounded-xl bg-slate-950 text-slate-100 border border-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-y" placeholder="<!-- HTML/Tailwind landing page code will appear here -->"></textarea>
+          </div>
+
+          <!-- Design-Taste Quality Checklist Container -->
+          <div class="card-surface p-4 rounded-2xl border border-[var(--border)] space-y-3">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-xs font-bold flex items-center gap-1.5">
+                  <span>✨</span> <span>Design-Taste Quality Checklist</span>
+                </h3>
+                <p class="text-[10px] text-[var(--text-soft)]">Leonxlnx anti-slop standards &amp; WCAG AA compliance</p>
+              </div>
+              <span id="seTasteScoreBadge" class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/15 text-emerald-600 border border-emerald-500/30">
+                8/8 Passed (100%)
+              </span>
+            </div>
+            <div id="seTasteChecklist" class="space-y-1.5 text-xs">
+              <!-- Dynamically rendered taste checklist items -->
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT COLUMN: Responsive Multi-Device Sandbox Iframe Viewport -->
+        <div class="xl:col-span-7">
+          <div id="sePreviewContainer" class="card-surface p-4 rounded-2xl border border-[var(--border)] flex flex-col items-center justify-start bg-slate-100/70 dark:bg-slate-950/70 overflow-hidden min-h-[720px]">
+            <div id="seIframeWrapper" class="transition-all duration-300 mx-auto shadow-xl rounded-xl overflow-hidden bg-white border border-slate-300 dark:border-slate-800" style="width: 100%; max-width: 1280px; height: 700px;">
+              <iframe id="sePreviewIframe" sandbox="allow-scripts allow-same-origin" class="w-full h-full border-0 bg-white" title="Responsive Landing Page Preview Sandbox"></iframe>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Scoped Software Engineering Tasks -->
+      <section id="seProjectsTasksSection" class="card-surface p-5 rounded-2xl border border-[var(--border)] space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-sm font-extrabold">Software Engineering Projects &amp; Tasks</h2>
+              <span id="seTasksCountBadge" class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-indigo-500/15 text-indigo-500 border border-indigo-500/30">0</span>
+            </div>
+            <p class="text-[11px] text-[var(--text-soft)] mt-0.5">Tasks scoped strictly to Software Engineering (Landing Pages, Conversion Funnels, Clean HTML/Tailwind).</p>
+          </div>
+          <button onclick="openCreateTaskModal('engineering')" class="btn-primary text-xs px-3.5 py-1.5 font-bold flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-500">
+            <span>+</span> <span>New Engineering Task</span>
+          </button>
+        </div>
+        <div id="seProjectsTasksContainer" class="space-y-2"></div>
+      </section>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- VIEW: EXECUTIVE REPORTING (MASTER-REPORTING-AGENT)                     -->
+    <!-- ===================================================================== -->
+    <div id="view-executive-reporting" class="hidden space-y-5">
+      <!-- Header Banner -->
+      <section class="card-surface p-5 rounded-2xl border border-[var(--border)]">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">Capability 05</span>
+              <h1 class="text-lg font-extrabold tracking-tight">Executive Reporting &amp; Quality Verification</h1>
+            </div>
+            <p class="text-xs text-[var(--text-soft)]">
+              Powered by Master Reporting Agent (master-reporting-agent). Synthesizes executive Admin Reports, verifies deliverables against harness ground truth, and manages human sign-off gates.
+            </p>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="exportCurrentExecutiveReport()" class="btn-primary text-xs px-3.5 py-1.5 font-bold flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500">
+              <span>⬇️</span> <span>Export Admin Report (.md)</span>
+            </button>
+            <button onclick="openCreateTaskModal('reporting')" class="btn-outline text-xs px-3 py-1.5 font-bold flex items-center gap-1.5">
+              <span>+</span> <span>New Reporting Task</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Quality Verification & Audit Status Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="card-surface p-4 rounded-xl border border-[var(--border)] space-y-1">
+          <div class="text-[10px] font-bold text-[var(--text-soft)] uppercase tracking-wider">Overall Verdict</div>
+          <div class="flex items-center justify-between pt-1">
+            <span id="erVerdictBadge" class="text-sm font-black text-slate-500 dark:text-slate-400">Awaiting Execution</span>
+            <span id="erVerdictDot" class="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
+          </div>
+        </div>
+        <div class="card-surface p-4 rounded-xl border border-[var(--border)] space-y-1">
+          <div class="text-[10px] font-bold text-[var(--text-soft)] uppercase tracking-wider">Grounded in Harness</div>
+          <div class="flex items-center justify-between pt-1">
+            <span id="erCheckGrounded" class="text-sm font-bold text-[var(--text)]">Pending Verification (0%)</span>
+            <span id="erGroundingScore" class="text-xs font-mono text-slate-500 font-bold">0%</span>
+          </div>
+        </div>
+        <div class="card-surface p-4 rounded-xl border border-[var(--border)] space-y-1">
+          <div class="text-[10px] font-bold text-[var(--text-soft)] uppercase tracking-wider">Usable by Team</div>
+          <div class="flex items-center justify-between pt-1">
+            <span id="erCheckUsable" class="text-sm font-bold text-[var(--text)]">Awaiting Tasks (No)</span>
+            <span id="erUsableScore" class="text-xs font-mono text-slate-500 font-bold">No</span>
+          </div>
+        </div>
+        <div class="card-surface p-4 rounded-xl border border-[var(--border)] space-y-1">
+          <div class="text-[10px] font-bold text-[var(--text-soft)] uppercase tracking-wider">Sellable / High Value</div>
+          <div class="flex items-center justify-between pt-1">
+            <span id="erCheckSellable" class="text-sm font-bold text-[var(--text)]">Pending Deliverables (0%)</span>
+            <span id="erQualityScore" class="text-xs font-mono text-slate-500 font-bold">0%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Markdown Admin Report Viewer -->
+      <section class="card-surface p-5 rounded-2xl border border-[var(--border)] space-y-3">
+        <div class="flex items-center justify-between border-b border-[var(--border)] pb-3">
+          <div class="flex items-center gap-2">
+            <span class="text-base">📋</span>
+            <h2 class="text-sm font-extrabold">Executive Admin Report (# Admin Report)</h2>
+          </div>
+          <div class="flex items-center gap-2">
+            <button onclick="copyExecutiveReportMarkdown()" class="btn-outline text-xs px-2.5 py-1">📋 Copy Markdown</button>
+            <button onclick="refreshExecutiveReport()" class="btn-outline text-xs px-2.5 py-1">↻ Refresh</button>
+          </div>
+        </div>
+        <div id="erReportViewer" class="p-4 rounded-xl border border-[var(--border)] bg-[var(--surface-2)] text-xs font-mono space-y-3 whitespace-pre-wrap max-h-[480px] overflow-y-auto leading-relaxed select-text">
+          Loading executive report markdown...
+        </div>
+      </section>
+
+      <!-- Scoped Reporting Tasks -->
+      <section id="reportingProjectsTasksSection" class="card-surface p-5 rounded-2xl border border-[var(--border)] space-y-4">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="text-sm font-extrabold">Executive Reporting Tasks</h2>
+              <span id="reportingTasksCountBadge" class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-emerald-500/15 text-emerald-600 border border-emerald-500/30">0</span>
+            </div>
+            <p class="text-[11px] text-[var(--text-soft)] mt-0.5">Tasks synthesizing reports, conducting audits, and archiving campaign deliverables.</p>
+          </div>
+          <button onclick="openCreateTaskModal('reporting')" class="btn-primary text-xs px-3.5 py-1.5 font-bold flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500">
+            <span>+</span> <span>New Reporting Task</span>
+          </button>
+        </div>
+        <div id="reportingProjectsTasksContainer" class="space-y-2"></div>
+      </section>
     </div>
 
     <!-- ===================================================================== -->
@@ -1991,7 +2310,7 @@
           </div>
         </div>
 
-        <!-- Master SVG & Lead Logos Asset Suite Toolbar (138 Leads & Clinics) -->
+        <!-- Master SVG & Lead Logos Asset Suite Toolbar -->
         <div class="card-subtle p-4.5 rounded-2xl border border-teal-500/30 bg-gradient-to-r from-teal-500/10 via-indigo-500/5 to-[var(--surface-2)] flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs">
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-2xl bg-teal-500/15 border border-teal-500/30 text-teal-600 dark:text-teal-300 flex items-center justify-center text-xl shrink-0 shadow-xs">
@@ -1999,15 +2318,15 @@
             </div>
             <div>
               <div class="flex items-center gap-2">
-                <span class="text-xs font-black text-[var(--text)] tracking-tight">Verified Lead Brand Assets &amp; Logos (138 Clinics)</span>
+                <span class="text-xs font-black text-[var(--text)] tracking-tight">Verified Lead Brand Assets &amp; Logos (<span id="ragLogosCountText">Lead Assets</span>)</span>
                 <span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-teal-500/20 text-teal-700 dark:text-teal-300 border border-teal-500/30">Grounding Assets</span>
               </div>
-              <p class="text-[11px] text-[var(--text-soft)] mt-0.5">High-resolution vector assets for all 138 clinic leads, structured for dual-branded campaign personalization and RAG injection.</p>
+              <p class="text-[11px] text-[var(--text-soft)] mt-0.5">High-resolution vector assets for verified clinic leads, structured for dual-branded campaign personalization and RAG injection.</p>
             </div>
           </div>
           <div class="flex flex-wrap items-center gap-2 shrink-0">
             <button onclick="downloadMasterSvg()" id="btnDownloadMasterSvgRag" class="btn-primary text-xs px-3.5 py-2 font-bold flex items-center gap-1.5 shadow-sm bg-teal-600 hover:bg-teal-500">
-              <span>⬇️</span> <span>Download Master SVG (138 Logos)</span>
+              <span>⬇️</span> <span>Download Master SVG</span>
             </button>
             <button onclick="downloadAllSvgsZip()" id="btnDownloadZipRag" class="btn-outline text-xs px-3.5 py-2 font-bold flex items-center gap-1.5 border-teal-500/40 text-teal-700 dark:text-teal-300 hover:bg-teal-500/10">
               <span>📦</span> <span>Download All SVGs (.ZIP)</span>
@@ -2311,9 +2630,9 @@
           </div>
           <div class="flex items-center gap-2 text-xs">
             <span class="text-[var(--text-soft)]">Filter:</span>
-            <button onclick="filterLlmProviders('all')" id="llmFilter-all" class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-indigo-500 text-white">All (6)</button>
+            <button onclick="filterLlmProviders('all')" id="llmFilter-all" class="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-indigo-500 text-white">All (7)</button>
             <button onclick="filterLlmProviders('local')" id="llmFilter-local" class="px-2.5 py-1 rounded-full text-[11px] font-semibold card-subtle hover:bg-slate-200">Local (3)</button>
-            <button onclick="filterLlmProviders('cloud_api')" id="llmFilter-cloud_api" class="px-2.5 py-1 rounded-full text-[11px] font-semibold card-subtle hover:bg-slate-200">Cloud (3)</button>
+            <button onclick="filterLlmProviders('cloud_api')" id="llmFilter-cloud_api" class="px-2.5 py-1 rounded-full text-[11px] font-semibold card-subtle hover:bg-slate-200">Cloud (4)</button>
           </div>
         </div>
 
@@ -2511,9 +2830,12 @@
           <div>
             <label class="block text-[11px] font-medium text-[var(--text-soft)] mb-1">Department</label>
             <select id="modalTaskDepartment" class="input-field" onchange="onModalDepartmentChange()">
-              <option value="research">Research</option>
-              <option value="sales">Sales & CRM</option>
+              <option value="coordination">Workflow Coordination</option>
+              <option value="research">Browser Research</option>
+              <option value="engineering">Software Engineering</option>
               <option value="creative">Creative Studio</option>
+              <option value="reporting">Executive Reporting</option>
+              <option value="sales">Sales &amp; CRM</option>
             </select>
           </div>
         </div>
@@ -3212,7 +3534,7 @@ agent = Agent(config)</pre>
   </div>
 
   <!-- ======================================================================= -->
-  <!-- MODAL: MASTER VECTOR SVG SHOWCASE (138 CLINIC LOGOS)                   -->
+  <!-- MODAL: MASTER VECTOR SVG SHOWCASE (LEAD LOGOS)                          -->
   <!-- ======================================================================= -->
   <div id="svgShowcaseModal" class="hidden fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center p-3 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="svgShowcaseModalTitle">
     <div class="card-surface w-full max-w-5xl max-h-[92vh] flex flex-col overflow-hidden shadow-2xl border border-[var(--border-strong)]">
@@ -3222,7 +3544,7 @@ agent = Agent(config)</pre>
           <div>
             <h3 id="svgShowcaseModalTitle" class="text-sm font-extrabold flex items-center gap-2">
               <span>Master SVG Showcase</span>
-              <span class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-teal-500/15 text-teal-700 dark:text-teal-300 border border-teal-500/30">138 Verified Clinic Logos</span>
+              <span id="modalSvgCountBadge" class="text-[10px] px-2 py-0.5 rounded-full font-bold bg-teal-500/15 text-teal-700 dark:text-teal-300 border border-teal-500/30">Verified Clinic Logos</span>
             </h3>
             <p class="text-[11px] text-[var(--text-soft)]">High-resolution vector grid featuring all dental clinics, ratings, and CDCP verified status.</p>
           </div>
@@ -3258,7 +3580,7 @@ agent = Agent(config)</pre>
       a.click();
       document.body.removeChild(a);
       if (typeof showToast === 'function') {
-        showToast('Downloading Master SVG (138 Lead Logos)...');
+        showToast('Downloading Master SVG...');
       }
     }
 
@@ -3271,7 +3593,7 @@ agent = Agent(config)</pre>
       a.click();
       document.body.removeChild(a);
       if (typeof showToast === 'function') {
-        showToast('Downloading Lead Logos ZIP archive (138 SVGs)...');
+        showToast('Downloading Lead Logos ZIP archive...');
       }
     }
 
