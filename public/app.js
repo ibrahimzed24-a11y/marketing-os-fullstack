@@ -942,9 +942,11 @@ async function submitLoginForm() {
       if (errEl) errEl.classList.add('hidden');
       closeAuthModal();
       showToast(`Welcome back, ${data.user.name} (${data.user.role.toUpperCase()})`);
-      await syncFromBackend();
+      // Show the landing view immediately; sync live data in the background so a
+      // slow cold backend never leaves a stale view on screen after login.
       saveState();
       renderAll();
+      syncFromBackend().then(() => { saveState(); renderAll(); });
     } else {
       if (errEl) {
         errEl.textContent = data.error || 'Invalid work email or password.';
