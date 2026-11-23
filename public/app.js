@@ -9889,13 +9889,18 @@ function renderAllocatedResearchTools() {
         </div>
 
         <div class="pt-0.5 flex items-center justify-between text-[9px]">
-          <span class="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold">
+          <span id="mrToolStatusBadge_${tool.key}" class="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold truncate">
             <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-            ${escapeHtml(statusText)}
+            <span class="mr-status-label">${escapeHtml(statusText)}</span>
           </span>
-          <span class="font-mono text-slate-500 truncate max-w-[110px]" title="${escapeHtml(accountUser)}">
-            ${escapeHtml(accountUser)}
-          </span>
+          <div class="flex items-center gap-1.5">
+            <button type="button" id="btnPing_${tool.key}" onclick="verifySingleResearchTool('${tool.key}')" class="text-[9px] px-1.5 py-0.5 rounded border border-slate-300 dark:border-slate-700 hover:border-teal-500 hover:text-teal-600 dark:hover:text-teal-400 font-medium cursor-pointer" title="Ping ${escapeHtml(tool.name)} reachability">
+              Ping
+            </button>
+            <span class="font-mono text-slate-500 truncate max-w-[80px]" title="${escapeHtml(accountUser)}">
+              ${escapeHtml(accountUser)}
+            </span>
+          </div>
         </div>
       </div>
     `;
@@ -9907,6 +9912,98 @@ function renderAllocatedResearchTools() {
   if (operatorBadge) {
     const firstAlloc = logins.find(l => l.id === state.allocatedResearchLogins?.google_search_console) || logins[0];
     if (firstAlloc) operatorBadge.textContent = firstAlloc.username;
+  }
+}
+
+async function verifySingleResearchTool(toolKey) {
+  const tool = RESEARCH_TOOL_SPECS.find(t => t.key === toolKey);
+  if (!tool) return null;
+
+  const logins = state.savedLogins || [];
+  let assignedId = state.allocatedResearchLogins?.[toolKey];
+  let matchedLogin = logins.find(l => l.id === assignedId || l.slug === assignedId);
+  if (!matchedLogin) matchedLogin = logins.find(l => l.slug === tool.defaultSlug);
+  if (!matchedLogin) matchedLogin = logins[0];
+
+  const targetIdentifier = matchedLogin?.id || tool.defaultSlug;
+  const badge = document.getElementById(`mrToolStatusBadge_${toolKey}`);
+  const pingBtn = document.getElementById(`btnPing_${toolKey}`);
+
+  if (badge) {
+    badge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-ping"></span><span class="text-amber-600 dark:text-amber-400">Pinging...</span>`;
+  }
+  if (pingBtn) {
+    pingBtn.disabled = true;
+    pingBtn.textContent = '...';
+  }
+
+  try {
+    const res = await fetch(`/api/saved-logins/${encodeURIComponent(targetIdentifier)}/test`, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + authToken,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const data = await res.json();
+    if (pingBtn) {
+      pingBtn.disabled = false;
+      pingBtn.textContent = 'Ping';
+    }
+
+    if (badge) {
+      if (data.ok) {
+        badge.innerHTML = `
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+          <span class="text-emerald-600 dark:text-emerald-400 font-bold">✓ 200 OK (${data.latency_ms}ms)</span>
+        `;
+      } else {
+        badge.innerHTML = `
+          <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+          <span class="text-amber-600 dark:text-amber-400 font-bold">${escapeHtml(data.message || 'Offline')} (${data.latency_ms}ms)</span>
+        `;
+      }
+    }
+    return data;
+  } catch (err) {
+    if (pingBtn) {
+      pingBtn.disabled = false;
+      pingBtn.textContent = 'Ping';
+    }
+    if (badge) {
+      badge.innerHTML = `
+        <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+        <span class="text-rose-600 dark:text-rose-400 font-bold">Failed (${escapeHtml(err.message)})</span>
+      `;
+    }
+    return { ok: false, error: err.message };
+  }
+}
+
+async function verifyAllResearchTools() {
+  const btn = document.getElementById('btnVerifyAllResearchTools');
+  const icon = document.getElementById('btnVerifyAllResearchToolsIcon');
+
+  if (btn) btn.disabled = true;
+  if (icon) icon.textContent = '⏳';
+
+  showToast('Pinging all 5 allocated research tools...');
+
+  const results = await Promise.allSettled(RESEARCH_TOOL_SPECS.map(t => verifySingleResearchTool(t.key)));
+
+  if (btn) btn.disabled = false;
+  if (icon) icon.textContent = '⚡';
+
+  const successful = results.filter(r => r.status === 'fulfilled' && r.value?.ok);
+  const latencies = successful.map(r => r.value.latency_ms).filter(n => typeof n === 'number');
+  const minLatency = latencies.length ? Math.min(...latencies) : 0;
+  const maxLatency = latencies.length ? Math.max(...latencies) : 0;
+
+  if (successful.length === RESEARCH_TOOL_SPECS.length) {
+    showToast(`✓ All 5 research tools verified reachable (${minLatency}-${maxLatency}ms)`);
+  } else {
+    showToast(`Verified ${successful.length}/${RESEARCH_TOOL_SPECS.length} research tools.`);
   }
 }
 

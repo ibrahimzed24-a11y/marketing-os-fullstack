@@ -3001,7 +3001,7 @@ app.delete('/api/saved-logins/:id', authMiddleware, requireRole('super_admin', '
 }));
 
 app.post('/api/saved-logins/:id/test', authMiddleware, requireRole('super_admin', 'admin', 'manager', 'member'), asyncHandler(async (req, res) => {
-  const row = db.prepare('SELECT id, website_url FROM saved_logins WHERE id = ?').get(req.params.id);
+  const row = db.prepare('SELECT id, slug, name, website_url FROM saved_logins WHERE id = ? OR slug = ?').get(req.params.id, req.params.id);
   if (!row) return res.status(404).json({ error: 'Tool login not found' });
 
   const start = Date.now();
@@ -3012,11 +3012,17 @@ app.post('/api/saved-logins/:id/test', authMiddleware, requireRole('super_admin'
   try {
     const ctrl = new AbortController();
     const timeout = setTimeout(() => ctrl.abort(), 4000);
-    const resp = await fetch(row.website_url, { method: 'GET', signal: ctrl.signal });
+    const resp = await fetch(row.website_url, {
+      method: 'GET',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      },
+      signal: ctrl.signal
+    });
     clearTimeout(timeout);
     reachable = resp.status < 500;
     httpStatus = resp.status;
-    statusMessage = `HTTP ${resp.status} ${resp.statusText}`;
+    statusMessage = `HTTP ${resp.status} ${resp.statusText || 'OK'}`;
   } catch (err) {
     reachable = false;
     statusMessage = err.message;
@@ -3029,6 +3035,9 @@ app.post('/api/saved-logins/:id/test', authMiddleware, requireRole('super_admin'
 
   res.json({
     ok: reachable,
+    login_id: row.id,
+    slug: row.slug,
+    name: row.name,
     status: newStatus,
     latency_ms: latency,
     http_status: httpStatus,

@@ -6,7 +6,7 @@
 
 const { describe, it, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { setupE2EServer, loginAs, assertNoSlop } = require('./harness');
+const { setupE2EServer, loginAs, launchBrowser, assertNoSlop } = require('./harness');
 
 describe('Tier 6: 5-Tool Deep Market Research Engine for Any Business Idea', () => {
   let server;
