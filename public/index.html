@@ -3506,19 +3506,11 @@
         <div class="grid sm:grid-cols-2 gap-3">
           <div>
             <label class="block text-[11px] font-medium text-[var(--text-soft)] mb-1">Marketing Pipeline</label>
-            <select id="modalTaskPipeline" class="input-field">
-              <option value="offer-campaign" selected>Offer / Proposal Campaign</option>
-              <option value="whatsapp-campaign">WhatsApp Message Campaign</option>
-              <option value="email-campaign">Email Campaign</option>
-            </select>
+            <select id="modalTaskPipeline" class="input-field" onchange="onModalPipelineChange()"></select>
           </div>
           <div>
             <label class="block text-[11px] font-medium text-[var(--text-soft)] mb-1">Assign To Team Member</label>
-            <select id="modalTaskAssignee" class="input-field">
-              <option value="u-member">Omar Member (Content/Growth)</option>
-              <option value="u-manager">Sara Manager (Growth Lead)</option>
-              <option value="u-admin">Ibrahim Zid (Super Admin)</option>
-            </select>
+            <select id="modalTaskAssignee" class="input-field"></select>
           </div>
         </div>
         <div>
@@ -3532,6 +3524,10 @@
         <div>
           <label class="block text-[11px] font-medium text-[var(--text-soft)] mb-1">Task Knowledge Base & Grounding Context</label>
           <textarea id="modalTaskKnowledge" rows="2" class="input-field" placeholder="Attach task-specific knowledge notes, customer persona details, pricing rules, or custom instructions to ground the agent..."></textarea>
+        </div>
+        <div>
+          <label class="block text-[11px] font-medium text-[var(--text-soft)] mb-1">Tools Linked To This Task <span class="text-[var(--text-faint)]">(at least one required — the agent uses these to produce real results)</span></label>
+          <div id="modalTaskTools" class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-36 overflow-y-auto p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg-soft)]"></div>
         </div>
       </div>
       <div class="flex justify-end gap-2 pt-2">
@@ -4183,6 +4179,10 @@ agent = Agent(config)</pre>
             <option value="normal" selected>Normal Priority</option>
             <option value="urgent">Urgent Priority (Immediate Queue)</option>
           </select>
+        </div>
+        <div>
+          <label class="block font-bold mb-1">Tools Linked To This Task <span class="text-[var(--text-faint)] font-normal">(at least one required)</span></label>
+          <div id="dispatchModalTools" class="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-36 overflow-y-auto p-2.5 rounded-lg border border-[var(--border)] bg-[var(--bg-soft)]"></div>
         </div>
       </div>
 
