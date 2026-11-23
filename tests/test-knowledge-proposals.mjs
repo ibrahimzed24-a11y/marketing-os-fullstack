@@ -13,7 +13,7 @@ async function main() {
   const healthRes = await fetch(`${BASE}/api/health`);
   assert.strictEqual(healthRes.status, 200, 'Health check should be 200 OK');
 
-  const user = db.prepare("SELECT * FROM users WHERE email = 'ibrahim.zed24@gmail.com'").get();
+  const user = db.prepare("SELECT * FROM users WHERE email = 'owner@example.com'").get();
   assert.ok(user, 'Super admin user must exist');
   const token = signToken(user);
   assert.ok(token, 'JWT token should be generated');

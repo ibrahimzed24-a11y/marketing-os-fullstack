@@ -905,7 +905,7 @@ async function submitLoginForm() {
   const errEl = document.getElementById('authErrorMessage');
 
   const email = emailInput?.value?.trim();
-  const password = passInput?.value?.trim();
+  const password = passInput?.value ?? ''; // never trim passwords: leading/trailing spaces are valid
 
   if (!email || !password) {
     if (errEl) {
@@ -9737,7 +9737,7 @@ function renderAllocatedResearchTools() {
     }
 
     const currentLoginId = matchedLogin?.id || '';
-    const accountUser = matchedLogin?.username || 'ibrahim.zed24@gmail.com';
+    const accountUser = matchedLogin?.username || 'owner@example.com';
     const statusText = matchedLogin?.status || 'connected';
 
     html += `
@@ -10273,7 +10273,7 @@ function renderDeepResearchReport(report) {
           </div>
           <div class="flex items-center gap-2">
             <span class="text-[11px] text-[var(--text-soft)]">Operator Profile:</span>
-            <span class="font-mono text-[11px] font-bold text-teal-600 dark:text-teal-400 bg-[var(--surface)] px-2 py-0.5 rounded border border-[var(--border)]">${escapeHtml(navLog.operator_account || 'ibrahim.zed24@gmail.com')}</span>
+            <span class="font-mono text-[11px] font-bold text-teal-600 dark:text-teal-400 bg-[var(--surface)] px-2 py-0.5 rounded border border-[var(--border)]">${escapeHtml(navLog.operator_account || 'owner@example.com')}</span>
           </div>
         </div>
 

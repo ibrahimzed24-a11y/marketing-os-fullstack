@@ -150,11 +150,11 @@ describe('Tier 6: 5-Tool Deep Market Research Engine for Any Business Idea', () 
         competitors: ['genericbuilder.com', 'legacyagencies.com'],
         tools_assigned: ['google_search_console', 'keyword_planner', 'tag_manager', 'seo_engine', 'geo_matrix'],
         allocated_logins: {
-          google_search_console: { slug: 'google-search-console', name: 'Google Search Console', username: 'ibrahim.zed24@gmail.com', website_url: 'https://search.google.com/search-console' },
-          keyword_planner: { slug: 'google-keyword-planner', name: 'Google Ads Keyword Planner', username: 'ibrahim.zed24@gmail.com', website_url: 'https://ads.google.com/aw/keywordplanner' },
-          tag_manager: { slug: 'google-tag-manager', name: 'Google Tag Manager', username: 'ibrahim.zed24@gmail.com', website_url: 'https://tagmanager.google.com' },
+          google_search_console: { slug: 'google-search-console', name: 'Google Search Console', username: 'owner@example.com', website_url: 'https://search.google.com/search-console' },
+          keyword_planner: { slug: 'google-keyword-planner', name: 'Google Ads Keyword Planner', username: 'owner@example.com', website_url: 'https://ads.google.com/aw/keywordplanner' },
+          tag_manager: { slug: 'google-tag-manager', name: 'Google Tag Manager', username: 'owner@example.com', website_url: 'https://tagmanager.google.com' },
           seo_engine: { slug: 'ahrefs-suite', name: 'Ahrefs All-in-One SEO Suite', username: 'seo-lead@valioz.com', website_url: 'https://app.ahrefs.com' },
-          geo_matrix: { slug: 'google-business-profile', name: 'Google Business Profile Manager', username: 'ibrahim.zed24@gmail.com', website_url: 'https://business.google.com' }
+          geo_matrix: { slug: 'google-business-profile', name: 'Google Business Profile Manager', username: 'owner@example.com', website_url: 'https://business.google.com' }
         }
       })
     });
@@ -168,7 +168,7 @@ describe('Tier 6: 5-Tool Deep Market Research Engine for Any Business Idea', () 
     const out = data.output;
     assert.ok(out.browser_navigation_log, 'Must contain browser navigation log');
     assert.strictEqual(out.browser_navigation_log.status, 'authenticated_navigation_completed');
-    assert.strictEqual(out.browser_navigation_log.operator_account, 'ibrahim.zed24@gmail.com');
+    assert.strictEqual(out.browser_navigation_log.operator_account, 'owner@example.com');
     assert.strictEqual(out.browser_navigation_log.authenticated_tools_count, 5);
     assert.strictEqual(out.browser_navigation_log.navigation_trail.length, 5);
 
@@ -182,7 +182,7 @@ describe('Tier 6: 5-Tool Deep Market Research Engine for Any Business Idea', () 
 
     // Verify Markdown report contains Section 6 with authenticated browser navigation
     assert.ok(data.report_md.includes('Authenticated Browser Use Agent Navigation & Real Data Telemetry'));
-    assert.ok(data.report_md.includes('ibrahim.zed24@gmail.com'));
+    assert.ok(data.report_md.includes('owner@example.com'));
     assert.ok(data.report_md.includes('https://search.google.com/search-console'));
     assert.ok(data.report_md.includes('https://tagmanager.google.com'));
     assert.ok(data.report_md.includes('**Verdict:** Ready to Deliver'));

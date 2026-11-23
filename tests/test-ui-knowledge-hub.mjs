@@ -12,7 +12,7 @@ async function run() {
   const context = await browser.newContext();
   const page = await context.newPage();
 
-  const user = db.prepare("SELECT * FROM users WHERE email = 'ibrahim.zed24@gmail.com'").get();
+  const user = db.prepare("SELECT * FROM users WHERE email = 'owner@example.com'").get();
   const token = signToken(user);
 
   const errors = [];

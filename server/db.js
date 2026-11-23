@@ -849,7 +849,7 @@ try {
       if (!existingGtm) {
         db.prepare(`
           INSERT INTO saved_logins (id, name, slug, category, website_url, username, password, api_key, notes, status, is_active, metadata, updated_at)
-          VALUES ('gtm-session-01', 'Google Tag Manager', 'google-tag-manager', 'Analytics & Measurement', 'https://tagmanager.google.com', 'ibrahim.zed24@gmail.com', '', null, 'Container tag management, server-side conversion telemetry, GA4 event triggers, and pixel health audits.', 'connected', 1, '{"container_id":"GTM-V589K2L","environment":"Live"}', CURRENT_TIMESTAMP)
+          VALUES ('gtm-session-01', 'Google Tag Manager', 'google-tag-manager', 'Analytics & Measurement', 'https://tagmanager.google.com', 'owner@example.com', '', null, 'Container tag management, server-side conversion telemetry, GA4 event triggers, and pixel health audits.', 'connected', 1, '{"container_id":"GTM-V589K2L","environment":"Live"}', CURRENT_TIMESTAMP)
         `).run();
       }
     } catch (_) {}

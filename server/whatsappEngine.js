@@ -84,8 +84,7 @@ function parseCsv(filePath) {
 function loadClinicIntelligence(uploadsDir) {
   const candidatePaths = [
     path.join(uploadsDir || '', 'Clinic Intelligence (138 leads, scored and verified).csv'),
-    path.join(process.cwd(), 'uploads', 'Clinic Intelligence (138 leads, scored and verified).csv'),
-    '/Users/ibrahimzid/Desktop/Clinic Intelligence (138 leads, scored and verified).csv'
+    path.join(process.cwd(), 'uploads', 'Clinic Intelligence (138 leads, scored and verified).csv')
   ];
 
   for (const p of candidatePaths) {

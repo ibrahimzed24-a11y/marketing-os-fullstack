@@ -46,8 +46,8 @@ All workflow definitions reside under `n8n-workflows/` and can be imported direc
 ### 2.1 Daily Marketing OS Automated Verification Job
 - **Configuration File:** `~/.gemini/config/sidecars/daily-marketing-os-test/sidecar.json`
 - **Schedule:** `CRON_TZ=Africa/Cairo 0 9 * * *` (Every morning at 09:00 AM)
-- **Target Command:** `bash "/Users/ibrahimzid/Desktop/Marketing Os /test-flow.sh"`
-- **Log File:** `/Users/ibrahimzid/Desktop/Marketing Os /test-flow.log`
+- **Target Command:** `bash "~/Desktop/Marketing Os /test-flow.sh"`
+- **Log File:** `~/Desktop/Marketing Os /test-flow.log`
 - **Restart Policy:** `always`
 - **Permissions:** Full read/write within workspace.
 - **Purpose:** Executes automated health, RBAC, and pipeline validation every morning to guarantee system operational readiness before business hours.

@@ -44,7 +44,7 @@ ANTIGRAVITY_WORKSPACE=./antigravity
 
 ### 3.2 Installation
 ```bash
-cd "/Users/ibrahimzid/Desktop/Marketing Os "
+cd "~/Desktop/Marketing Os "
 npm install
 ```
 
