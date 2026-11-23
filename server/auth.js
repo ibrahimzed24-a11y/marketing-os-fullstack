@@ -36,7 +36,15 @@ function authMiddleware(req, res, next) {
   const token = h.startsWith('Bearer ') ? h.slice(7) : null;
   if (token) {
     try {
-      req.user = jwt.verify(token, JWT_SECRET);
+      const payload = jwt.verify(token, JWT_SECRET);
+      // Reject tokens whose account has since been suspended or is still pending approval.
+      try {
+        const u = db.prepare('SELECT status FROM users WHERE id=?').get(payload.id);
+        if (u && u.status && u.status !== 'active') {
+          return res.status(403).json({ error: u.status === 'pending' ? 'Account awaiting administrator approval.' : 'Account suspended.' });
+        }
+      } catch (_) {}
+      req.user = payload;
       return next();
     } catch (e) {
       // Token expired or invalid, check fallback

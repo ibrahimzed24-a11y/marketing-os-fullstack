@@ -1024,6 +1024,9 @@ try {
   const turso = require('./turso');
   if (turso.isConfigured()) {
     const origPrepare = db.prepare.bind(db);
+    // Exposed for critical writes that must bypass the fire-and-forget mirror
+    // and await the cloud write explicitly (auth, registration, project creation).
+    db.__origPrepare = origPrepare;
     db.prepare = function(sql) {
       const stmt = origPrepare(sql);
       const origRun = stmt.run.bind(stmt);

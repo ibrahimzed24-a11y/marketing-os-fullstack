@@ -23,6 +23,24 @@ const { v4: uuidv4 } = require('uuid');
 
 const db = require('./db');
 const turso = require('./turso');
+
+// Run a write locally WITHOUT the fire-and-forget mirror, then await the Turso
+// cloud write explicitly. If the cloud write fails, run the rollback and throw a
+// 503 so the caller can surface the failure instead of silently losing the record
+// on the next hydration (this is what caused lost records and stale credentials).
+async function runCritical(sql, args = [], rollback = null) {
+  const localPrepare = db.__origPrepare || db.prepare.bind(db);
+  localPrepare(sql).run(...args);
+  if (db.__origPrepare && turso.isConfigured()) {
+    const r = await turso.mirrorWrite(sql, args);
+    if (!r.ok) {
+      if (rollback) { try { rollback(localPrepare); } catch (_) {} }
+      const err = new Error('Could not save to the cloud database. Nothing was stored - please try again. (' + r.error + ')');
+      err.status = 503;
+      throw err;
+    }
+  }
+}
 const { signToken, authMiddleware, requireRole, hashPassword, verifyPassword } = require('./auth');
 const { triggerN8n } = require('./n8n');
 const { executeAgentTask, researchAgent, salesAgent, creativeDirectorAgent } = require('./agentFramework');
@@ -281,29 +299,51 @@ app.get('/api/health', (req, res) => {
 // AUTHENTICATION & USERS (Module 01 / Platform)
 // =============================================================================
 app.post('/api/auth/register', asyncHandler(async (req, res) => {
-  const { name, email, password, role = 'member' } = req.body;
+  const { name, email, password, bootstrapKey } = req.body;
   if (!name || !email || !password) {
     return res.status(400).json({ error: 'name, email, password required' });
   }
+  if (String(password).length < 8) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters long' });
+  }
 
+  const cleanName = String(name).trim();
   const cleanEmail = email.trim().toLowerCase();
+  const existing = db.prepare('SELECT id FROM users WHERE email=?').get(cleanEmail);
+  if (existing) return res.status(400).json({ error: 'An account with this email already exists. Try signing in.' });
+
   const count = db.prepare('SELECT COUNT(*) as c FROM users').get().c;
+
+  // One-time workspace bootstrap: when the owner sets BOOTSTRAP_ADMIN_EMAIL and
+  // BOOTSTRAP_ADMIN_KEY in the deployment environment, the matching registration
+  // is promoted to an active super_admin. Remove both env vars after use.
+  const bootEmail = (process.env.BOOTSTRAP_ADMIN_EMAIL || '').trim().toLowerCase();
+  const bootKey = (process.env.BOOTSTRAP_ADMIN_KEY || '').trim();
+  const isBootstrap = bootEmail && bootKey && cleanEmail === bootEmail && String(bootstrapKey || '') === bootKey;
+
   let finalRole = 'member';
-  if (count === 0) finalRole = 'super_admin';
-  else if (['admin', 'manager', 'member', 'client'].includes(role) && req.headers['x-admin-setup'] === 'allow') {
-    finalRole = role;
+  let finalStatus = 'pending';
+  if (count === 0 || isBootstrap) {
+    finalRole = 'super_admin';
+    finalStatus = 'active';
   }
 
-  const hash = await hashPassword(password.trim());
-  try {
-    const id = uuidv4();
-    db.prepare('INSERT INTO users (id,name,email,password_hash,role) VALUES (?,?,?,?,?)')
-      .run(id, name, cleanEmail, hash, finalRole);
-    const user = { id, name, email: cleanEmail, role: finalRole };
-    res.json({ user, token: signToken(user) });
-  } catch (e) {
-    res.status(400).json({ error: 'Email already exists' });
+  const hash = await hashPassword(String(password));
+  const id = uuidv4();
+  await runCritical(
+    'INSERT INTO users (id,name,email,password_hash,role,status) VALUES (?,?,?,?,?,?)',
+    [id, cleanName, cleanEmail, hash, finalRole, finalStatus]
+  );
+
+  const user = { id, name: cleanName, email: cleanEmail, role: finalRole, status: finalStatus };
+  if (finalStatus !== 'active') {
+    return res.status(201).json({
+      pending: true,
+      user,
+      message: 'Account created. A workspace administrator must approve it before you can sign in.'
+    });
   }
+  res.json({ user, token: signToken(user) });
 }));
 
 app.post('/api/auth/login', asyncHandler(async (req, res) => {
@@ -341,6 +381,13 @@ app.post('/api/auth/login', asyncHandler(async (req, res) => {
 
   const ok = await verifyPassword(cleanPass, user.password_hash);
   if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
+
+  if (user.status === 'pending') {
+    return res.status(403).json({ error: 'Your account is awaiting approval by a workspace administrator.' });
+  }
+  if (user.status === 'suspended') {
+    return res.status(403).json({ error: 'Your account is suspended. Contact your workspace administrator.' });
+  }
 
   const safe = { id: user.id, name: user.name, email: user.email, role: user.role, department: user.department };
   res.json({ user: safe, token: signToken(safe) });
@@ -394,8 +441,13 @@ app.post('/api/users', authMiddleware, requireRole('super_admin', 'admin'), asyn
 
 app.patch('/api/users/:id', authMiddleware, requireRole('super_admin', 'admin'), asyncHandler(async (req, res) => {
   const { role, status, department } = req.body;
-  db.prepare('UPDATE users SET role=COALESCE(?,role), status=COALESCE(?,status), department=COALESCE(?,department) WHERE id=?')
-    .run(role, status, department, req.params.id);
+  const before = db.prepare('SELECT role, status, department FROM users WHERE id=?').get(req.params.id);
+  if (!before) return res.status(404).json({ error: 'User not found' });
+  await runCritical(
+    'UPDATE users SET role=COALESCE(?,role), status=COALESCE(?,status), department=COALESCE(?,department) WHERE id=?',
+    [role, status, department, req.params.id],
+    (lp) => lp('UPDATE users SET role=?, status=?, department=? WHERE id=?').run(before.role, before.status, before.department, req.params.id)
+  );
   res.json({ ok: true });
 }));
 
@@ -506,10 +558,16 @@ app.post('/api/projects', authMiddleware, requireRole('super_admin', 'admin', 'm
   const deliverablesJson = JSON.stringify(deliverableArr);
   const id = uuidv4();
 
-  db.prepare('INSERT INTO projects (id,name,client_name,goal,type,owner_id,status,department,pipelines,deliverables,knowledge_notes) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
-    .run(id, name, client_name, goal, type, req.user.id, 'draft', department, pipelinesJson, deliverablesJson, knowledge_notes);
-  db.prepare('INSERT INTO project_members (id,project_id,user_id,role_in_project) VALUES (?,?,?,?)')
-    .run(uuidv4(), id, req.user.id, 'owner');
+  await runCritical(
+    'INSERT INTO projects (id,name,client_name,goal,type,owner_id,status,department,pipelines,deliverables,knowledge_notes) VALUES (?,?,?,?,?,?,?,?,?,?,?)',
+    [id, name, client_name, goal, type, req.user.id, 'draft', department, pipelinesJson, deliverablesJson, knowledge_notes]
+  );
+  const memberId = uuidv4();
+  await runCritical(
+    'INSERT INTO project_members (id,project_id,user_id,role_in_project) VALUES (?,?,?,?)',
+    [memberId, id, req.user.id, 'owner'],
+    (lp) => { lp('DELETE FROM project_members WHERE id=?').run(memberId); lp('DELETE FROM projects WHERE id=?').run(id); }
+  );
 
   // Ingest initial project knowledge into RAG if provided
   if (knowledge_notes && knowledge_notes.trim().length > 10 && rag && typeof rag.ingestDocument === 'function') {
@@ -4141,7 +4199,12 @@ app.post('/api/auth/change-password', authMiddleware, asyncHandler(async (req, r
   if (!ok) return res.status(401).json({ error: 'Current password is incorrect' });
 
   const newHash = await hashPassword(newPassword);
-  db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(newHash, user.id);
+  const oldHash = user.password_hash;
+  await runCritical(
+    'UPDATE users SET password_hash = ? WHERE id = ?',
+    [newHash, user.id],
+    (lp) => lp('UPDATE users SET password_hash = ? WHERE id = ?').run(oldHash, user.id)
+  );
 
   res.json({ ok: true, message: 'Password successfully updated' });
 }));

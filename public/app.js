@@ -904,6 +904,95 @@ function closeAuthModal() {
   if (modal) modal.classList.add('hidden');
 }
 
+function toggleAuthMode() {
+  const loginForm = document.getElementById('authLoginForm');
+  const registerForm = document.getElementById('authRegisterForm');
+  const toggleBtn = document.getElementById('authModeToggleBtn');
+  const helpText = document.getElementById('authHelpText');
+  const errEl = document.getElementById('authErrorMessage');
+  if (errEl) {
+    errEl.classList.add('hidden');
+    errEl.classList.add('bg-red-500/10', 'border-red-500/30', 'text-red-600', 'dark:text-red-400');
+    errEl.classList.remove('bg-emerald-500/10', 'border-emerald-500/30', 'text-emerald-700');
+  }
+  const showingRegister = registerForm && !registerForm.classList.contains('hidden');
+  if (showingRegister) {
+    registerForm.classList.add('hidden');
+    if (loginForm) loginForm.classList.remove('hidden');
+    if (toggleBtn) toggleBtn.textContent = 'New here? Create an account';
+    if (helpText) helpText.textContent = 'Sign in with your authorized helm workspace credentials. Contact your workspace administrator for account provisioning or password resets.';
+  } else {
+    if (loginForm) loginForm.classList.add('hidden');
+    if (registerForm) registerForm.classList.remove('hidden');
+    if (toggleBtn) toggleBtn.textContent = 'Already have an account? Sign in';
+    if (helpText) helpText.textContent = 'New accounts stay pending until a workspace administrator approves them.';
+  }
+}
+
+async function submitRegisterForm() {
+  const nameInput = document.getElementById('registerNameInput');
+  const emailInput = document.getElementById('registerEmailInput');
+  const passInput = document.getElementById('registerPassInput');
+  const keyInput = document.getElementById('registerBootstrapKeyInput');
+  const submitBtn = document.getElementById('registerSubmitBtn');
+  const errEl = document.getElementById('authErrorMessage');
+
+  const name = nameInput?.value?.trim();
+  const email = emailInput?.value?.trim();
+  const password = passInput?.value ?? '';
+  const bootstrapKey = keyInput?.value ?? '';
+
+  if (!name || !email || !password) {
+    if (errEl) { errEl.textContent = 'Please fill in your name, work email and password.'; errEl.classList.remove('hidden'); }
+    return;
+  }
+
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Creating account...'; }
+
+  try {
+    const res = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password, bootstrapKey: bootstrapKey || undefined })
+    });
+    const data = await res.json();
+
+    if (res.ok && data.token && data.user) {
+      authToken = data.token;
+      currentUser = data.user;
+      state.currentUserRole = data.user.role;
+      state.mainView = 'workbench';
+      overviewDataCache = null;
+      approvalsDataCache = [];
+      crmPipelineCache = { leads: [], deals: [], stage_counts: {} };
+      localStorage.setItem('marketing_os_token', authToken);
+      localStorage.setItem('marketing_os_user', JSON.stringify(data.user));
+      if (errEl) errEl.classList.add('hidden');
+      closeAuthModal();
+      showToast(`Welcome, ${data.user.name} (${data.user.role.toUpperCase()})`);
+      saveState();
+      renderAll();
+      syncFromBackend().then(() => { saveState(); renderAll(); });
+    } else if (res.ok && data.pending) {
+      if (errEl) errEl.classList.add('hidden');
+      toggleAuthMode();
+      if (errEl) {
+        errEl.textContent = data.message || 'Account created. A workspace administrator must approve it before you can sign in.';
+        errEl.classList.remove('hidden');
+        errEl.classList.remove('bg-red-500/10', 'border-red-500/30', 'text-red-600', 'dark:text-red-400');
+        errEl.classList.add('bg-emerald-500/10', 'border-emerald-500/30', 'text-emerald-700');
+      }
+      showToast('Account created - pending administrator approval.');
+    } else {
+      if (errEl) { errEl.textContent = data.error || 'Could not create the account.'; errEl.classList.remove('hidden'); }
+    }
+  } catch (err) {
+    if (errEl) { errEl.textContent = 'Network or server error. Please try again.'; errEl.classList.remove('hidden'); }
+  } finally {
+    if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Create Account'; }
+  }
+}
+
 async function submitLoginForm() {
   const emailInput = document.getElementById('loginEmailInput');
   const passInput = document.getElementById('loginPassInput');
@@ -3252,9 +3341,31 @@ function renderTeamView() {
           '</div>' +
         '</div>' +
       '</div>' +
-      '<span class="text-[10px] px-2 py-0.5 rounded-full font-semibold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 uppercase shrink-0">' + escapeHtml(statusLabel) + '</span>' +
+      '<div class="flex flex-col items-end gap-1.5 shrink-0">' +
+        '<span class="text-[10px] px-2 py-0.5 rounded-full font-semibold ' + (statusLabel === 'active' ? 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300' : 'bg-amber-500/15 text-amber-600 dark:text-amber-400') + ' uppercase">' + escapeHtml(statusLabel) + '</span>' +
+        (isAdmin && statusLabel === 'pending'
+          ? '<button onclick="approveTeamMember(\'' + escapeHtml(u.id) + '\')" class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-600 text-white font-bold hover:bg-indigo-700 transition">Approve</button>'
+          : '') +
+      '</div>' +
     '</div>';
   }).join('');
+}
+
+async function approveTeamMember(userId) {
+  try {
+    const res = await apiFetch('/api/users/' + userId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'active' })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Approval failed');
+    showToast('✅ Account approved and activated.');
+    await fetchTeamUsers();
+    renderTeamView();
+  } catch (err) {
+    showToast('Error approving account: ' + err.message);
+  }
 }
 
 // =============================================================================

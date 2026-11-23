@@ -4037,9 +4037,33 @@ agent = Agent(config)</pre>
         <button type="submit" id="loginSubmitBtn" class="btn-primary w-full py-2.5 text-xs font-bold shadow-md hover:shadow-lg transition">Sign In to helm</button>
       </form>
 
+      <form id="authRegisterForm" onsubmit="event.preventDefault(); submitRegisterForm();" class="space-y-3.5 hidden">
+        <div>
+          <label class="block text-xs font-bold text-[var(--text)] mb-1">Full Name</label>
+          <input id="registerNameInput" type="text" required class="input-field" placeholder="Your name" autocomplete="name" />
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-[var(--text)] mb-1">Work Email</label>
+          <input id="registerEmailInput" type="email" required class="input-field" placeholder="name@company.com" autocomplete="username" />
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-[var(--text)] mb-1">Password</label>
+          <input id="registerPassInput" type="password" required minlength="8" class="input-field" placeholder="At least 8 characters" autocomplete="new-password" />
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-[var(--text)] mb-1">Workspace Setup Key <span class="font-normal text-[var(--text-faint)]">(owner bootstrap only, leave blank otherwise)</span></label>
+          <input id="registerBootstrapKeyInput" type="password" class="input-field" placeholder="Optional" autocomplete="off" />
+        </div>
+        <button type="submit" id="registerSubmitBtn" class="btn-primary w-full py-2.5 text-xs font-bold shadow-md hover:shadow-lg transition">Create Account</button>
+      </form>
+
+      <div class="text-center">
+        <button id="authModeToggleBtn" onclick="toggleAuthMode()" class="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">New here? Create an account</button>
+      </div>
+
       <div class="card-subtle p-3 rounded-xl text-[11px] text-[var(--text-soft)] border border-[var(--border)] flex items-center gap-2">
         <span>🛡️</span>
-        <span>Sign in with your authorized helm workspace credentials. Contact your workspace administrator for account provisioning or password resets.</span>
+        <span id="authHelpText">Sign in with your authorized helm workspace credentials. Contact your workspace administrator for account provisioning or password resets.</span>
       </div>
     </div>
   </div>
