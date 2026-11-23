@@ -2,7 +2,7 @@
 
 **Date:** 2026-11-16  
 **Auditor:** Principal Software Architect, CTO & Lead Systems Engineer  
-**Workspace:** `/Users/ibrahimzid/Desktop/Marketing Os `  
+**Workspace:** `~/Desktop/Marketing Os `  
 **Ecosystem Integration:** Node.js Express Admin Factory + Antigravity Multi-Agent Workforce + n8n Visual Automation + SQLite WAL + Vercel / GitHub Integration  
 
 ---

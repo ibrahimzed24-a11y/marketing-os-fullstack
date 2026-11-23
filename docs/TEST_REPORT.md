@@ -3,7 +3,7 @@
 **Execution Date:** 2026-11-16  
 **Target Milestone:** Milestone 1 Iteration 2 (Adversarial Remediation & Production Verification)  
 **System Under Test:** Marketing OS Fullstack Autonomous Workforce  
-**Working Directory:** `/Users/ibrahimzid/Desktop/Marketing Os `  
+**Working Directory:** `~/Desktop/Marketing Os `  
 **Runtime Environment:** Node.js v22.23.4 (Express 4.19.2), Python 3.15.2, SQLite 3 WAL Mode  
 **Overall Status:** **PASSED — PRODUCTION READY (100% VERIFIED & REMEDIATED)**
 
@@ -17,7 +17,7 @@ In Milestone 1 Iteration 2, all defects and security risks identified by adversa
 1. **RBAC Array Type Confusion Exploit Fixed (`PATCH /api/tasks/:id`)**: Status input is strictly type-checked and validated against the allowed status enum. Non-string payloads (e.g. `{"status": ["delivered"]}`) are rejected with `HTTP 400 Bad Request` (`{"error": "Invalid status value"}`), completely preventing unprivileged delivery bypass.
 2. **Harness File Upload Endpoint Fixed (`POST /api/projects/:id/harness`)**: SQL parameter mismatch resolved by binding `req.params.id` as the second argument matching the `project_id` column placeholder. Project existence guard (`SELECT id FROM projects WHERE id=?`) added so missing projects cleanly return `HTTP 404 Not Found`. Multipart upload tested and confirmed returning `HTTP 200 OK` with JSON deliverable metadata.
 3. **Task Creation Foreign Key Boundary Guarded (`POST /api/projects/:id/tasks`)**: Added project existence check prior to insertion. Missing or invalid project IDs return `HTTP 404 Not Found` (`{"error": "Project not found"}`), eliminating uncaught `SqliteError: FOREIGN KEY constraint failed` 500 crashes.
-4. **Automation Sidecar Path Quoting Hardened (`sidecar.json`)**: All executable command paths containing spaces (`/Users/ibrahimzid/Desktop/Marketing Os /test-flow.sh`) are properly quoted in `args[4]` and mirrored in `access_grants` for unattended execution resilience.
+4. **Automation Sidecar Path Quoting Hardened (`sidecar.json`)**: All executable command paths containing spaces (`~/Desktop/Marketing Os /test-flow.sh`) are properly quoted in `args[4]` and mirrored in `access_grants` for unattended execution resilience.
 5. **Test Suites Extended**: Both `test-flow.sh` and `marketing_os_workflow.py` now include assertions for multipart harness upload (HTTP 200), array type confusion exploits (HTTP 400), non-existent project task creation (HTTP 404), and non-existent project harness uploads (HTTP 404).
 
 ---
@@ -28,7 +28,7 @@ In Milestone 1 Iteration 2, all defects and security risks identified by adversa
 
 - **Schedule Cadence:** Daily at 09:00 AM (`0 9 * * *`).
 - **In-Session Schedule Registration:** Registered via Antigravity `schedule` tool (`IsDaemon: true`).
-- **Persistent Sidecar Location:** `/Users/ibrahimzid/.gemini/config/sidecars/daily-marketing-os-test/sidecar.json`
+- **Persistent Sidecar Location:** `~/.gemini/config/sidecars/daily-marketing-os-test/sidecar.json`
 - **Hardened Sidecar Configuration:**
 ```json
 {
@@ -38,26 +38,26 @@ In Milestone 1 Iteration 2, all defects and security risks identified by adversa
     "agentapi",
     "new-conversation",
     "--",
-    "Execute \"/Users/ibrahimzid/Desktop/Marketing Os /test-flow.sh\", log output to \"/Users/ibrahimzid/Desktop/Marketing Os /test-flow.log\", and verify test status."
+    "Execute \"~/Desktop/Marketing Os /test-flow.sh\", log output to \"~/Desktop/Marketing Os /test-flow.log\", and verify test status."
   ],
   "restart_policy": "always",
   "display_name": "Daily Marketing OS Test",
   "description": "Daily automated verification of Marketing OS pipelines, RBAC, and health checks running test-flow.sh.",
   "agent_permissions": {
     "workspace_uris": [
-      "file:///Users/ibrahimzid/Desktop/Marketing%20Os"
+      "file://~/Desktop/Marketing%20Os"
     ],
     "access_grants": [
-      "command(bash \"/Users/ibrahimzid/Desktop/Marketing Os /test-flow.sh\")",
-      "command(\"/Users/ibrahimzid/Desktop/Marketing Os /test-flow.sh\")",
-      "command(bash /Users/ibrahimzid/Desktop/Marketing Os /test-flow.sh)",
-      "command(/Users/ibrahimzid/Desktop/Marketing Os /test-flow.sh)",
-      "command(python3 \"/Users/ibrahimzid/Desktop/Marketing Os /marketing_os_workflow.py\")",
-      "command(python3 /Users/ibrahimzid/Desktop/Marketing Os /marketing_os_workflow.py)",
-      "read_file(/Users/ibrahimzid/Desktop/Marketing Os )",
-      "read_file(\"/Users/ibrahimzid/Desktop/Marketing Os \")",
-      "write_file(/Users/ibrahimzid/Desktop/Marketing Os /test-flow.log)",
-      "write_file(\"/Users/ibrahimzid/Desktop/Marketing Os /test-flow.log\")"
+      "command(bash \"~/Desktop/Marketing Os /test-flow.sh\")",
+      "command(\"~/Desktop/Marketing Os /test-flow.sh\")",
+      "command(bash ~/Desktop/Marketing Os /test-flow.sh)",
+      "command(~/Desktop/Marketing Os /test-flow.sh)",
+      "command(python3 \"~/Desktop/Marketing Os /marketing_os_workflow.py\")",
+      "command(python3 ~/Desktop/Marketing Os /marketing_os_workflow.py)",
+      "read_file(~/Desktop/Marketing Os )",
+      "read_file(\"~/Desktop/Marketing Os \")",
+      "write_file(~/Desktop/Marketing Os /test-flow.log)",
+      "write_file(\"~/Desktop/Marketing Os /test-flow.log\")"
     ]
   }
 }
@@ -67,8 +67,8 @@ In Milestone 1 Iteration 2, all defects and security risks identified by adversa
 
 ### 2.2 Deliverable R2: Python Workflow Orchestrator (`marketing_os_workflow.py`)
 
-- **Script Path:** `/Users/ibrahimzid/Desktop/Marketing Os /marketing_os_workflow.py`
-- **Execution Command:** `python3 "/Users/ibrahimzid/Desktop/Marketing Os /marketing_os_workflow.py"`
+- **Script Path:** `~/Desktop/Marketing Os /marketing_os_workflow.py`
+- **Execution Command:** `python3 "~/Desktop/Marketing Os /marketing_os_workflow.py"`
 - **Dependencies:** Strictly Standard Library ONLY (`urllib.request`, `json`, `subprocess`, `time`, `sys`, `os`). Zero external dependencies.
 - **Execution Result:** **Exit Code 0** (All assertions passed).
 - **Execution Log Output:**
@@ -76,14 +76,14 @@ In Milestone 1 Iteration 2, all defects and security risks identified by adversa
 ======================================================================
   MARKETING OS AUTONOMOUS WORKFLOW ORCHESTRATOR
   Target Server: http://127.0.0.1:3000
-  Working Directory: /Users/ibrahimzid/Desktop/Marketing Os 
+  Working Directory: ~/Desktop/Marketing Os 
   Timestamp: 2026-11-16T03:35:40Z
 ======================================================================
 
 ======================================================================
 [WORKFLOW STEP] 1. Authentication Reset & Seed Users Verification
 ======================================================================
-Executing auth reset: node /Users/ibrahimzid/Desktop/Marketing Os /fix/reset-users.js
+Executing auth reset: node ~/Desktop/Marketing Os /fix/reset-users.js
 ✅ fix/reset-users.js executed successfully.
   ✅ Verified admin@marketingos.local [super_admin] (ID: 111fd596-eec7-469c-898a-ca57e197af5e)
   ✅ Verified manager@marketingos.local [manager] (ID: ee63b01a-562e-4e1e-980e-6ab1fc18ebcc)
@@ -200,7 +200,7 @@ Adversarial Defense & RBAC Security Matrix Verification:
    - **Conclusion:** No legacy external configurations exist in the environment.
 
 2. **Antigravity Plugin Packaging:**
-   - Plugin Location: `/Users/ibrahimzid/.gemini/config/plugins/marketing-os-agents/`
+   - Plugin Location: `~/.gemini/config/plugins/marketing-os-agents/`
    - Manifest: `plugin.json` (Valid JSONC with name `marketing-os-agents`, version `1.0.0`, suggested prompts).
    - Bundled Subagents (`agents/*.md`):
      - `coordinator.md` (`subagent: true`, boss router & QA gatekeeper)
@@ -222,13 +222,13 @@ Adversarial Defense & RBAC Security Matrix Verification:
 ### 2.4 Deliverable R4: Generative UI Status Badge Widget & Learning Proposal Artifact
 
 1. **Generative UI Widget (`marketing_os_status_badge.html`):**
-   - Location: `/Users/ibrahimzid/.gemini/antigravity/brain/114a2c76-87b0-41e2-95b8-32c9ab4ac577/marketing_os_status_badge.html` (mirrored to `/Users/ibrahimzid/.gemini/antigravity/brain/a798f814-32f7-4490-a5c9-84826a34c1ea/marketing_os_status_badge.html`)
+   - Location: `~/.gemini/antigravity/brain/114a2c76-87b0-41e2-95b8-32c9ab4ac577/marketing_os_status_badge.html` (mirrored to `~/.gemini/antigravity/brain/a798f814-32f7-4490-a5c9-84826a34c1ea/marketing_os_status_badge.html`)
    - Official Tailwind CDN: `https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js`.
    - Semantic CSS Variables: `--background`, `--card`, `--card-border`, `--foreground`, `--muted-foreground`, `--primary`, `--success`, `--warning`, `--error`.
    - Features: 4 service status pills, 8 pipeline status cards, interactive deliverable modal preview with Live Preview iframe, Source HTML viewer, and QA Verdict card.
 
 2. **Learning Proposal Artifact (`learning_proposal.md`):**
-   - Location: `/Users/ibrahimzid/.gemini/antigravity/brain/114a2c76-87b0-41e2-95b8-32c9ab4ac577/learning_proposal.md` (mirrored to `/Users/ibrahimzid/.gemini/antigravity/brain/a798f814-32f7-4490-a5c9-84826a34c1ea/learning_proposal.md`)
+   - Location: `~/.gemini/antigravity/brain/114a2c76-87b0-41e2-95b8-32c9ab4ac577/learning_proposal.md` (mirrored to `~/.gemini/antigravity/brain/a798f814-32f7-4490-a5c9-84826a34c1ea/learning_proposal.md`)
    - Metadata: `RequestFeedback: true`, `UserFacing: true`.
    - Core insights encoded: dual-stack resilience fallback, multi-tier RBAC defense, input normalization, and automated daily scheduling.
 
@@ -236,9 +236,9 @@ Adversarial Defense & RBAC Security Matrix Verification:
 
 ### 2.5 Deliverable R5: End-to-End Bash Verification Suite (`test-flow.sh`)
 
-- **Script Path:** `/Users/ibrahimzid/Desktop/Marketing Os /test-flow.sh`
-- **Execution Command:** `bash "/Users/ibrahimzid/Desktop/Marketing Os /test-flow.sh"`
-- **Log Output File:** `/Users/ibrahimzid/Desktop/Marketing Os /test-flow.log`
+- **Script Path:** `~/Desktop/Marketing Os /test-flow.sh`
+- **Execution Command:** `bash "~/Desktop/Marketing Os /test-flow.sh"`
+- **Log Output File:** `~/Desktop/Marketing Os /test-flow.log`
 - **Execution Result:** **Exit Code 0** (`=== ALL TESTS PASSED SUCCESSFULLY ===`).
 - **Execution Log Output:**
 ```text

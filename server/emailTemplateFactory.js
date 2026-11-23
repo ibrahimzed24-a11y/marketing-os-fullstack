@@ -108,8 +108,7 @@ function loadPriorityALeads() {
 function getLogoDataUri() {
   const logoPaths = [
     path.join(__dirname, '../public/valioz-health-logo.png'),
-    path.join(__dirname, '../uploads/valioz-health-logo.png'),
-    path.join('/Users/ibrahimzid/Desktop/VALIOZ_Health_Email_Working/valioz-health-logo.png')
+    path.join(__dirname, '../uploads/valioz-health-logo.png')
   ];
   for (const p of logoPaths) {
     if (fs.existsSync(p)) {

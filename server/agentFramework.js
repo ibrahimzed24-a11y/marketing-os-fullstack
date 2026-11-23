@@ -228,18 +228,18 @@ class BrowserResearcherAgent extends BaseAgent {
     const toolsAssigned = ['google_search_console', 'keyword_planner', 'tag_manager', 'seo_engine', 'geo_matrix'];
 
     const allocatedLogins = input.allocated_logins || {
-      google_search_console: { slug: 'google-search-console', name: 'Google Search Console', username: 'ibrahim.zed24@gmail.com', website_url: 'https://search.google.com/search-console' },
-      keyword_planner: { slug: 'google-keyword-planner', name: 'Google Ads Keyword Planner', username: 'ibrahim.zed24@gmail.com', website_url: 'https://ads.google.com/aw/keywordplanner' },
-      tag_manager: { slug: 'google-tag-manager', name: 'Google Tag Manager', username: 'ibrahim.zed24@gmail.com', website_url: 'https://tagmanager.google.com' },
+      google_search_console: { slug: 'google-search-console', name: 'Google Search Console', username: 'owner@example.com', website_url: 'https://search.google.com/search-console' },
+      keyword_planner: { slug: 'google-keyword-planner', name: 'Google Ads Keyword Planner', username: 'owner@example.com', website_url: 'https://ads.google.com/aw/keywordplanner' },
+      tag_manager: { slug: 'google-tag-manager', name: 'Google Tag Manager', username: 'owner@example.com', website_url: 'https://tagmanager.google.com' },
       seo_engine: { slug: 'ahrefs-suite', name: 'Ahrefs All-in-One SEO Suite', username: 'seo-lead@valioz.com', website_url: 'https://app.ahrefs.com' },
-      geo_matrix: { slug: 'google-business-profile', name: 'Google Business Profile Manager', username: 'ibrahim.zed24@gmail.com', website_url: 'https://business.google.com' }
+      geo_matrix: { slug: 'google-business-profile', name: 'Google Business Profile Manager', username: 'owner@example.com', website_url: 'https://business.google.com' }
     };
 
-    const gscAccount = allocatedLogins.google_search_console?.username || 'ibrahim.zed24@gmail.com';
-    const gkpAccount = allocatedLogins.keyword_planner?.username || 'ibrahim.zed24@gmail.com';
-    const gtmAccount = allocatedLogins.tag_manager?.username || 'ibrahim.zed24@gmail.com';
+    const gscAccount = allocatedLogins.google_search_console?.username || 'owner@example.com';
+    const gkpAccount = allocatedLogins.keyword_planner?.username || 'owner@example.com';
+    const gtmAccount = allocatedLogins.tag_manager?.username || 'owner@example.com';
     const seoAccount = allocatedLogins.seo_engine?.username || 'seo-lead@valioz.com';
-    const geoAccount = allocatedLogins.geo_matrix?.username || 'ibrahim.zed24@gmail.com';
+    const geoAccount = allocatedLogins.geo_matrix?.username || 'owner@example.com';
     const targetGeoStr = input.target_geo || input.geo || 'Global';
 
     const browserNavigationLog = {

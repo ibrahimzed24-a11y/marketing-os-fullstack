@@ -456,104 +456,77 @@
       </div>
     </div>
 
-    <!-- Smart Multi-Tier Categorized Navigation Bar -->
-    <!-- Smart Multi-Tier Categorized Navigation Bar -->
-    <div class="max-w-[1600px] mx-auto px-3 sm:px-6 pb-2.5 flex flex-col md:flex-row md:items-center justify-between gap-2.5 overflow-x-auto no-scrollbar">
-      <!-- Grouped View Navigation Container (Clean, Minimal, ADHD-Friendly) -->
-      <nav id="primaryNavPillContainer" class="bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/90 rounded-2xl md:rounded-full p-1.5 inline-flex items-center gap-1 shrink-0 max-w-full overflow-x-auto no-scrollbar shadow-xs" aria-label="Main Productivity Navigation">
-        
-        <!-- Core Operations Hub (Always front & center, clean & uncluttered) -->
-        <div id="navGroupCore" class="inline-flex items-center gap-1">
-          <!-- 1. Projects -->
-          <button id="navTab-projects" onclick="switchMainView('projects')" class="px-3.5 py-1.5 rounded-full text-xs font-semibold transition inline-flex items-center gap-1.5 whitespace-nowrap" title="Dedicated Projects Directory">
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-            <span>Projects</span>
-            <span id="navProjectsCountBadge" class="hidden ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-teal-50 text-[#00a9a4] dark:bg-teal-950/60 dark:text-teal-300">0</span>
-          </button>
+    <!-- Simplified Navigation: 5 core screens (Tasks, Agents, Access, Approvals, Settings) + Library -->
+    <div class="max-w-[1600px] mx-auto px-3 sm:px-6 pb-2.5 flex flex-col md:flex-row md:items-center justify-between gap-2.5 flex-wrap">
+      <nav id="primaryNavPillContainer" class="bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/90 dark:border-slate-700/90 rounded-2xl md:rounded-full p-1 inline-flex items-center gap-1">
 
-          <!-- 2. Workbench & Pipelines -->
-          <button id="navTab-workbench" onclick="switchMainView('workbench')" class="px-3.5 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 whitespace-nowrap" title="Campaign Pipeline Workbench">
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
-            <span>Workbench</span>
+        <!-- Core: the 5 screens the workspace is built around -->
+        <div id="navGroupCore" class="inline-flex items-center gap-1">
+          <button id="navTab-workbench" onclick="switchMainView('workbench')" class="px-3.5 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 text-[#475569] dark:text-slate-400 hover:text-[#122f47] dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-slate-700/50">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            <span>Tasks</span>
             <span id="navTasksCountBadge" class="hidden ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-teal-50 text-[#00a9a4] dark:bg-teal-950/60 dark:text-teal-300">0</span>
           </button>
-
-          <!-- 3. Sales CRM -->
-          <button id="navTab-sales" onclick="switchMainView('sales')" class="px-3.5 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 whitespace-nowrap" title="Sales CRM & Lead Pipeline">
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            <span>Sales CRM</span>
-            <span id="navSalesCountBadge" class="hidden ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">0</span>
+          <button id="navTab-agents" onclick="switchMainView('agents')" class="px-3.5 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 text-[#475569] dark:text-slate-400 hover:text-[#122f47] dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-slate-700/50">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a7 7 0 0 1 14 0v1"/></svg>
+            <span>Agents</span>
           </button>
-
-          <!-- 4. Knowledge Base (RAG) -->
-          <button id="navTab-rag" onclick="switchMainView('rag')" class="px-3.5 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 whitespace-nowrap" title="Knowledge Base & Vector Search">
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-            <span>Knowledge (RAG)</span>
-            <span id="navRagCountBadge" class="hidden ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-teal-50 text-[#00a9a4] dark:bg-teal-950/60 dark:text-teal-300">0</span>
+          <button id="navTab-logins" onclick="switchMainView('logins')" class="px-3.5 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 text-[#475569] dark:text-slate-400 hover:text-[#122f47] dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-slate-700/50">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            <span>Access</span>
+            <span id="navLoginsCountBadge" class="hidden ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-teal-50 text-[#00a9a4] dark:bg-teal-950/60 dark:text-teal-300">0</span>
           </button>
-
-          <!-- 5. Research (Grounded Market Intel) -->
-          <button id="navTab-research" onclick="switchMainView('browser-research')" class="px-3.5 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 whitespace-nowrap" title="Browser Research & Market Intel">
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-            <span>Research</span>
-          </button>
-        </div>
-
-        <!-- Tier 2: Specialized Capabilities (Shown in Full Mode, or under More in Focus Mode) -->
-        <div id="navGroupSpecialized" class="inline-flex items-center gap-1 px-1.5 border-l border-slate-200 dark:border-slate-700/80">
-          <button id="navTab-coordination" onclick="switchMainView('workflow-coordination')" class="px-3 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 whitespace-nowrap" title="Workflow Coordination & 5-Stage DAG Engine">Coordination</button>
-          <button id="navTab-engineering" onclick="switchMainView('software-engineering')" class="px-3 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 whitespace-nowrap" title="Software Engineering & Landing Pages">Engineering</button>
-          <button id="navTab-creative" onclick="switchMainView('creative-media')" class="px-3 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 whitespace-nowrap" title="Creative Studio & Brand Media">Creative</button>
-          <button id="navTab-reporting" onclick="switchMainView('executive-reporting')" class="px-3 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 whitespace-nowrap" title="Executive Reporting & Quality Audits">Reporting</button>
-          <button id="navTab-approvals" onclick="switchMainView('approvals')" class="px-3 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 whitespace-nowrap" title="Human-in-the-Loop Governance & Approvals">
+          <button id="navTab-approvals" onclick="switchMainView('approvals')" class="px-3.5 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 text-[#475569] dark:text-slate-400 hover:text-[#122f47] dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-slate-700/50">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
             <span>Approvals</span>
             <span id="navApprovalsCountBadge" class="hidden ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500 text-black">0</span>
           </button>
-          <button id="navTab-overview" onclick="switchMainView('overview')" class="px-3 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 whitespace-nowrap" title="Central Command Center & Stats">Overview</button>
-          <button id="navTab-team" onclick="switchMainView('team')" class="px-3 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 whitespace-nowrap" title="Team Access & Role Permissions">Team</button>
-          <button id="navTab-adminSettings" onclick="switchMainView('adminSettings')" class="px-3 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 whitespace-nowrap" title="Platform & AI Engine Settings">Settings</button>
-          
-          <!-- Hidden utility alias buttons -->
+          <button id="navTab-adminSettings" onclick="switchMainView('adminSettings')" class="px-3.5 py-1.5 rounded-full text-xs font-medium transition inline-flex items-center gap-1.5 text-[#475569] dark:text-slate-400 hover:text-[#122f47] dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-slate-700/50">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h.09a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h.09a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <span>Settings</span>
+          </button>
+        </div>
+
+        <!-- Compatibility targets for role/active-state logic; never displayed -->
+        <div id="navGroupSpecialized" class="hidden">
+          <button id="navTab-projects" onclick="switchMainView('projects')" class="hidden" title="Projects">Projects <span id="navProjectsCountBadge" class="hidden">0</span></button>
+          <button id="navTab-overview" onclick="switchMainView('overview')" class="hidden" title="Overview">Overview</button>
+          <button id="navTab-sales" onclick="switchMainView('sales')" class="hidden" title="Sales">Sales <span id="navSalesCountBadge" class="hidden">0</span></button>
+          <button id="navTab-rag" onclick="switchMainView('rag')" class="hidden" title="RAG">RAG <span id="navRagCountBadge" class="hidden">0</span></button>
+          <button id="navTab-research" onclick="switchMainView('browser-research')" class="hidden" title="Research">Research</button>
+          <button id="navTab-coordination" onclick="switchMainView('workflow-coordination')" class="hidden" title="Coordination">Coordination</button>
+          <button id="navTab-engineering" onclick="switchMainView('software-engineering')" class="hidden" title="Engineering">Engineering</button>
+          <button id="navTab-creative" onclick="switchMainView('creative-media')" class="hidden" title="Creative">Creative</button>
+          <button id="navTab-reporting" onclick="switchMainView('executive-reporting')" class="hidden" title="Reporting">Reporting</button>
+          <button id="navTab-team" onclick="switchMainView('team')" class="hidden" title="Team">Team</button>
           <button id="navTab-roleDash" onclick="switchMainView('roleDash')" class="hidden" title="Role Dash">Role Dash</button>
           <button id="navTab-pipelines" onclick="switchMainView('pipelines')" class="hidden" title="Pipelines">Pipelines</button>
-          <button id="navTab-agents" onclick="switchMainView('agents')" class="hidden" title="Agents">Agents</button>
-          <button id="navTab-logins" onclick="switchMainView('logins')" class="hidden" title="Logins"><span id="navLoginsCountBadge">0</span></button>
           <button id="navTab-seo" onclick="switchMainView('seo')" class="hidden" title="SEO">SEO</button>
         </div>
 
-        <!-- More Dropdown (Simple Mode) -->
+        <!-- Library: every other screen lives here -->
         <div id="navMoreDropdownContainer" class="relative inline-block text-left">
-          <button type="button" id="navMoreBtn" onclick="toggleNavMoreMenu()" class="px-3 py-1.5 rounded-full text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200/50 dark:hover:bg-slate-700/50 transition inline-flex items-center gap-1">
-            <span>⋯ More</span>
+          <button type="button" id="navMoreBtn" onclick="toggleNavMoreMenu()" class="px-3 py-1.5 rounded-full text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-200/60 dark:hover:bg-slate-700/60 transition inline-flex items-center gap-1">
+            <span>⋯ Library</span>
             <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
           </button>
-          <div id="navMoreMenu" class="hidden absolute left-0 mt-2 w-56 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
-            <a href="javascript:void(0)" onclick="switchMainView('approvals'); toggleNavMoreMenu()" class="flex items-center justify-between px-4 py-2 text-xs text-slate-700 dark:text-slate-300 hover:bg-teal-50 dark:hover:bg-slate-800 hover:text-teal-600">
-              <span class="flex items-center gap-2">🛡️ Governance & Approvals</span>
-            </a>
-            <a href="javascript:void(0)" onclick="switchMainView('overview'); toggleNavMoreMenu()" class="flex items-center gap-2 px-4 py-2 text-xs text-slate-700 dark:text-slate-300 hover:bg-teal-50 dark:hover:bg-slate-800 hover:text-teal-600">
-              📊 Executive Overview
-            </a>
-            <a href="javascript:void(0)" onclick="switchMainView('team'); toggleNavMoreMenu()" class="flex items-center gap-2 px-4 py-2 text-xs text-slate-700 dark:text-slate-300 hover:bg-teal-50 dark:hover:bg-slate-800 hover:text-teal-600">
-              👥 Team & Access
-            </a>
-            <a href="javascript:void(0)" onclick="switchMainView('adminSettings'); toggleNavMoreMenu()" class="flex items-center gap-2 px-4 py-2 text-xs text-slate-700 dark:text-slate-300 hover:bg-teal-50 dark:hover:bg-slate-800 hover:text-teal-600">
-              ⚙️ Platform Settings
-            </a>
+          <div id="navMoreMenu" class="hidden absolute left-0 mt-2 w-56 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl z-50 py-1.5">
+            <div class="px-4 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Workspace</div>
+            <a href="javascript:void(0)" onclick="switchMainView('projects'); toggleNavMoreMenu()" class="flex items-center gap-2 px-4 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">📁 Projects</a>
+            <a href="javascript:void(0)" onclick="switchMainView('overview'); toggleNavMoreMenu()" class="flex items-center gap-2 px-4 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">📊 Executive Overview</a>
+            <a href="javascript:void(0)" onclick="switchMainView('sales'); toggleNavMoreMenu()" class="flex items-center gap-2 px-4 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">💼 Sales CRM</a>
+            <a href="javascript:void(0)" onclick="switchMainView('rag'); toggleNavMoreMenu()" class="flex items-center gap-2 px-4 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">📚 Knowledge (RAG)</a>
+            <a href="javascript:void(0)" onclick="switchMainView('browser-research'); toggleNavMoreMenu()" class="flex items-center gap-2 px-4 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">🔎 Research</a>
             <div class="my-1 border-t border-slate-100 dark:border-slate-800"></div>
             <div class="px-4 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">Specialized Studios</div>
-            <a href="javascript:void(0)" onclick="switchMainView('workflow-coordination'); toggleNavMoreMenu()" class="flex items-center gap-2 px-4 py-1.5 text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
-              • Coordination DAG
-            </a>
-            <a href="javascript:void(0)" onclick="switchMainView('software-engineering'); toggleNavMoreMenu()" class="flex items-center gap-2 px-4 py-1.5 text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
-              • Engineering Studio
-            </a>
-            <a href="javascript:void(0)" onclick="switchMainView('creative-media'); toggleNavMoreMenu()" class="flex items-center gap-2 px-4 py-1.5 text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
-              • Creative Studio
-            </a>
-            <a href="javascript:void(0)" onclick="switchMainView('executive-reporting'); toggleNavMoreMenu()" class="flex items-center gap-2 px-4 py-1.5 text-xs text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800">
-              • Reporting Quality Audit
-            </a>
+            <a href="javascript:void(0)" onclick="switchMainView('pipelines'); toggleNavMoreMenu()" class="flex items-center gap-2 px-4 py-1.5 text-xs text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800">• Pipelines</a>
+            <a href="javascript:void(0)" onclick="switchMainView('workflow-coordination'); toggleNavMoreMenu()" class="flex items-center gap-2 px-4 py-1.5 text-xs text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800">• Coordination DAG</a>
+            <a href="javascript:void(0)" onclick="switchMainView('software-engineering'); toggleNavMoreMenu()" class="flex items-center gap-2 px-4 py-1.5 text-xs text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800">• Engineering Studio</a>
+            <a href="javascript:void(0)" onclick="switchMainView('creative-media'); toggleNavMoreMenu()" class="flex items-center gap-2 px-4 py-1.5 text-xs text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800">• Creative Studio</a>
+            <a href="javascript:void(0)" onclick="switchMainView('executive-reporting'); toggleNavMoreMenu()" class="flex items-center gap-2 px-4 py-1.5 text-xs text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800">• Reporting Quality Audit</a>
+            <a href="javascript:void(0)" onclick="switchMainView('seo'); toggleNavMoreMenu()" class="flex items-center gap-2 px-4 py-1.5 text-xs text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800">• SEO</a>
+            <div class="my-1 border-t border-slate-100 dark:border-slate-800"></div>
+            <a href="javascript:void(0)" onclick="switchMainView('team'); toggleNavMoreMenu()" class="flex items-center gap-2 px-4 py-2 text-xs text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">👥 Team &amp; Access</a>
           </div>
         </div>
       </nav>
@@ -1210,7 +1183,7 @@
                 <span class="text-teal-500 font-bold">✓</span>
                 Browser agent will navigate live URLs with attached operator session to extract Search Console, Keyword Planner &amp; GTM telemetry.
               </span>
-              <span class="font-mono text-[9px] text-slate-500">Operator: <strong class="text-slate-700 dark:text-slate-200" id="mrAllocatedOperatorBadge">ibrahim.zed24@gmail.com</strong></span>
+              <span class="font-mono text-[9px] text-slate-500">Operator: <strong class="text-slate-700 dark:text-slate-200" id="mrAllocatedOperatorBadge">owner@example.com</strong></span>
             </div>
           </div>
 
@@ -2886,18 +2859,17 @@
     </div>
 
     <!-- ===================================================================== -->
-    <!-- VIEW 5: DEDICATED SAVED LOGINS & TOOL CREDENTIALS DATABASE (NEW!)     -->
+    <!-- VIEW 5: ACCESS - TOOLS & SITES AGENTS CAN USE                         -->
     <!-- ===================================================================== -->
     <div id="view-logins" class="hidden space-y-5">
       <div class="card-surface p-5 space-y-5">
         <div class="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border)] pb-4">
           <div>
             <div class="flex items-center gap-2">
-              <span class="text-[11px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 mono">DEDICATED CREDENTIAL VAULT & REGISTRY</span>
-              <span class="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-semibold mono">SQLite: saved_logins (AES-256 Masked)</span>
+              <span class="text-[11px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 mono">ACCESS GRANTS</span>
             </div>
-            <h2 class="text-base sm:text-lg font-extrabold mt-1">Saved Logins & Workflow Tools Registry</h2>
-            <p class="text-xs text-[var(--text-soft)]">Centralized repository of all websites, email hosts, search consoles, keyword tools, and calendar APIs used across all marketing workflows. Add, test, or launch any tool with one click.</p>
+            <h2 class="text-base sm:text-lg font-extrabold mt-1">Tools &amp; Sites Your Agents Can Use</h2>
+            <p class="text-xs text-[var(--text-soft)]">Grant agents access to the websites and tools they need to run tasks. Add, test, or revoke a tool login here.</p>
           </div>
           <div class="flex items-center gap-2 flex-wrap">
             <button onclick="toggleLoginsSecretReveal()" id="loginsRevealToggleBtn" class="btn-outline px-3.5 py-2 text-xs font-semibold">👁️ Reveal Passwords</button>
@@ -3994,14 +3966,14 @@
   "mcpServers": {
     "n8n-mcp": {
       "command": "node",
-      "args": ["/Users/ibrahimzid/.local/node-versions/node-v24.22.3-darwin-x64/lib/node_modules/n8n-mcp/dist/mcp/index.js"],
+      "args": ["/path/to/n8n-mcp/dist/mcp/index.js"],
       "env": {
         "MCP_MODE": "stdio",
         "LOG_LEVEL": "error",
         "DISABLE_CONSOLE_OUTPUT": "true",
         "N8N_API_URL": "http://localhost:5678",
         "N8N_BASE_URL": "http://localhost:5678",
-        "N8N_API_KEY": "mos_live_98a7bc65d4e3f210"
+        "N8N_API_KEY": "your-n8n-api-key-here"
       }
     }
   }
