@@ -3346,9 +3346,26 @@ function renderTeamView() {
         (isAdmin && statusLabel === 'pending'
           ? '<button onclick="approveTeamMember(\'' + escapeHtml(u.id) + '\')" class="text-[10px] px-2 py-0.5 rounded-full bg-indigo-600 text-white font-bold hover:bg-indigo-700 transition">Approve</button>'
           : '') +
+        (role === 'super_admin' && currentUser && u.id !== currentUser.id
+          ? '<button onclick="deleteTeamMember(\'' + escapeHtml(u.id) + '\', \'' + escapeHtml(u.email || '') + '\')" class="text-[10px] px-2 py-0.5 rounded-full bg-red-600/10 text-red-600 dark:text-red-400 font-bold border border-red-500/30 hover:bg-red-600/20 transition">Remove</button>'
+          : '') +
       '</div>' +
     '</div>';
   }).join('');
+}
+
+async function deleteTeamMember(userId, email) {
+  if (!confirm('Permanently remove the account ' + email + '? This cannot be undone.')) return;
+  try {
+    const res = await apiFetch('/api/users/' + userId, { method: 'DELETE' });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Remove failed');
+    showToast('Account removed.');
+    await fetchTeamUsers();
+    renderTeamView();
+  } catch (err) {
+    showToast('Error removing account: ' + err.message);
+  }
 }
 
 async function approveTeamMember(userId) {

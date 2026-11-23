@@ -335,7 +335,18 @@ app.post('/api/auth/register', asyncHandler(async (req, res) => {
     return res.json({ user, token: signToken(user), bootstrap_reset: true });
   }
 
-  const count = db.prepare('SELECT COUNT(*) as c FROM users').get().c;
+  let count = db.prepare('SELECT COUNT(*) as c FROM users').get().c;
+  if (count === 0 && turso.isConfigured()) {
+    // A cold serverless instance can briefly serve an unhydrated (empty) local DB;
+    // the cloud is the source of truth for the first-user-super_admin shortcut.
+    try {
+      const tc = turso.getClient();
+      if (tc) {
+        const cloudRes = await tc.execute('SELECT count(*) as count FROM users');
+        count = Number(cloudRes.rows[0]?.count || 0);
+      }
+    } catch (_) {}
+  }
 
   let finalRole = 'member';
   let finalStatus = 'pending';
@@ -481,9 +492,15 @@ app.delete('/api/users/:id', authMiddleware, requireRole('super_admin'), asyncHa
   if (ownedProjects > 0) {
     return res.status(409).json({ error: `This user owns ${ownedProjects} project(s). Reassign or delete those projects first.` });
   }
+  const fullRow = db.prepare('SELECT * FROM users WHERE id=?').get(target.id);
   db.prepare('DELETE FROM project_members WHERE user_id=?').run(target.id);
   db.prepare('UPDATE tasks SET assignee_id=NULL WHERE assignee_id=?').run(target.id);
-  db.prepare('DELETE FROM users WHERE id=?').run(target.id);
+  await runCritical(
+    'DELETE FROM users WHERE id=?',
+    [target.id],
+    (lp) => lp('INSERT INTO users (id,name,email,password_hash,role,avatar,department,status,created_at) VALUES (?,?,?,?,?,?,?,?,?)')
+      .run(fullRow.id, fullRow.name, fullRow.email, fullRow.password_hash, fullRow.role, fullRow.avatar, fullRow.department, fullRow.status, fullRow.created_at)
+  );
   db.prepare('INSERT INTO activity (id, project_id, task_id, user_id, action, meta) VALUES (?, NULL, NULL, ?, ?, ?)')
     .run(uuidv4(), req.user.id, 'user_deleted', JSON.stringify({ deleted_user_id: target.id, deleted_email: target.email }));
   res.json({ ok: true, deleted: { id: target.id, email: target.email, name: target.name } });
