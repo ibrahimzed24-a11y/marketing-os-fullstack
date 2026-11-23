@@ -508,7 +508,7 @@ function buildDefaultState() {
   return {
     schemaVersion: 2,
     currentUserRole: 'super_admin',
-    mainView: 'overview',
+    mainView: 'workbench',
     stageFilter: 'All',
     selectedProjectId: null,
     selectedPipeline: 'content-seo',
@@ -932,7 +932,7 @@ async function submitLoginForm() {
       authToken = data.token;
       currentUser = data.user;
       state.currentUserRole = data.user.role;
-      state.mainView = data.user.role === 'client' ? 'workbench' : 'overview';
+      state.mainView = 'workbench'; // everyone lands on Tasks
       overviewDataCache = null;
       approvalsDataCache = [];
       crmPipelineCache = { leads: [], deals: [], stage_counts: {} };
@@ -2341,16 +2341,11 @@ function renderHeaderAndRoleBanner() {
     }
   });
 
-  // ADHD Focus Mode Navigation Filtering
+  // Simplified nav: core tabs always visible, everything else under Library
   const specializedGroup = document.getElementById('navGroupSpecialized');
   const moreContainer = document.getElementById('navMoreDropdownContainer');
-  if (isAdhdFocusMode) {
-    if (specializedGroup) specializedGroup.style.display = 'none';
-    if (moreContainer) moreContainer.style.display = 'inline-block';
-  } else {
-    if (specializedGroup) specializedGroup.style.display = 'inline-flex';
-    if (moreContainer) moreContainer.style.display = 'none';
-  }
+  if (specializedGroup) specializedGroup.style.display = 'none';
+  if (moreContainer) moreContainer.style.display = 'inline-block';
 
   updateLiveNavBadges();
 
