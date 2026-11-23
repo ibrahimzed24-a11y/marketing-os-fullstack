@@ -1098,6 +1098,15 @@ async function syncFromBackend() {
       }
     } catch (_) {}
 
+    // 3a. Fetch live pipeline catalog (names source-of-truth for task modal)
+    try {
+      const resPipes = await apiFetch('/api/pipelines');
+      if (resPipes.ok) {
+        const pData = await resPipes.json();
+        if (pData && pData.pipelines) state.pipelines = pData.pipelines;
+      }
+    } catch (_) {}
+
     // 3b. Fetch active project harness files & details
     const proj = getSelectedProject();
     if (proj) {
@@ -1631,7 +1640,7 @@ async function createNewProject() {
     state.selectedProjectId = projectId;
     saveState();
     renderAll();
-    showToast('Created project "' + name + '" with ' + pipelines.length + ' pipelines & attached knowledge base.');
+    showToast('Project "' + name + '" created. Next: open it, add Knowledge Base documents, then dispatch a task with linked tools.');
   } catch (err) {
     showToast('Error creating project: ' + err.message);
   }
@@ -3061,7 +3070,7 @@ function renderSavedLoginsView() {
       '<div class="pt-2 border-t border-[var(--border)] flex items-center justify-between gap-2">' +
         '<div class="flex items-center gap-1.5">' +
           '<span class="w-2 h-2 rounded-full ' + (l.status === 'connected' ? 'bg-emerald-500' : 'bg-amber-500') + '"></span>' +
-          '<span class="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-soft)]">' + (l.status || 'CONNECTED') + '</span>' +
+          '<span class="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-soft)]">' + escapeHtml(l.status || 'not_configured') + '</span>' +
         '</div>' +
         '<div class="flex items-center gap-1.5">' +
           '<button onclick="testLoginConnection(\'' + l.id + '\')" class="btn-outline px-2.5 py-1 text-[11px] font-medium" title="Test website reachability">⚡ Ping</button>' +
@@ -3305,7 +3314,9 @@ function renderAgentsView() {
               <div class="text-[11px] text-[var(--text-soft)] truncate">${a.role}</div>
             </div>
           </div>
-          <span class="text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-500/20 shrink-0">● Online</span>
+          ${isEngineReady()
+            ? '<span class="text-[9px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-bold border border-emerald-500/20 shrink-0">● Ready</span>'
+            : '<span class="text-[9px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 font-bold border border-amber-500/20 shrink-0" title="Connect an AI engine in Settings → LLM Providers to run agents">○ Needs AI Engine</span>'}
         </div>
 
         <div class="flex items-center gap-1.5 mb-2">
@@ -3348,6 +3359,14 @@ function openAgentDispatchModal(agentSlug) {
     return;
   }
 
+  // Honest gate: agents cannot produce results without a working AI engine.
+  if (!isEngineReady()) {
+    showToast('Connect an AI engine first (Settings → LLM Providers). Agents cannot produce real results without one.');
+    state.mainView = 'settings';
+    renderAll();
+    return;
+  }
+
   activeDispatchAgentSlug = agentSlug || 'coordinator';
   const agent = AGENTS_32.find(a => a.slug === activeDispatchAgentSlug) || AGENTS_32[0];
   const modal = document.getElementById('agentDispatchModal');
@@ -3377,6 +3396,9 @@ function openAgentDispatchModal(agentSlug) {
   if (taskTitle) taskTitle.value = `[@${agent.slug}] ${agent.role} for ${proj ? proj.name : 'Campaign'}`;
   if (taskBrief) taskBrief.value = agent.system_directive || 'Execute grounded marketing analysis and output validated deliverable.';
 
+  const agentPipeline = (agent.assigned_pipelines && agent.assigned_pipelines[0]) || 'market-intel';
+  renderTaskToolOptions('dispatchModalTools', agentPipeline);
+
   modal.classList.remove('hidden');
 }
 
@@ -3402,6 +3424,12 @@ async function submitAgentDispatch() {
     return;
   }
 
+  const tools_assigned = getCheckedTaskTools('dispatchModalTools');
+  if (!tools_assigned.length) {
+    showToast('Link at least one tool to this task — the agent uses tools to produce real results.');
+    return;
+  }
+
   if (btn) {
     btn.disabled = true;
     btn.innerHTML = `<span class="animate-spin inline-block mr-1">◐</span> Dispatching @${activeDispatchAgentSlug}...`;
@@ -3419,7 +3447,8 @@ async function submitAgentDispatch() {
         project_id: projectId,
         title,
         brief,
-        priority
+        priority,
+        tools_assigned
       })
     });
 
@@ -4184,7 +4213,7 @@ async function renderProjectsView() {
   container.innerHTML = projects.map(p => {
     const dept = p.department || 'creative';
     const deptBadgeClass = deptColors[dept] || 'bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-500/30';
-    const clientName = p.client_name || p.client || 'Agency Client';
+    const clientName = p.client_name || p.client || 'Internal';
 
     // Parse deliverables
     let delivs = [];
@@ -7061,22 +7090,114 @@ function copySnippetText(elementId) {
   copyToClipboard(el.textContent || '', 'Configuration snippet copied');
 }
 
+// Human-readable labels for linkable task tools. Saved logins (real accounts) are offered on top of these.
+const TASK_TOOL_LABELS = {
+  web_search: 'Live Web Search',
+  lead_enrichment: 'Lead Discovery & Enrichment',
+  email_dispatch: 'Email Delivery',
+  ads_publish: 'Paid Ads Connector',
+  social_publish: 'Social & Website Publish',
+  google_search_console: 'Google Search Console',
+  keyword_planner: 'Google Keyword Planner',
+  tag_manager: 'Google Tag Manager',
+  seo_engine: 'SEO Engine (Ahrefs / Semrush)',
+  geo_matrix: 'GEO / Local Search Matrix'
+};
+
+// Mirror of the server-side defaults so the modal can pre-check the tools a pipeline needs.
+const PIPELINE_DEFAULT_TOOLS_CLIENT = {
+  'deep-market-research': ['google_search_console', 'keyword_planner', 'tag_manager', 'seo_engine', 'geo_matrix'],
+  'market-intel': ['web_search'],
+  'lead-research': ['web_search', 'lead_enrichment'],
+  'content-seo': ['web_search', 'seo_engine'],
+  'social-content': ['web_search', 'social_publish'],
+  'ads-creative': ['web_search', 'ads_publish'],
+  'email-campaign': ['web_search', 'email_dispatch'],
+  'offer-campaign': ['web_search', 'email_dispatch'],
+  'proposal-campaign': ['web_search', 'email_dispatch'],
+  'whatsapp-campaign': ['web_search'],
+  'landing-page': ['web_search'],
+  'brand-kit': ['web_search']
+};
+
+function isEngineReady() {
+  return Boolean(systemStatusCache && systemStatusCache.llm && systemStatusCache.llm.connected);
+}
+
+function renderTaskToolOptions(containerId, pipeline) {
+  const box = document.getElementById(containerId);
+  if (!box) return;
+  const defaults = PIPELINE_DEFAULT_TOOLS_CLIENT[pipeline] || ['web_search'];
+  const options = [];
+  for (const slug of defaults) {
+    options.push({ slug, label: TASK_TOOL_LABELS[slug] || slug, checked: true, hint: 'pipeline default' });
+  }
+  // Real, configured tool logins from the Access vault can be linked too
+  for (const l of (state.savedLogins || [])) {
+    if (!l.has_credentials && !(l.status === 'connected' || l.status === 'online')) continue;
+    if (options.some(o => o.slug === l.slug)) continue;
+    options.push({ slug: l.slug, label: l.name, checked: false, hint: l.username || 'saved login' });
+  }
+  box.innerHTML = options.map(o => `
+    <label class="flex items-start gap-2 text-[11px] p-1.5 rounded-md hover:bg-[var(--surface)] cursor-pointer">
+      <input type="checkbox" class="task-tool-check mt-0.5" value="${escapeHtml(o.slug)}" ${o.checked ? 'checked' : ''}>
+      <span class="min-w-0"><span class="font-semibold block truncate">${escapeHtml(o.label)}</span>
+      <span class="text-[9px] text-[var(--text-faint)] mono">${escapeHtml(o.slug)} &bull; ${escapeHtml(o.hint)}</span></span>
+    </label>`).join('');
+}
+
+function getCheckedTaskTools(containerId) {
+  const box = document.getElementById(containerId);
+  if (!box) return [];
+  return Array.from(box.querySelectorAll('.task-tool-check:checked')).map(c => c.value);
+}
+
+function populateTaskModalSelects() {
+  const pipeSelect = document.getElementById('modalTaskPipeline');
+  if (pipeSelect) {
+    const pipelines = state.pipelines && Object.keys(state.pipelines).length
+      ? state.pipelines
+      : PIPELINE_CATALOG;
+    pipeSelect.innerHTML = Object.entries(pipelines).map(([slug, p]) =>
+      `<option value="${slug}">${escapeHtml(p.name || slug)}</option>`
+    ).join('');
+  }
+  const assigneeSelect = document.getElementById('modalTaskAssignee');
+  if (assigneeSelect) {
+    const users = (state.users || []).filter(u => u.status !== 'disabled');
+    assigneeSelect.innerHTML = '<option value="">Unassigned (agent squad)</option>' + users.map(u =>
+      `<option value="${u.id}">${escapeHtml(u.name)} (${escapeHtml(u.role)})</option>`
+    ).join('');
+  }
+}
+
+function onModalPipelineChange() {
+  const pipeSelect = document.getElementById('modalTaskPipeline');
+  renderTaskToolOptions('modalTaskTools', pipeSelect ? pipeSelect.value : 'offer-campaign');
+}
+
 function openTaskModal() {
   if (state.currentUserRole === 'client') {
     showToast('Client role is read-only and cannot dispatch tasks.');
     return;
   }
   const modal = document.getElementById('taskModal');
+  populateTaskModalSelects();
   const projSelect = document.getElementById('modalTaskProject');
   if (projSelect) {
-    projSelect.innerHTML = state.projects.map(p =>
-      `<option value="${p.id}" ${p.id === state.selectedProjectId ? 'selected' : ''}>${escapeHtml(p.name)}</option>`
-    ).join('');
+    if (!state.projects.length) {
+      projSelect.innerHTML = '<option value="">— No projects yet. Create one first. —</option>';
+    } else {
+      projSelect.innerHTML = state.projects.map(p =>
+        `<option value="${p.id}" ${p.id === state.selectedProjectId ? 'selected' : ''}>${escapeHtml(p.name)}</option>`
+      ).join('');
+    }
   }
   const pipeSelect = document.getElementById('modalTaskPipeline');
-  if (pipeSelect && state.selectedPipeline) {
+  if (pipeSelect && state.selectedPipeline && pipeSelect.querySelector(`option[value="${state.selectedPipeline}"]`)) {
     pipeSelect.value = state.selectedPipeline;
   }
+  renderTaskToolOptions('modalTaskTools', pipeSelect ? pipeSelect.value : 'offer-campaign');
   if (modal) modal.classList.remove('hidden');
 }
 
@@ -7102,6 +7223,7 @@ function openCreateTaskModal(dept) {
   const modal = document.getElementById('taskModal');
   if (!modal) return;
   populateModalProjects();
+  populateTaskModalSelects();
   const deptSelect = document.getElementById('modalTaskDepartment');
   if (deptSelect) {
     if (dept) {
@@ -7117,6 +7239,7 @@ function openCreateTaskModal(dept) {
     else if (curDept === 'sales') pipeSelect.value = 'email-campaign';
     else pipeSelect.value = 'landing-page';
   }
+  renderTaskToolOptions('modalTaskTools', pipeSelect ? pipeSelect.value : 'offer-campaign');
   modal.classList.remove('hidden');
 }
 
@@ -7128,6 +7251,7 @@ function onModalDepartmentChange() {
   if (dept === 'research') pipeSelect.value = 'market-intel';
   else if (dept === 'sales') pipeSelect.value = 'email-campaign';
   else pipeSelect.value = 'landing-page';
+  renderTaskToolOptions('modalTaskTools', pipeSelect.value);
 }
 
 async function submitModalTask() {
@@ -7142,42 +7266,20 @@ async function submitModalTask() {
 
   if (!title) return showToast('Please enter a Task Title.');
 
+  // Project-first flow: never silently fabricate a default "Agency Client" project.
   if (!projectId) {
-    try {
-      const pRes = await apiFetch('/api/projects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: `${department.charAt(0).toUpperCase() + department.slice(1)} Operations`,
-          client_name: 'Agency Client',
-          goal: `Default project workspace for ${department} department tasks`,
-          department: department,
-          type: pipeline,
-          pipelines: [pipeline]
-        })
-      });
-      if (pRes.ok) {
-        const pData = await pRes.json();
-        projectId = pData.id;
-        const newProj = {
-          id: pData.id,
-          name: pData.name,
-          client: 'Agency Client',
-          department: department,
-          goal: `Default project workspace for ${department} department tasks`,
-          pipeline,
-          pipelines: [pipeline],
-          stage: 'Draft',
-          progress: 0
-        };
-        if (!Array.isArray(state.projects)) state.projects = [];
-        state.projects.unshift(newProj);
-        state.selectedProjectId = projectId;
-      }
-    } catch (_) {}
+    showToast('Create a project first — tasks live inside a project with its own knowledge base.');
+    closeTaskModal();
+    if (typeof toggleNewProjectDrawer === 'function') toggleNewProjectDrawer();
+    return;
   }
 
-  if (!projectId) return showToast('Please select or create a project first.');
+  // Every task must be linked to at least one tool so the agent can produce real results.
+  const tools_assigned = getCheckedTaskTools('modalTaskTools');
+  if (!tools_assigned.length) {
+    return showToast('Link at least one tool to this task — the agent uses tools to produce real results.');
+  }
+  const assignee_id = document.getElementById('modalTaskAssignee')?.value || null;
 
   try {
     const createRes = await apiFetch(`/api/projects/${projectId}/tasks`, {
@@ -7189,7 +7291,9 @@ async function submitModalTask() {
         description,
         department,
         priority: 'high',
-        knowledge_notes
+        knowledge_notes,
+        assignee_id,
+        tools_assigned
       })
     });
     const createData = await createRes.json().catch(() => ({}));
@@ -7217,6 +7321,13 @@ async function submitModalTask() {
 
     closeTaskModal();
     if (document.getElementById('modalTaskKnowledge')) document.getElementById('modalTaskKnowledge').value = '';
+
+    // Honest gate: without a working AI engine the run will fail, so keep the task as a draft instead.
+    if (!isEngineReady()) {
+      showToast(`Task "${title}" created as draft. Connect an AI engine in Settings → LLM Providers, then run it.`);
+      return;
+    }
+
     showToast(`Launching "${title}"...`);
 
     const runRes = await apiFetch(`/api/tasks/${createData.id}/run`, {
@@ -7514,6 +7625,18 @@ function renderWorkbenchTasks() {
     };
     const stBadge = statusBadges[t.status] || statusBadges.draft;
 
+    // Linked tools for this task (every task should have at least one)
+    let taskTools = [];
+    try {
+      const parsedInput = typeof t.input_json === 'string' ? JSON.parse(t.input_json || '{}') : (t.input_json || {});
+      if (Array.isArray(parsedInput.tools_assigned)) taskTools = parsedInput.tools_assigned;
+    } catch (_) {}
+    const toolsRow = taskTools.length
+      ? `<div class="flex flex-wrap items-center gap-1">` + taskTools.map(slug =>
+          `<span class="text-[9px] px-1.5 py-0.5 rounded bg-teal-500/10 text-teal-700 dark:text-teal-300 font-semibold border border-teal-500/20 mono">🔧 ${escapeHtml(TASK_TOOL_LABELS[slug] || slug)}</span>`
+        ).join('') + `</div>`
+      : `<div class="text-[10px] text-amber-600 dark:text-amber-400 font-semibold">⚠ No tools linked — edit the task and link at least one tool so the agent can produce real results.</div>`;
+
     return `
       <div class="card-subtle p-3 rounded-xl border border-[var(--border)] flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
         <div class="min-w-0 flex-1 space-y-1">
@@ -7529,6 +7652,7 @@ function renderWorkbenchTasks() {
             <span>&bull;</span>
             <span class="capitalize">Priority: ${escapeHtml(t.priority || 'medium')}</span>
           </div>
+          ${toolsRow}
         </div>
         <div class="flex flex-wrap items-center gap-1.5 shrink-0">
           ${t.status !== 'queued' ? `<button type="button" onclick="updateTaskStatus('${t.id}', 'queued')" class="btn-outline px-2 py-1 text-[10px] font-semibold">Queued</button>` : ''}

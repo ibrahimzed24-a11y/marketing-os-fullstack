@@ -399,6 +399,27 @@ app.patch('/api/users/:id', authMiddleware, requireRole('super_admin', 'admin'),
   res.json({ ok: true });
 }));
 
+// Permanently remove a user (e.g. seeded demo accounts). super_admin only.
+app.delete('/api/users/:id', authMiddleware, requireRole('super_admin'), asyncHandler(async (req, res) => {
+  const target = db.prepare('SELECT id, name, email, role FROM users WHERE id=?').get(req.params.id);
+  if (!target) return res.status(404).json({ error: 'User not found' });
+  if (target.id === req.user.id) return res.status(400).json({ error: 'You cannot delete your own account' });
+  if (target.role === 'super_admin') {
+    const admins = db.prepare("SELECT COUNT(*) as c FROM users WHERE role='super_admin'").get()?.c || 0;
+    if (admins <= 1) return res.status(400).json({ error: 'Cannot delete the last super_admin account' });
+  }
+  const ownedProjects = db.prepare('SELECT COUNT(*) as c FROM projects WHERE owner_id=?').get(target.id)?.c || 0;
+  if (ownedProjects > 0) {
+    return res.status(409).json({ error: `This user owns ${ownedProjects} project(s). Reassign or delete those projects first.` });
+  }
+  db.prepare('DELETE FROM project_members WHERE user_id=?').run(target.id);
+  db.prepare('UPDATE tasks SET assignee_id=NULL WHERE assignee_id=?').run(target.id);
+  db.prepare('DELETE FROM users WHERE id=?').run(target.id);
+  db.prepare('INSERT INTO activity (id, project_id, task_id, user_id, action, meta) VALUES (?, NULL, NULL, ?, ?, ?)')
+    .run(uuidv4(), req.user.id, 'user_deleted', JSON.stringify({ deleted_user_id: target.id, deleted_email: target.email }));
+  res.json({ ok: true, deleted: { id: target.id, email: target.email, name: target.name } });
+}));
+
 // =============================================================================
 // PROJECTS & DATA HARNESS (Module 01 & 04)
 // =============================================================================
@@ -1262,7 +1283,7 @@ app.get('/api/agents', authMiddleware, asyncHandler(async (req, res) => {
 }));
 
 app.post('/api/agents/dispatch', authMiddleware, requireRole('super_admin', 'admin', 'manager', 'member'), asyncHandler(async (req, res) => {
-  const { agent_slug, project_id, title, brief, priority = 'normal' } = req.body;
+  const { agent_slug, project_id, title, brief, priority = 'normal', tools_assigned } = req.body;
   if (!agent_slug) return res.status(400).json({ error: 'agent_slug required' });
   if (!project_id) return res.status(400).json({ error: 'project_id required' });
 
@@ -1284,7 +1305,8 @@ app.post('/api/agents/dispatch', authMiddleware, requireRole('super_admin', 'adm
     agent_dept: agent.dept,
     agent_role: agent.role,
     brief: taskBrief,
-    priority
+    priority,
+    tools_assigned: normalizeToolsAssigned(tools_assigned, primaryPipeline)
   };
 
   db.prepare(`
@@ -1728,6 +1750,35 @@ const PIPELINES = {
 
 app.get('/api/pipelines', authMiddleware, (req, res) => res.json({ pipelines: PIPELINES }));
 
+// Default tools each pipeline needs to produce grounded results.
+// Every task must end up linked to at least one tool so agents never run empty-handed.
+const PIPELINE_DEFAULT_TOOLS = {
+  'deep-market-research': ['google_search_console', 'keyword_planner', 'tag_manager', 'seo_engine', 'geo_matrix'],
+  'market-intel': ['web_search'],
+  'lead-research': ['web_search', 'lead_enrichment'],
+  'content-seo': ['web_search', 'seo_engine'],
+  'social-content': ['web_search', 'social_publish'],
+  'ads-creative': ['web_search', 'ads_publish'],
+  'email-campaign': ['web_search', 'email_dispatch'],
+  'offer-campaign': ['web_search', 'email_dispatch'],
+  'proposal-campaign': ['web_search', 'email_dispatch'],
+  'whatsapp-campaign': ['web_search'],
+  'landing-page': ['web_search'],
+  'brand-kit': ['web_search']
+};
+
+function normalizeToolsAssigned(raw, pipeline) {
+  let tools = Array.isArray(raw) ? raw : [];
+  tools = tools
+    .map(t => String(t).trim())
+    .filter(t => /^[a-z0-9_\-]{2,60}$/i.test(t));
+  tools = [...new Set(tools)].slice(0, 20);
+  if (tools.length === 0) {
+    tools = (PIPELINE_DEFAULT_TOOLS[pipeline] || ['web_search']).slice();
+  }
+  return tools;
+}
+
 // Standalone tasks listing and department filtering
 app.get('/api/tasks', authMiddleware, asyncHandler(async (req, res) => {
   const { department, project_id, status } = req.query;
@@ -1788,7 +1839,7 @@ app.post('/api/projects/:id/tasks', authMiddleware, asyncHandler(async (req, res
   if (!proj) return res.status(404).json({ error: 'Project not found' });
   if (!canAccessProject(req.user, req.params.id)) return res.status(403).json({ error: 'No access' });
 
-  let { title, pipeline = 'email-campaign', description = '', assignee_id = null, priority = 'medium', input = {}, department, knowledge_notes = '' } = req.body;
+  let { title, pipeline = 'email-campaign', description = '', assignee_id = null, priority = 'medium', input = {}, department, knowledge_notes = '', tools_assigned } = req.body;
   if (!title) return res.status(400).json({ error: 'title required' });
   if (!PIPELINES[pipeline]) return res.status(400).json({ error: 'Unknown pipeline' });
 
@@ -1799,6 +1850,9 @@ app.post('/api/projects/:id/tasks', authMiddleware, asyncHandler(async (req, res
   } else {
     department = inferDepartmentFromPipeline(pipeline);
   }
+
+  // Every task is linked to at least one tool (explicit selection or pipeline defaults)
+  input = { ...(input && typeof input === 'object' ? input : {}), tools_assigned: normalizeToolsAssigned(tools_assigned || input.tools_assigned, pipeline) };
 
   const id = uuidv4();
   db.prepare('INSERT INTO tasks (id,project_id,title,pipeline,description,assignee_id,created_by,priority,input_json,status,department,knowledge_notes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
@@ -1824,7 +1878,7 @@ app.post('/api/tasks', authMiddleware, asyncHandler(async (req, res) => {
   if (!proj) return res.status(404).json({ error: 'Project not found' });
   if (!canAccessProject(req.user, projectId)) return res.status(403).json({ error: 'No access' });
 
-  let { title, pipeline = 'email-campaign', description = '', assignee_id = null, priority = 'medium', input = {}, department, knowledge_notes = '' } = req.body;
+  let { title, pipeline = 'email-campaign', description = '', assignee_id = null, priority = 'medium', input = {}, department, knowledge_notes = '', tools_assigned } = req.body;
   if (!title) return res.status(400).json({ error: 'title required' });
   if (!PIPELINES[pipeline]) return res.status(400).json({ error: 'Unknown pipeline' });
 
@@ -1835,6 +1889,9 @@ app.post('/api/tasks', authMiddleware, asyncHandler(async (req, res) => {
   } else {
     department = inferDepartmentFromPipeline(pipeline);
   }
+
+  // Every task is linked to at least one tool (explicit selection or pipeline defaults)
+  input = { ...(input && typeof input === 'object' ? input : {}), tools_assigned: normalizeToolsAssigned(tools_assigned || input.tools_assigned, pipeline) };
 
   const id = uuidv4();
   db.prepare('INSERT INTO tasks (id,project_id,title,pipeline,description,assignee_id,created_by,priority,input_json,status,department,knowledge_notes) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
@@ -2855,8 +2912,15 @@ app.get('/api/saved-logins', authMiddleware, asyncHandler(async (req, res) => {
   const sanitized = rows.map(r => {
     const plainPass = safeDecrypt(r.password);
     const plainKey = safeDecrypt(r.api_key);
+    // Honest status: a login without any stored credential can never be "connected",
+    // no matter what the stored status says (legacy seed rows marked everything connected).
+    const hasCredentials = Boolean((plainPass && plainPass.length) || (plainKey && plainKey.length));
+    const effectiveStatus = hasCredentials ? (r.status || 'pending_setup') : 'not_configured';
     return {
       ...r,
+      status: effectiveStatus,
+      stored_status: r.status,
+      has_credentials: hasCredentials,
       password: canReveal ? plainPass : (plainPass ? '••••••••••••' : ''),
       api_key: canReveal ? plainKey : (plainKey ? `${plainKey.slice(0, 6)}••••••••` : null)
     };
@@ -2893,12 +2957,13 @@ app.post('/api/saved-logins', authMiddleware, requireRole('super_admin', 'admin'
   const encPass = encryptSecret(password);
   const encKey = api_key ? encryptSecret(api_key) : null;
 
+  // New logins start as "pending_setup": only a successful live test (POST /:id/test) marks them connected.
   db.prepare(`
     INSERT INTO saved_logins (id, name, slug, category, website_url, username, password, api_key, notes, status, is_active, metadata, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'connected', 1, ?, CURRENT_TIMESTAMP)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending_setup', 1, ?, CURRENT_TIMESTAMP)
   `).run(id, name, slug, category, website_url, username, encPass, encKey, notes, typeof metadata === 'object' ? JSON.stringify(metadata) : metadata);
 
-  res.status(201).json({ id, name, slug, category, website_url, username, status: 'connected' });
+  res.status(201).json({ id, name, slug, category, website_url, username, status: 'pending_setup' });
 }));
 
 app.put('/api/saved-logins/:id', authMiddleware, requireRole('super_admin', 'admin', 'manager'), asyncHandler(async (req, res) => {
@@ -4309,20 +4374,63 @@ app.get('/api/agent-runs', authMiddleware, requireRole('owner', 'super_admin', '
 }));
 
 // 9. Honest Live System Status (used by Header & Settings — NEVER hardcodes fake "Online")
+// The stored admin_llm_configs.status goes stale (e.g. a dead tunnel URL still says "connected"),
+// so connectivity is decided by a LIVE probe of the default provider, cached for 60s per process.
+let llmProbeCache = { key: null, at: 0, result: null };
+async function probeActiveLlm(activeLlm, localWorker) {
+  if (!activeLlm) return { ok: false, error: 'No AI engine configured. Add one in Settings → LLM Providers.' };
+  const viaWorker = Boolean(
+    activeLlm.provider === 'ollama'
+    && localWorker.online
+    && localWorker.ollama_status === 'connected'
+  );
+  if (viaWorker) return { ok: true, via: 'local_worker', latency_ms: null };
+
+  const key = [activeLlm.provider, activeLlm.base_url || '', activeLlm.default_model || '', activeLlm.updated_at || ''].join('|');
+  const now = Date.now();
+  if (llmProbeCache.result && llmProbeCache.key === key && (now - llmProbeCache.at) < 60000) {
+    return llmProbeCache.result;
+  }
+
+  let result;
+  try {
+    const { pingProvider } = require('./llmConfig');
+    const fullCfg = getActiveLLMConfig(db, true); // reveal api key for the probe only
+    result = await pingProvider({
+      provider: activeLlm.provider,
+      baseUrl: fullCfg?.base_url || '',
+      apiKey: fullCfg?.api_key || '',
+      timeoutMs: 3500
+    });
+    result = {
+      ok: Boolean(result?.ok),
+      error: result?.ok ? null : (result?.error || 'Provider unreachable'),
+      latency_ms: result?.latency_ms ?? null,
+      via: 'direct'
+    };
+  } catch (err) {
+    result = { ok: false, error: err.message || 'Probe failed', latency_ms: null, via: 'direct' };
+  }
+  llmProbeCache = { key, at: now, result };
+  return result;
+}
+
 app.get('/api/system/status', authMiddleware, asyncHandler(async (req, res) => {
-  const activeLlm = db.prepare('SELECT provider, display_name, default_model, status, last_tested FROM admin_llm_configs WHERE is_default = 1 LIMIT 1').get()
-    || db.prepare('SELECT provider, display_name, default_model, status, last_tested FROM admin_llm_configs LIMIT 1').get();
+  const activeLlm = db.prepare('SELECT provider, display_name, default_model, status, last_tested, base_url, updated_at FROM admin_llm_configs WHERE is_default = 1 LIMIT 1').get()
+    || db.prepare('SELECT provider, display_name, default_model, status, last_tested, base_url, updated_at FROM admin_llm_configs LIMIT 1').get();
   const tableCount = db.prepare("SELECT COUNT(*) as c FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").get()?.c || 0;
   const wd = getWatchdogStatus();
   const tursoStatus = turso.getStatus();
   const connectedIntegrations = db.prepare("SELECT COUNT(*) as c FROM external_integrations WHERE status = 'connected'").get()?.c || 0;
   const localWorker = getLiveWorkerStatus();
-  const directConnected = activeLlm?.status === 'connected' || activeLlm?.status === 'online';
   const viaLocalWorker = Boolean(
     activeLlm?.provider === 'ollama'
     && localWorker.online
     && localWorker.ollama_status === 'connected'
   );
+
+  const probe = await probeActiveLlm(activeLlm, localWorker);
+  const liveConnected = probe.ok;
 
   res.json({
     ok: true,
@@ -4330,9 +4438,12 @@ app.get('/api/system/status', authMiddleware, asyncHandler(async (req, res) => {
       provider: activeLlm?.provider || null,
       display_name: activeLlm?.display_name || 'Not Configured',
       model: activeLlm?.default_model || null,
-      status: viaLocalWorker ? 'connected_via_worker' : (activeLlm?.status || 'untested'),
-      connected: directConnected || viaLocalWorker,
-      via_local_worker: viaLocalWorker
+      status: liveConnected ? (viaLocalWorker ? 'connected_via_worker' : 'connected') : 'not_connected',
+      stored_status: activeLlm?.status || null,
+      last_tested: activeLlm?.last_tested || null,
+      connected: liveConnected,
+      via_local_worker: viaLocalWorker,
+      probe: { ok: probe.ok, error: probe.error || null, latency_ms: probe.latency_ms ?? null, checked_at: new Date().toISOString() }
     },
     local_worker: localWorker,
     watchdog: {
