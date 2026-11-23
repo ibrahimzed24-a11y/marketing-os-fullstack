@@ -687,6 +687,12 @@ function loadState() {
       if (parsed && Array.isArray(parsed.projects)) {
         const hasLegacyDemo = parsed.projects.some(p => p.id === '019f11bf-10b0-4667-8a2a-6637d902c044' || p.name === 'Valioz Health sales');
         if (!hasLegacyDemo && parsed.schemaVersion === 2) {
+          // Never restore server-owned collections from cache: deleted users/logins/
+          // projects/tasks must not resurrect from a stale localStorage snapshot.
+          parsed.savedLogins = [];
+          parsed.users = [];
+          parsed.projects = [];
+          parsed.tasks = [];
           return parsed;
         }
       }
@@ -1070,11 +1076,10 @@ async function syncFromBackend() {
       const resLogins = await apiFetch('/api/saved-logins?reveal=' + state.loginsRevealed);
       if (resLogins.ok) {
         const data = await resLogins.json();
-        if (data.logins && data.logins.length > 0) {
-          state.savedLogins = data.logins;
-          const navBadge = document.getElementById('navLoginsCountBadge');
-          if (navBadge) navBadge.textContent = String(data.total || data.logins.length);
-        }
+        // Always trust the backend, even when empty: stale cached logins must never render.
+        state.savedLogins = Array.isArray(data.logins) ? data.logins : [];
+        const navBadge = document.getElementById('navLoginsCountBadge');
+        if (navBadge) navBadge.textContent = String(data.total || state.savedLogins.length);
       }
     } else {
       state.savedLogins = [];
