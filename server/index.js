@@ -309,17 +309,33 @@ app.post('/api/auth/register', asyncHandler(async (req, res) => {
 
   const cleanName = String(name).trim();
   const cleanEmail = email.trim().toLowerCase();
-  const existing = db.prepare('SELECT id FROM users WHERE email=?').get(cleanEmail);
-  if (existing) return res.status(400).json({ error: 'An account with this email already exists. Try signing in.' });
-
-  const count = db.prepare('SELECT COUNT(*) as c FROM users').get().c;
 
   // One-time workspace bootstrap: when the owner sets BOOTSTRAP_ADMIN_EMAIL and
   // BOOTSTRAP_ADMIN_KEY in the deployment environment, the matching registration
-  // is promoted to an active super_admin. Remove both env vars after use.
+  // becomes an active super_admin. If the account already exists (e.g. locked out
+  // by a stale password hash), its password is reset to the form password and it
+  // is re-activated as super_admin. Remove both env vars after use.
   const bootEmail = (process.env.BOOTSTRAP_ADMIN_EMAIL || '').trim().toLowerCase();
   const bootKey = (process.env.BOOTSTRAP_ADMIN_KEY || '').trim();
   const isBootstrap = bootEmail && bootKey && cleanEmail === bootEmail && String(bootstrapKey || '') === bootKey;
+
+  const existing = db.prepare('SELECT id, role, status FROM users WHERE email=?').get(cleanEmail);
+  if (existing) {
+    if (!isBootstrap) {
+      return res.status(400).json({ error: 'An account with this email already exists. Try signing in.' });
+    }
+    const newHash = await hashPassword(String(password));
+    const oldRow = db.prepare('SELECT password_hash, role, status FROM users WHERE id=?').get(existing.id);
+    await runCritical(
+      'UPDATE users SET password_hash=?, role=?, status=? WHERE id=?',
+      [newHash, 'super_admin', 'active', existing.id],
+      (lp) => lp('UPDATE users SET password_hash=?, role=?, status=? WHERE id=?').run(oldRow.password_hash, oldRow.role, oldRow.status, existing.id)
+    );
+    const user = { id: existing.id, name: cleanName, email: cleanEmail, role: 'super_admin', status: 'active' };
+    return res.json({ user, token: signToken(user), bootstrap_reset: true });
+  }
+
+  const count = db.prepare('SELECT COUNT(*) as c FROM users').get().c;
 
   let finalRole = 'member';
   let finalStatus = 'pending';
@@ -332,7 +348,8 @@ app.post('/api/auth/register', asyncHandler(async (req, res) => {
   const id = uuidv4();
   await runCritical(
     'INSERT INTO users (id,name,email,password_hash,role,status) VALUES (?,?,?,?,?,?)',
-    [id, cleanName, cleanEmail, hash, finalRole, finalStatus]
+    [id, cleanName, cleanEmail, hash, finalRole, finalStatus],
+    null
   );
 
   const user = { id, name: cleanName, email: cleanEmail, role: finalRole, status: finalStatus };
