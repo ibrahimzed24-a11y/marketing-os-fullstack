@@ -984,6 +984,39 @@ try {
     const { autoSeedIfEmpty } = require('./autoSeed');
     autoSeedIfEmpty(db);
 
+    // ---- Browser research + artifact schema (browsing agent + deliverable artifacts) ----
+    try {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS browser_sessions (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL,
+          agent TEXT DEFAULT 'browser-researcher',
+          url TEXT NOT NULL,
+          title TEXT,
+          notes TEXT DEFAULT '',
+          dom_summary TEXT,
+          content TEXT,
+          status TEXT DEFAULT 'recorded',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_browser_sessions_project ON browser_sessions(project_id, created_at DESC);
+        CREATE TABLE IF NOT EXISTS artifacts (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL,
+          task_id TEXT,
+          type TEXT DEFAULT 'page_screenshot',
+          filename TEXT NOT NULL,
+          file_path TEXT NOT NULL,
+          size_bytes INTEGER DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_artifacts_project ON artifacts(project_id, created_at DESC);
+      `);
+    } catch (schemaErr) {
+      console.error(`[WARN] Browser/artifact schema initialization warning: ${schemaErr.message}`);
+    }
+
     // Ensure Milestone 1 & test operational accounts exist and are seeded in development/test
     try {
       const isProd = process.env.NODE_ENV === 'production' || process.env.VERCEL === '1';

@@ -1471,19 +1471,25 @@ app.post('/api/agents/dispatch', authMiddleware, requireRole('super_admin', 'adm
   }
 
   db.prepare(`
+
+
+
     UPDATE tasks
     SET status='in_review', output_json=?, report_md=?, updated_at=CURRENT_TIMESTAMP
     WHERE id=?
   `).run(
+
     typeof finalOutput === 'string' ? finalOutput : JSON.stringify(finalOutput),
     finalReport,
     taskId
   );
 
+  // Deliverable artifact persisted to uploads/artifacts/<projectId>/<taskId>_<pipeline>.json
   try {
-    db.prepare('INSERT INTO activity (id, project_id, user_id, action, meta) VALUES (?, ?, ?, ?, ?)')
-      .run(uuidv4(), project_id, req.user.id, 'agent_dispatched', JSON.stringify({ agent: agent.slug, agent_name: agent.name, title: taskTitle }));
-  } catch (e) {}
+    saveDeliverableArtifact(db, project.id, taskId, 'deliverable', finalOutput, `deliverable_${taskId}_${task.pipeline}.json`);
+  } catch (artErr) {
+    console.warn(`[deliverable-artifact] Failed to persist deliverable artifact: ${artErr.message}`);
+  }
 
   const completedTask = db.prepare('SELECT * FROM tasks WHERE id=?').get(taskId);
   res.json({
@@ -1602,6 +1608,13 @@ app.post('/api/seo/execute', authMiddleware, asyncHandler(async (req, res) => {
     finalReport,
     taskId
   );
+
+  // Deliverable artifact persisted to uploads/artifacts/<projectId>/<taskId>_<pipeline>.json
+  try {
+    saveDeliverableArtifact(db, project.id, taskId, 'deliverable', finalOutput, `deliverable_${taskId}_${task.pipeline}.json`);
+  } catch (artErr) {
+    console.warn(`[deliverable-artifact] Failed to persist deliverable artifact: ${artErr.message}`);
+  }
 
   const completedTask = db.prepare('SELECT * FROM tasks WHERE id=?').get(taskId);
   res.json({
@@ -1809,6 +1822,13 @@ app.post('/api/market-research', authMiddleware, asyncHandler(async (req, res) =
     // 4. Record Activity
     db.prepare('INSERT INTO activity (id, project_id, task_id, user_id, action, meta) VALUES (?, ?, ?, ?, ?, ?)')
       .run(uuidv4(), project_id, taskId, req.user.id, 'market_research_executed', JSON.stringify({ business_idea, tools_assigned }));
+
+    // 5. Deliverable artifact persisted to uploads/artifacts/<projectId>/<taskId>_market_report.json
+    try {
+      saveDeliverableArtifact(db, project_id, taskId, 'market_report', outputJson, `market_report_${taskId}.json`);
+    } catch (artErr) {
+      console.warn(`[deliverable-artifact] Failed to persist market report artifact: ${artErr.message}`);
+    }
   })();
 
   const savedReport = db.prepare('SELECT * FROM market_research_reports WHERE id=?').get(reportId);

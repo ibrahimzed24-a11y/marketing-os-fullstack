@@ -29,4 +29,24 @@ const { seedLogins } = require('./seedLogins');
   seedLogins(db);
 
   console.log('✅ Clean accounts seeded successfully.');
+
+  // --- rebuild the Helm knowledge base so a full seed leaves KB content intact ---
+  // NOTE: the seed wipes projects, so ensure the helm system project row exists first
+  // (autoSeedProjectHarness scopes KB docs to proj.id === 'helm' and FKs to projects(id)).
+  try {
+    const projRow = db.prepare("SELECT id FROM projects WHERE id = ?").get('helm');
+    if (!projRow) {
+      db.prepare(
+        `INSERT INTO projects (id, name, client_name, goal, type, status, department, knowledge_notes, pipelines, deliverables)
+         VALUES (?, ?, ?, ?, 'helm_system', 'delivered', 'coordination', '', '[]', '[]')
+         ON CONFLICT(id) DO UPDATE SET name=excluded.name, status=excluded.status`
+      ).run('helm', 'Helm System Knowledge Base', 'Helm Operations', 'Platform-grade marketing operations kernel');
+    }
+    // eslint-disable-next-line import/no-unresolved
+    const { autoSeedProjectHarness } = require('./rag');
+    autoSeedProjectHarness();
+    console.log('✅ Helm knowledge base re-seeded.');
+  } catch (seedErr) {
+    console.warn(`⚠️  KB re-seed skipped: ${seedErr.message}`);
+  }
 })();

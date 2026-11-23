@@ -40,6 +40,16 @@ function normalizeCategory(category) {
   return 'market_research';
 }
 
+// Deterministic category for a knowledge-base markdown file, from its filename.
+function kbCategoryFor(file) {
+  const name = String(file).toLowerCase();
+  if (/offer|pricing|framework/i.test(name)) return 'offer_frameworks';
+  if (/brand|guideline|voice|tone|deliverable/i.test(name)) return 'brand_guidelines';
+  if (/icp|lead|persona|customer|profile/i.test(name)) return 'customer_profiles';
+  if (/research|playbook|intelligence|market|geo|competitor|teardown/i.test(name)) return 'market_research';
+  return 'market_research';
+}
+
 function tokenize(text) {
   if (!text || typeof text !== 'string') return [];
   return text
@@ -418,8 +428,9 @@ function getProjectKnowledgeSummary(projectId, options = {}) {
 
 // Auto-seed existing harness files and research files for projects
 function autoSeedProjectHarness() {
+  let projects = [];
   try {
-    const projects = db.prepare('SELECT id, name FROM projects').all();
+    projects = db.prepare('SELECT id, name FROM projects').all();
     const uploadsDir = path.join(__dirname, '../uploads');
     if (!fs.existsSync(uploadsDir)) return;
 
@@ -485,7 +496,7 @@ function autoSeedProjectHarness() {
 - **Core Mission**: "Better care deserves to be found."
 - **Brand Colors**: Teal Accent (#00a9a4), Deep Navy (#122f47), Card Mint (#f1f8f7)
 - **Voice & Tone**: High-integrity, evidence-grounded, empathetic to dental practice owners.
-- **Rules of Engagement**:
+- **Rules of Engagement:**
   - Never fabricate review metrics, rankings, or patient figures.
   - Side-by-side logo lockup: [VALIOZ Health] × [Partner Clinic Logo].
   - Emphasize clinic ownership vs renting SaaS templates.
@@ -495,6 +506,27 @@ function autoSeedProjectHarness() {
     }
   } catch (err) {
     console.warn(`[WARN] RAG auto-seed note: ${err.message}`);
+  }
+
+  // ---- Knowledge Base seed documents (valioz sales + research playbooks, brand, quality) ----
+  // Scoped to the helm system project (proj.id === 'helm'); use the real row id so the
+  // FK to projects(id) passes — the seed wipes and re-seeds projects with their ids.
+  try {
+    const kgDir = path.join(__dirname, 'kg');
+    if (fs.existsSync(kgDir)) {
+      for (const proj of projects) {
+        if (proj.id !== 'helm') continue; // helm-level knowledge only
+        for (const file of fs.readdirSync(kgDir).filter(f => f.toLowerCase().endsWith('.md'))) {
+          const content = fs.readFileSync(path.join(kgDir, file), 'utf8');
+          if (content.length > 10) {
+            const category = kbCategoryFor(file);
+            ingestDocument(proj.id, file, content, category, { scope: 'helm' });
+          }
+        }
+      }
+    }
+  } catch (seedErr) {
+    console.warn(`[WARN] RAG knowledge-base seed note: ${seedErr.message}`);
   }
 }
 
